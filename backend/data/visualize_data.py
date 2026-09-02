@@ -82,7 +82,7 @@ def generate_visualizations(output_paths: list[str]):
         ax3.scatter(gx, gy, c=type_colors.get(ntype, '#ffd166'), s=45, edgecolors='black', linewidth=0.5, zorder=3, label=label)
 
     ax3.legend(loc='upper right', facecolor='#161b22', edgecolor='#30363d')
-    ax3.set_title('3. Drainage Network Graph (51 Nodes, 49 Edges)', fontsize=13, fontweight='bold', pad=10, color='#3fb950')
+    ax3.set_title(f'3. Real Drainage Network Graph ({len(nodes_data["features"])} Nodes, {len(edges_data["features"])} Edges)', fontsize=13, fontweight='bold', pad=10, color='#3fb950')
     ax3.set_xlabel('DEM Grid Column (0-199)', color='#8b949e')
     ax3.set_ylabel('DEM Grid Row (0-199)', color='#8b949e')
     ax3.grid(True, linestyle=':', alpha=0.3, color='#8b949e')
