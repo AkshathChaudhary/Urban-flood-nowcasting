@@ -1,6 +1,7 @@
 import json
 import math
 from pathlib import Path
+import numpy as np
 
 # Project Grid Parameters (From developer_assignments.md)
 GRID_ROWS = 200
@@ -49,6 +50,16 @@ def clean_and_build_drainage_network(raw_path: str, output_dir: str):
     node_counter = 1
     edge_counter = 1
 
+    # Load DEM elevation grid if available
+    dem_grid = None
+    dem_file = Path("backend/data/dem/elevation_grid.npy")
+    if dem_file.exists():
+        try:
+            dem_grid = np.load(dem_file)
+            print("Loaded elevation_grid.npy for precise drainage node elevations.")
+        except Exception:
+            pass
+
     def get_or_create_node(coord, node_type="junction"):
         nonlocal node_counter
         coord_key = (round(coord[0], 6), round(coord[1], 6))
@@ -57,10 +68,16 @@ def clean_and_build_drainage_network(raw_path: str, output_dir: str):
             lon, lat = coord_key[0], coord_key[1]
             grid_row, grid_col = latlon_to_grid(lat, lon)
             
+            # Lookup exact elevation from DEM grid or fallback
+            if dem_grid is not None:
+                elevation_m = round(float(dem_grid[grid_row, grid_col]), 2)
+            else:
+                elevation_m = round(8.0 - (node_counter * 0.05) % 4.0, 2)
+
             nodes_dict[coord_key] = {
                 "id": node_id,
                 "type": node_type,
-                "elevation_m": round(8.0 - (node_counter * 0.05) % 4.0, 2),  # Realistic elevation profile (4-8m)
+                "elevation_m": elevation_m,
                 "capacity_m3s": 0.5,                                         # Standard 0.5 m³/s inlet capacity
                 "grid_row": grid_row,
                 "grid_col": grid_col,
