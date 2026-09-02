@@ -1,0 +1,923 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-001",
+        "type": "inlet",
+        "elevation_m": 7.95,
+        "capacity_m3s": 0.5,
+        "grid_row": 199,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84948,
+          19.079914
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-002",
+        "type": "junction",
+        "elevation_m": 7.9,
+        "capacity_m3s": 0.5,
+        "grid_row": 199,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849412,
+          19.079675
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-003",
+        "type": "junction",
+        "elevation_m": 7.85,
+        "capacity_m3s": 0.5,
+        "grid_row": 199,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849233,
+          19.079308
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-004",
+        "type": "junction",
+        "elevation_m": 7.8,
+        "capacity_m3s": 0.5,
+        "grid_row": 199,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84883,
+          19.078345
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-005",
+        "type": "junction",
+        "elevation_m": 7.75,
+        "capacity_m3s": 0.5,
+        "grid_row": 193,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.848467,
+          19.077456
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-006",
+        "type": "junction",
+        "elevation_m": 7.7,
+        "capacity_m3s": 0.5,
+        "grid_row": 186,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84791,
+          19.07684
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-007",
+        "type": "junction",
+        "elevation_m": 7.65,
+        "capacity_m3s": 0.5,
+        "grid_row": 184,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.847566,
+          19.076651
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-008",
+        "type": "junction",
+        "elevation_m": 7.6,
+        "capacity_m3s": 0.5,
+        "grid_row": 179,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.847474,
+          19.076246
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-009",
+        "type": "junction",
+        "elevation_m": 7.55,
+        "capacity_m3s": 0.5,
+        "grid_row": 162,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.847889,
+          19.074684
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-010",
+        "type": "junction",
+        "elevation_m": 7.5,
+        "capacity_m3s": 0.5,
+        "grid_row": 155,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.848161,
+          19.074062
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-011",
+        "type": "junction",
+        "elevation_m": 7.45,
+        "capacity_m3s": 0.5,
+        "grid_row": 152,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.848447,
+          19.073765
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-012",
+        "type": "junction",
+        "elevation_m": 7.4,
+        "capacity_m3s": 0.5,
+        "grid_row": 145,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849332,
+          19.073162
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-013",
+        "type": "junction",
+        "elevation_m": 7.35,
+        "capacity_m3s": 0.5,
+        "grid_row": 140,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84975,
+          19.072648
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-014",
+        "type": "junction",
+        "elevation_m": 7.3,
+        "capacity_m3s": 0.5,
+        "grid_row": 98,
+        "grid_col": 17
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851655,
+          19.06893
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-015",
+        "type": "junction",
+        "elevation_m": 7.25,
+        "capacity_m3s": 0.5,
+        "grid_row": 88,
+        "grid_col": 22
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852148,
+          19.067994
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-016",
+        "type": "junction",
+        "elevation_m": 7.2,
+        "capacity_m3s": 0.5,
+        "grid_row": 84,
+        "grid_col": 24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852331,
+          19.067646
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-017",
+        "type": "junction",
+        "elevation_m": 7.15,
+        "capacity_m3s": 0.5,
+        "grid_row": 83,
+        "grid_col": 24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852361,
+          19.067583
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-018",
+        "type": "junction",
+        "elevation_m": 7.1,
+        "capacity_m3s": 0.5,
+        "grid_row": 83,
+        "grid_col": 24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852367,
+          19.06757
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-019",
+        "type": "junction",
+        "elevation_m": 7.05,
+        "capacity_m3s": 0.5,
+        "grid_row": 68,
+        "grid_col": 32
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853076,
+          19.066222
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-020",
+        "type": "junction",
+        "elevation_m": 7.0,
+        "capacity_m3s": 0.5,
+        "grid_row": 59,
+        "grid_col": 43
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854135,
+          19.065355
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-021",
+        "type": "junction",
+        "elevation_m": 6.95,
+        "capacity_m3s": 0.5,
+        "grid_row": 0,
+        "grid_col": 79
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.857573,
+          19.059502
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-022",
+        "type": "junction",
+        "elevation_m": 6.9,
+        "capacity_m3s": 0.5,
+        "grid_row": 0,
+        "grid_col": 79
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.857595,
+          19.058883
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-023",
+        "type": "junction",
+        "elevation_m": 6.85,
+        "capacity_m3s": 0.5,
+        "grid_row": 0,
+        "grid_col": 75
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.857219,
+          19.058254
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-024",
+        "type": "outfall",
+        "elevation_m": 6.8,
+        "capacity_m3s": 0.5,
+        "grid_row": 0,
+        "grid_col": 74
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.857101,
+          19.057311
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-025",
+        "type": "inlet",
+        "elevation_m": 6.75,
+        "capacity_m3s": 0.5,
+        "grid_row": 99,
+        "grid_col": 139
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863276,
+          19.068977
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-026",
+        "type": "junction",
+        "elevation_m": 6.7,
+        "capacity_m3s": 0.5,
+        "grid_row": 100,
+        "grid_col": 142
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863566,
+          19.069081
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-027",
+        "type": "junction",
+        "elevation_m": 6.65,
+        "capacity_m3s": 0.5,
+        "grid_row": 101,
+        "grid_col": 143
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863642,
+          19.069212
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-028",
+        "type": "junction",
+        "elevation_m": 6.6,
+        "capacity_m3s": 0.5,
+        "grid_row": 106,
+        "grid_col": 144
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863764,
+          19.069629
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-029",
+        "type": "junction",
+        "elevation_m": 6.55,
+        "capacity_m3s": 0.5,
+        "grid_row": 108,
+        "grid_col": 149
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.864171,
+          19.069765
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-030",
+        "type": "junction",
+        "elevation_m": 6.5,
+        "capacity_m3s": 0.5,
+        "grid_row": 112,
+        "grid_col": 154
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.864682,
+          19.070199
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-031",
+        "type": "junction",
+        "elevation_m": 6.45,
+        "capacity_m3s": 0.5,
+        "grid_row": 119,
+        "grid_col": 167
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.865917,
+          19.070807
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-032",
+        "type": "junction",
+        "elevation_m": 6.4,
+        "capacity_m3s": 0.5,
+        "grid_row": 125,
+        "grid_col": 186
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867752,
+          19.071304
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-033",
+        "type": "outfall",
+        "elevation_m": 6.35,
+        "capacity_m3s": 0.5,
+        "grid_row": 124,
+        "grid_col": 188
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867953,
+          19.071238
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-034",
+        "type": "inlet",
+        "elevation_m": 6.3,
+        "capacity_m3s": 0.5,
+        "grid_row": 152,
+        "grid_col": 26
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85256,
+          19.073735
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-035",
+        "type": "junction",
+        "elevation_m": 6.25,
+        "capacity_m3s": 0.5,
+        "grid_row": 151,
+        "grid_col": 24
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852315,
+          19.073677
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-036",
+        "type": "junction",
+        "elevation_m": 6.2,
+        "capacity_m3s": 0.5,
+        "grid_row": 150,
+        "grid_col": 20
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851944,
+          19.073608
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-037",
+        "type": "junction",
+        "elevation_m": 6.15,
+        "capacity_m3s": 0.5,
+        "grid_row": 150,
+        "grid_col": 17
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851633,
+          19.073572
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-038",
+        "type": "junction",
+        "elevation_m": 6.1,
+        "capacity_m3s": 0.5,
+        "grid_row": 150,
+        "grid_col": 13
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851327,
+          19.073555
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-039",
+        "type": "junction",
+        "elevation_m": 6.05,
+        "capacity_m3s": 0.5,
+        "grid_row": 150,
+        "grid_col": 5
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850529,
+          19.073606
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-040",
+        "type": "junction",
+        "elevation_m": 6.0,
+        "capacity_m3s": 0.5,
+        "grid_row": 152,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84972,
+          19.073759
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-041",
+        "type": "junction",
+        "elevation_m": 5.95,
+        "capacity_m3s": 0.5,
+        "grid_row": 152,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849656,
+          19.073757
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-042",
+        "type": "junction",
+        "elevation_m": 5.9,
+        "capacity_m3s": 0.5,
+        "grid_row": 151,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849609,
+          19.073724
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-043",
+        "type": "junction",
+        "elevation_m": 5.85,
+        "capacity_m3s": 0.5,
+        "grid_row": 151,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849585,
+          19.073677
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-044",
+        "type": "junction",
+        "elevation_m": 5.8,
+        "capacity_m3s": 0.5,
+        "grid_row": 150,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849588,
+          19.073598
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-045",
+        "type": "junction",
+        "elevation_m": 5.75,
+        "capacity_m3s": 0.5,
+        "grid_row": 148,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849609,
+          19.073391
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-046",
+        "type": "junction",
+        "elevation_m": 5.7,
+        "capacity_m3s": 0.5,
+        "grid_row": 147,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849619,
+          19.07329
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-047",
+        "type": "junction",
+        "elevation_m": 5.65,
+        "capacity_m3s": 0.5,
+        "grid_row": 146,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.84963,
+          19.073196
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-048",
+        "type": "junction",
+        "elevation_m": 5.6,
+        "capacity_m3s": 0.5,
+        "grid_row": 143,
+        "grid_col": 0
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849696,
+          19.072954
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-049",
+        "type": "junction",
+        "elevation_m": 5.55,
+        "capacity_m3s": 0.5,
+        "grid_row": 120,
+        "grid_col": 194
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86847,
+          19.070928
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-050",
+        "type": "junction",
+        "elevation_m": 5.5,
+        "capacity_m3s": 0.5,
+        "grid_row": 133,
+        "grid_col": 199
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.870633,
+          19.072068
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DN-051",
+        "type": "outfall",
+        "elevation_m": 5.45,
+        "capacity_m3s": 0.5,
+        "grid_row": 135,
+        "grid_col": 199
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.871402,
+          19.072275
+        ]
+      }
+    }
+  ]
+}

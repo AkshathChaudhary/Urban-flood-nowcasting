@@ -1,0 +1,1279 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-001",
+        "from_node": "DN-001",
+        "to_node": "DN-002",
+        "length_m": 27.42,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8494795,
+            19.0799136
+          ],
+          [
+            72.8494124,
+            19.0796753
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-002",
+        "from_node": "DN-002",
+        "to_node": "DN-003",
+        "length_m": 45.03,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8494124,
+            19.0796753
+          ],
+          [
+            72.8492327,
+            19.0793077
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-003",
+        "from_node": "DN-003",
+        "to_node": "DN-004",
+        "length_m": 115.14,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8492327,
+            19.0793077
+          ],
+          [
+            72.8488304,
+            19.0783445
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-004",
+        "from_node": "DN-004",
+        "to_node": "DN-005",
+        "length_m": 105.93,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8488304,
+            19.0783445
+          ],
+          [
+            72.8484673,
+            19.0774558
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-005",
+        "from_node": "DN-005",
+        "to_node": "DN-006",
+        "length_m": 90.09,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8484673,
+            19.0774558
+          ],
+          [
+            72.8479096,
+            19.0768405
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-006",
+        "from_node": "DN-006",
+        "to_node": "DN-007",
+        "length_m": 41.77,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8479096,
+            19.0768405
+          ],
+          [
+            72.8475663,
+            19.0766512
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-007",
+        "from_node": "DN-007",
+        "to_node": "DN-008",
+        "length_m": 46.14,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8475663,
+            19.0766512
+          ],
+          [
+            72.8474735,
+            19.0762456
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-008",
+        "from_node": "DN-008",
+        "to_node": "DN-009",
+        "length_m": 179.02,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8474735,
+            19.0762456
+          ],
+          [
+            72.8478888,
+            19.0746842
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-009",
+        "from_node": "DN-009",
+        "to_node": "DN-010",
+        "length_m": 74.83,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8478888,
+            19.0746842
+          ],
+          [
+            72.8481608,
+            19.0740623
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-010",
+        "from_node": "DN-010",
+        "to_node": "DN-011",
+        "length_m": 44.7,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8481608,
+            19.0740623
+          ],
+          [
+            72.848447,
+            19.0737649
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-011",
+        "from_node": "DN-011",
+        "to_node": "DN-012",
+        "length_m": 114.65,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.848447,
+            19.0737649
+          ],
+          [
+            72.8493316,
+            19.0731615
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-012",
+        "from_node": "DN-012",
+        "to_node": "DN-013",
+        "length_m": 72.06,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8493316,
+            19.0731615
+          ],
+          [
+            72.8497501,
+            19.0726481
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-013",
+        "from_node": "DN-013",
+        "to_node": "DN-014",
+        "length_m": 459.38,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8497501,
+            19.0726481
+          ],
+          [
+            72.8516551,
+            19.0689298
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-014",
+        "from_node": "DN-014",
+        "to_node": "DN-015",
+        "length_m": 116.27,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8516551,
+            19.0689298
+          ],
+          [
+            72.852148,
+            19.0679937
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-015",
+        "from_node": "DN-015",
+        "to_node": "DN-016",
+        "length_m": 43.14,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.852148,
+            19.0679937
+          ],
+          [
+            72.8523309,
+            19.0676464
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-016",
+        "from_node": "DN-016",
+        "to_node": "DN-017",
+        "length_m": 7.75,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8523309,
+            19.0676464
+          ],
+          [
+            72.852361,
+            19.0675828
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-017",
+        "from_node": "DN-017",
+        "to_node": "DN-018",
+        "length_m": 1.55,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.852361,
+            19.0675828
+          ],
+          [
+            72.8523668,
+            19.06757
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-018",
+        "from_node": "DN-018",
+        "to_node": "DN-019",
+        "length_m": 167.34,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8523668,
+            19.06757
+          ],
+          [
+            72.8530759,
+            19.0662225
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-019",
+        "from_node": "DN-019",
+        "to_node": "DN-020",
+        "length_m": 147.28,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8530759,
+            19.0662225
+          ],
+          [
+            72.8541352,
+            19.0653553
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-020",
+        "from_node": "DN-020",
+        "to_node": "DN-021",
+        "length_m": 744.46,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8541352,
+            19.0653553
+          ],
+          [
+            72.857573,
+            19.0595016
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-021",
+        "from_node": "DN-021",
+        "to_node": "DN-022",
+        "length_m": 68.82,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.857573,
+            19.0595016
+          ],
+          [
+            72.8575945,
+            19.058883
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-022",
+        "from_node": "DN-022",
+        "to_node": "DN-023",
+        "length_m": 80.28,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8575945,
+            19.058883
+          ],
+          [
+            72.857219,
+            19.0582543
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-023",
+        "from_node": "DN-023",
+        "to_node": "DN-024",
+        "length_m": 105.6,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.857219,
+            19.0582543
+          ],
+          [
+            72.857101,
+            19.0573112
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-024",
+        "from_node": "DN-025",
+        "to_node": "DN-026",
+        "length_m": 32.53,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8632762,
+            19.0689775
+          ],
+          [
+            72.8635659,
+            19.0690806
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-025",
+        "from_node": "DN-026",
+        "to_node": "DN-027",
+        "length_m": 16.71,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8635659,
+            19.0690806
+          ],
+          [
+            72.8636423,
+            19.0692124
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-026",
+        "from_node": "DN-027",
+        "to_node": "DN-028",
+        "length_m": 48.05,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8636423,
+            19.0692124
+          ],
+          [
+            72.8637639,
+            19.069629
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-027",
+        "from_node": "DN-028",
+        "to_node": "DN-029",
+        "length_m": 45.43,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8637639,
+            19.069629
+          ],
+          [
+            72.8641714,
+            19.0697654
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-028",
+        "from_node": "DN-029",
+        "to_node": "DN-030",
+        "length_m": 72.15,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8641714,
+            19.0697654
+          ],
+          [
+            72.8646817,
+            19.0701994
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-029",
+        "from_node": "DN-030",
+        "to_node": "DN-031",
+        "length_m": 146.32,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8646817,
+            19.0701994
+          ],
+          [
+            72.8659166,
+            19.0708071
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-030",
+        "from_node": "DN-031",
+        "to_node": "DN-032",
+        "length_m": 200.66,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8659166,
+            19.0708071
+          ],
+          [
+            72.8677522,
+            19.0713039
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-031",
+        "from_node": "DN-032",
+        "to_node": "DN-033",
+        "length_m": 22.36,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8677522,
+            19.0713039
+          ],
+          [
+            72.8679533,
+            19.0712381
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-032",
+        "from_node": "DN-034",
+        "to_node": "DN-035",
+        "length_m": 26.57,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8525604,
+            19.0737352
+          ],
+          [
+            72.8523152,
+            19.073677
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-033",
+        "from_node": "DN-035",
+        "to_node": "DN-036",
+        "length_m": 39.73,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8523152,
+            19.073677
+          ],
+          [
+            72.8519443,
+            19.0736077
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-034",
+        "from_node": "DN-036",
+        "to_node": "DN-037",
+        "length_m": 32.99,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8519443,
+            19.0736077
+          ],
+          [
+            72.8516326,
+            19.0735721
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-035",
+        "from_node": "DN-037",
+        "to_node": "DN-038",
+        "length_m": 32.16,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8516326,
+            19.0735721
+          ],
+          [
+            72.8513271,
+            19.073555
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-036",
+        "from_node": "DN-038",
+        "to_node": "DN-039",
+        "length_m": 84.07,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8513271,
+            19.073555
+          ],
+          [
+            72.8505289,
+            19.0736059
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-037",
+        "from_node": "DN-039",
+        "to_node": "DN-040",
+        "length_m": 86.74,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8505289,
+            19.0736059
+          ],
+          [
+            72.8497195,
+            19.0737586
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-038",
+        "from_node": "DN-040",
+        "to_node": "DN-041",
+        "length_m": 6.63,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8497195,
+            19.0737586
+          ],
+          [
+            72.8496564,
+            19.0737573
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-039",
+        "from_node": "DN-041",
+        "to_node": "DN-042",
+        "length_m": 6.16,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496564,
+            19.0737573
+          ],
+          [
+            72.8496094,
+            19.0737242
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-040",
+        "from_node": "DN-042",
+        "to_node": "DN-043",
+        "length_m": 5.8,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496094,
+            19.0737242
+          ],
+          [
+            72.8495853,
+            19.0736773
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-041",
+        "from_node": "DN-043",
+        "to_node": "DN-044",
+        "length_m": 8.88,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8495853,
+            19.0736773
+          ],
+          [
+            72.8495879,
+            19.0735975
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-042",
+        "from_node": "DN-044",
+        "to_node": "DN-045",
+        "length_m": 23.03,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8495879,
+            19.0735975
+          ],
+          [
+            72.8496089,
+            19.0733913
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-043",
+        "from_node": "DN-045",
+        "to_node": "DN-046",
+        "length_m": 11.34,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496089,
+            19.0733913
+          ],
+          [
+            72.8496185,
+            19.0732897
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-044",
+        "from_node": "DN-046",
+        "to_node": "DN-047",
+        "length_m": 10.51,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496185,
+            19.0732897
+          ],
+          [
+            72.8496297,
+            19.0731958
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-045",
+        "from_node": "DN-047",
+        "to_node": "DN-048",
+        "length_m": 27.82,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496297,
+            19.0731958
+          ],
+          [
+            72.8496963,
+            19.0729537
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-046",
+        "from_node": "DN-048",
+        "to_node": "DN-013",
+        "length_m": 34.45,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8496963,
+            19.0729537
+          ],
+          [
+            72.8497501,
+            19.0726481
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-047",
+        "from_node": "DN-033",
+        "to_node": "DN-049",
+        "length_m": 64.29,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8679533,
+            19.0712381
+          ],
+          [
+            72.8684697,
+            19.0709282
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-048",
+        "from_node": "DN-049",
+        "to_node": "DN-050",
+        "length_m": 260.32,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8684697,
+            19.0709282
+          ],
+          [
+            72.8706333,
+            19.0720681
+          ]
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "DE-049",
+        "from_node": "DN-050",
+        "to_node": "DN-051",
+        "length_m": 84.02,
+        "diameter_m": 0.6,
+        "slope": 0.005,
+        "roughness_n": 0.013,
+        "blockage_pct": 0.0
+      },
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            72.8706333,
+            19.0720681
+          ],
+          [
+            72.8714023,
+            19.0722748
+          ]
+        ]
+      }
+    }
+  ]
+}
