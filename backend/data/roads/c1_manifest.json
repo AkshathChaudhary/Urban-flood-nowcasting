@@ -1,0 +1,52 @@
+{
+  "component": "C1",
+  "name": "Road Network Inundation Risk & Hotspot System",
+  "status": "validated",
+  "study_area": "Mumbai 2x2km",
+  "crs": "EPSG:4326",
+  "road_segments": 1513,
+  "graph_nodes": 691,
+  "graph_edges": 1513,
+  "dem_mapped_roads": 1261,
+  "unmapped_roads": 252,
+  "forecast_timesteps": 6,
+  "timestamps": [
+    "T+0min",
+    "T+30min",
+    "T+60min",
+    "T+90min",
+    "T+120min",
+    "T+180min"
+  ],
+  "outputs": {
+    "road_graph_canonical": "backend/data/roads/road_graph.json",
+    "road_graph_with_features": "backend/data/roads/road_graph_with_features.json",
+    "road_graph_with_risk": "backend/data/roads/road_graph_with_risk.json",
+    "road_grid_mapping_csv": "backend/data/roads/road_grid_mapping.csv",
+    "road_grid_mapping_geojson": "backend/data/roads/road_grid_mapping.geojson",
+    "road_flood_features_csv": "backend/data/roads/road_flood_features.csv",
+    "road_flood_susceptibility_csv": "backend/data/roads/road_flood_susceptibility.csv",
+    "road_flood_susceptibility_geojson": "backend/data/roads/road_flood_susceptibility.geojson",
+    "road_dynamic_risk_csv": "backend/data/roads/road_dynamic_risk.csv",
+    "road_dynamic_risk_geojson": "backend/data/roads/road_dynamic_risk.geojson",
+    "road_hotspots_csv": "backend/data/roads/road_hotspots.csv",
+    "road_hotspots_geojson": "backend/data/roads/road_hotspots.geojson",
+    "top_road_hotspots_json": "backend/data/roads/top_road_hotspots.json",
+    "methodology_susceptibility": "backend/data/roads/flood_susceptibility_methodology.md",
+    "methodology_dynamic_risk": "backend/data/roads/dynamic_risk_methodology.md",
+    "methodology_hotspots": "backend/data/roads/hotspot_methodology.md",
+    "validation_report": "backend/data/roads/C1_B2_INTEGRATION_VALIDATION.md",
+    "handoff_document": "backend/data/roads/C1_HANDOFF.md"
+  },
+  "api_interface": {
+    "base_url": "/api/roads",
+    "endpoints": [
+      "/api/roads/summary",
+      "/api/roads/hotspots",
+      "/api/roads/<road_id>",
+      "/api/roads/<road_id>/timeseries",
+      "/api/roads/geojson",
+      "/api/roads/hotspots/geojson"
+    ]
+  }
+}
