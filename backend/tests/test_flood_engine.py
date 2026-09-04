@@ -138,8 +138,66 @@ class TestFloodEngine(unittest.TestCase):
         self.assertGreater(peak_depth, 0.5, "Expected peak depth > 0.5m in Mumbai depressions")
         self.assertGreater(mean_depth, 0.01, "Expected average surface water > 1 cm")
 
-        # Verify strict water mass conservation: Rain = Infiltrated + Surface Ponding
-        expected_surface = engine.total_rain_volume_m3 - engine.total_infiltrated_volume_m3
+        # Verify strict water mass conservation (including drainage and river dynamics)
+        expected_surface = (
+            engine.total_rain_volume_m3
+            + engine.total_upstream_inflow_m3
+            + engine.initial_river_storage_m3
+            - engine.total_infiltrated_volume_m3
+            - engine.total_absorbed_volume_m3
+            + engine.total_overflow_volume_m3
+            - engine.total_river_drain_volume_m3
+            - engine.river_storage_m3
+        )
+        actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
+        self.assertAlmostEqual(expected_surface, actual_surface, places=1)
+
+    def test_river_bankfull_overflow_and_spill(self):
+        """Test that river overflows onto adjacent bank cells when storage exceeds bankfull capacity."""
+        engine = FloodEngine.from_default_data(
+            upstream_river_inflow_m3_s=50.0,   # 50 m3/s from upstream Powai/Vihar lakes
+            tidal_lock=True,                    # High tide blocking downstream outflow
+            initial_river_storage_m3=250000.0,  # 88% full initially
+        )
+
+        cap = engine.river_bankfull_capacity_m3
+        self.assertGreater(cap, 200000.0)
+
+        # Before simulation: river has 250,000 m3, land surface is dry
+        self.assertEqual(engine.river_storage_m3, 250000.0)
+        self.assertEqual(float(np.sum(engine.water_depth)), 0.0)
+
+        # Step 1: Upstream inflow adds 50 m3/s * 300s = 15,000 m3 -> 265,000 m3 (< cap, no spill)
+        rain_zero = np.zeros((engine.rows, engine.cols), dtype=np.float32)
+        engine.simulate_timestep(300.0, rain_zero)
+        self.assertEqual(engine.river_storage_m3, 265000.0)
+        self.assertEqual(engine.total_river_overflow_m3, 0.0)
+
+        # Step 2 & 3: Add 30,000 m3 more -> 295,000 m3 > cap (282,420 m3) -> Spill!
+        engine.simulate_timestep(300.0, rain_zero)
+        engine.simulate_timestep(300.0, rain_zero)
+
+        # River MUST have spilled
+        self.assertGreater(engine.total_river_overflow_m3, 0.0)
+        self.assertEqual(engine.river_storage_m3, cap)
+
+        # Water must now be present on river bank cells
+        bank_depths = engine.water_depth[engine.river_bank_mask]
+        self.assertTrue(np.all(bank_depths > 0.0), "All river bank cells must have received spillover depth")
+
+        # Verify strict mass conservation
+        total_in = (
+            engine.total_rain_volume_m3
+            + engine.total_upstream_inflow_m3
+            + engine.initial_river_storage_m3
+            + engine.total_overflow_volume_m3
+        )
+        total_out = (
+            engine.total_infiltrated_volume_m3
+            + engine.total_absorbed_volume_m3
+            + engine.total_river_drain_volume_m3
+        )
+        expected_surface = total_in - total_out - engine.river_storage_m3
         actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
         self.assertAlmostEqual(expected_surface, actual_surface, places=1)
 
