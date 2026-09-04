@@ -30,5 +30,6 @@ FLOW_SUB_PASSES = 4                            # Stability passes per timestep
 DEM_ELEVATION_FILE = DEM_DIR / "elevation_grid.npy"
 DEM_IMPERVIOUSNESS_FILE = DEM_DIR / "imperviousness.npy"
 DEM_INFILTRATION_FILE = DEM_DIR / "infiltration.npy"
+DEM_WATER_BODY_MASK_FILE = DEM_DIR / "water_body_mask.npy"
 DRAINAGE_NODES_FILE = DRAINAGE_DIR / "drainage_nodes.geojson"
 DRAINAGE_EDGES_FILE = DRAINAGE_DIR / "drainage_edges.geojson"

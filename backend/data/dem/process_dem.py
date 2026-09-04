@@ -49,23 +49,40 @@ def process_dem_rasters(dem_dir: str):
     np.save(elev_out, elevation_grid)
     print(f" -> Saved {elev_out}")
 
-    # 2. Generate Imperviousness grid (Urban core ~0.85, higher slopes ~0.60, water/lowlands ~0.20)
-    # Normalize elevation to scale imperviousness realistically
+    # 2. Detect pre-existing water bodies (rivers, channels, tidal zones)
+    # Cells with negative elevation are subterranean/estuarine water bodies in SRTM/Copernicus DEMs.
+    # These are the Mithi River channel and associated drainage channels in the BKC study area.
+    water_body_mask = elevation_grid < 0.0
+    water_body_out = dem_path / "water_body_mask.npy"
+    np.save(water_body_out, water_body_mask)
+    n_water = int(water_body_mask.sum())
+    print(f" -> Saved {water_body_out} ({n_water} water body cells = {n_water/GRID_ROWS/GRID_COLS*100:.1f}% of domain)")
+
+    # 3. Generate Imperviousness grid
+    # Urban core ~0.85, higher slopes ~0.60, water/lowlands ~0.20.
+    # CRITICAL FIX: Water body cells get imperviousness = 0.0 (open water, fully permeable).
+    # They are rivers/channels — rain falling on them enters the waterway directly.
     elev_norm = (elevation_grid - elevation_grid.min()) / (elevation_grid.max() - elevation_grid.min() + 1e-5)
     imperviousness = 0.85 - (0.35 * elev_norm)  # High density built-up in flat lowlands
     imperviousness = np.clip(imperviousness, 0.20, 0.95).astype(np.float32)
-    
+    # Override water body cells: they are open water, not paved surfaces
+    imperviousness[water_body_mask] = 0.0
+
     imp_out = dem_path / "imperviousness.npy"
     np.save(imp_out, imperviousness)
-    print(f" -> Saved {imp_out}")
+    print(f" -> Saved {imp_out} (water body imperviousness corrected to 0.0)")
 
-    # 3. Generate Infiltration grid (mm/hr): base_rate * (1 - imperviousness)
-    base_infiltration_rate = 10.0 # mm/hr for typical urban soil
+    # 4. Generate Infiltration grid (mm/hr): base_rate * (1 - imperviousness)
+    # Water body cells get a very high infiltration rate (effectively infinite) —
+    # any rain or runoff that reaches the river is immediately absorbed by the waterway.
+    base_infiltration_rate = 10.0  # mm/hr for typical urban soil
     infiltration = base_infiltration_rate * (1.0 - imperviousness)
-    
+    # River/channel cells drain instantly (9999 mm/hr acts as open-water sink)
+    infiltration[water_body_mask] = 9999.0
+
     inf_out = dem_path / "infiltration.npy"
     np.save(inf_out, infiltration)
-    print(f" -> Saved {inf_out}")
+    print(f" -> Saved {inf_out} (water body infiltration set to 9999 mm/hr sink rate)")
 
 if __name__ == "__main__":
     process_dem_rasters("backend/data/dem")
