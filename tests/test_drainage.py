@@ -199,6 +199,17 @@ class TestFastAPIDrainageEndpoints(unittest.TestCase):
         data = res.json()
         self.assertEqual(data["status"], "success")
 
+    def test_outfalls_calibration(self):
+        """Verifies outfalls are calibrated to Mithi River municipal benchmarks (6-10 outfalls at low elevation)."""
+        res = self.client.get("/api/drainage/nodes?node_type=outfall")
+        self.assertEqual(res.status_code, 200)
+        data = res.json()
+        outfalls = data["features"]
+        self.assertTrue(6 <= len(outfalls) <= 10, f"Expected 6-10 outfalls, got {len(outfalls)}")
+        for o in outfalls:
+            elev = o["properties"]["elevation_m"]
+            self.assertLessEqual(elev, 3.5, f"Outfall elevation {elev}m exceeds 3.5m Mithi floodplain limit")
+
 
 if __name__ == "__main__":
     unittest.main()
