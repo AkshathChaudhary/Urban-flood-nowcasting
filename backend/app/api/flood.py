@@ -106,17 +106,24 @@ def query_point_depth(
             )
 
     elevation = float(engine.dem[row, col])
+    porosity = float(engine.surface_porosity[row, col]) if hasattr(engine, "surface_porosity") else 1.0
 
     depth_at_horizons = {
         h: round(float(engine.forecast_grids[h][row, col]), 3)
         for h in sorted(engine.forecast_grids.keys())
     }
 
-    max_local_depth = max(depth_at_horizons.values()) if depth_at_horizons else 0.0
+    street_depth_at_horizons = {
+        h: round(float(engine.forecast_grids[h][row, col] / max(porosity, 0.1)), 3)
+        for h in sorted(engine.forecast_grids.keys())
+    }
 
-    if max_local_depth > 0.30:
+    # Hazard level determined by physical street water depth
+    max_street_depth = max(street_depth_at_horizons.values()) if street_depth_at_horizons else 0.0
+
+    if max_street_depth > 0.30:
         hazard = "IMPASSABLE"
-    elif max_local_depth > 0.10:
+    elif max_street_depth > 0.10:
         hazard = "CAUTION"
     else:
         hazard = "CLEAR"
@@ -128,5 +135,7 @@ def query_point_depth(
         col=col,
         elevation_m=round(elevation, 2),
         depth_m_at_horizon=depth_at_horizons,
+        street_depth_m_at_horizon=street_depth_at_horizons,
+        porosity=round(porosity, 3),
         hazard_level=hazard,
     )

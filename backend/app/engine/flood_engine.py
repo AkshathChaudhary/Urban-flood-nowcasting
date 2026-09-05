@@ -22,6 +22,7 @@ from backend.app.config import (
     DEM_IMPERVIOUSNESS_FILE,
     DEM_INFILTRATION_FILE,
     DEM_WATER_BODY_MASK_FILE,
+    DEM_RETENTION_POND_MASK_FILE,
     DT_SECONDS,
     FLOW_SUB_PASSES,
     FORECAST_HORIZONS,
@@ -58,6 +59,14 @@ class FloodEngine:
         upstream_river_inflow_m3_s: float = 0.0,
         tidal_lock: bool = False,
         initial_river_storage_m3: float = 0.0,
+        tidal_tailwater_stage_m: float = 0.5,
+        tidal_cycle_start_hour: float = 14.0,
+        antecedent_saturation_fraction: float = 0.0,
+        drain_blockage_factor: float = 1.0,
+        retention_pond_mask: Optional[np.ndarray] = None,
+        retention_pond_capacity_m3: float = 25000.0,
+        storm_surge_m: float = 0.0,
+        pump_stations: Optional[List[Dict[str, Any]]] = None,
     ):
         """
         Initialize the FloodEngine.
@@ -67,12 +76,17 @@ class FloodEngine:
             imperviousness: 2D numpy array (0.0 to 1.0)
             infiltration: 2D numpy array of soil infiltration rates in mm/hr
             water_body_mask: Boolean 2D array — True for cells that are pre-existing
-                             rivers/channels/lakes. These cells do not accumulate
-                             surface flood water — runoff reaching them drains away.
+                             rivers/channels/lakes.
             rainfall_provider: RainfallProvider instance
             drainage_graph: Optional DrainageGraph instance (Pair A interface)
             cell_size_m: Grid cell spatial resolution (default 10.0 m)
             boundary_condition: "closed" or "outflow"
+            antecedent_saturation_fraction: Pre-existing soil saturation (0.0 to 1.0)
+            drain_blockage_factor: Street inlet blockage (0.0 = fully blocked, 1.0 = clear)
+            retention_pond_mask: Boolean 2D array for stormwater retention basins
+            retention_pond_capacity_m3: Maximum pond detention capacity (m³)
+            storm_surge_m: Coastal storm surge sea level rise (m)
+            pump_stations: List of dicts specifying pump stations
         """
         self.dem = dem.astype(np.float32)
         self.rows, self.cols = self.dem.shape
@@ -80,22 +94,35 @@ class FloodEngine:
         self.cell_area = self.cell_size * self.cell_size
         self.boundary_condition = boundary_condition
 
-        # Water body mask: rivers, channels, tidal zones that must not accumulate flood depth.
-        # These cells act as natural drains — any water reaching them is removed from the
-        # surface water budget (it enters the waterway and flows downstream out of the domain).
+        # Water body mask: true rivers, channels, and tidal zones.
         if water_body_mask is not None:
             self.water_body_mask = water_body_mask.astype(bool)
         else:
-            # Fallback: infer from negative-elevation DEM cells
-            self.water_body_mask = dem < 0.0
+            self.water_body_mask = np.zeros((self.rows, self.cols), dtype=bool)
+
+        # Retention pond mask (enclosed basins/ponds buffering overland runoff)
+        if retention_pond_mask is not None:
+            self.retention_pond_mask = retention_pond_mask.astype(bool)
+            # Separate: remove retention pond cells from river channel mask so they don't drain via river tidal outflow
+            self.water_body_mask = self.water_body_mask & ~self.retention_pond_mask
+        else:
+            self.retention_pond_mask = np.zeros((self.rows, self.cols), dtype=bool)
 
         # Default or assigned imperviousness (0.0: permeable soil -> 1.0: concrete)
         if imperviousness is not None:
             self.imperviousness = np.clip(imperviousness.astype(np.float32), 0.0, 1.0)
         else:
             self.imperviousness = np.full((self.rows, self.cols), 0.75, dtype=np.float32)
-        # Enforce: water body cells have zero imperviousness (open water surface)
+        # Open water surfaces have zero imperviousness
         self.imperviousness[self.water_body_mask] = 0.0
+        self.imperviousness[self.retention_pond_mask] = 0.0
+
+        # Effective surface porosity (void space fraction in urban streetscapes)
+        # Buildings occupy 40-65% of land area in dense Kurla/BKC blocks.
+        # Overland flood water is squeezed into streets/alleys, increasing physical depth.
+        self.surface_porosity = np.clip(1.0 - 0.60 * self.imperviousness, 0.35, 1.0).astype(np.float32)
+        self.surface_porosity[self.water_body_mask] = 1.0
+        self.surface_porosity[self.retention_pond_mask] = 1.0
 
         # Infiltration capacity grid (mm/hr)
         if infiltration is not None:
@@ -103,8 +130,34 @@ class FloodEngine:
         else:
             base_rate = 5.0  # mm/hr
             self.infiltration = base_rate * (1.0 - self.imperviousness)
-        # Water body cells drain instantly: effectively infinite infiltration
-        self.infiltration[self.water_body_mask] = 9999.0
+        # Saturated riverbed and retention basins have zero infiltration loss
+        self.infiltration[self.water_body_mask] = 0.0
+        self.infiltration[self.retention_pond_mask] = 0.0
+
+        # Soil saturation feedback (Horton infiltration capacity store)
+        self.antecedent_saturation_fraction = float(antecedent_saturation_fraction)
+        # Permeable soil holds ~80 mm (0.080 m) water before reaching field capacity
+        self.soil_saturation_capacity_m = (0.080 * (1.0 - self.imperviousness)).astype(np.float32)
+        self.soil_saturation_capacity_m[self.water_body_mask] = 0.0
+        self.soil_saturation_capacity_m[self.retention_pond_mask] = 0.0
+        self.soil_moisture_m = np.zeros((self.rows, self.cols), dtype=np.float32)
+
+        # Drainage blockage factor
+        self.drain_blockage_factor = float(drain_blockage_factor)
+
+        # Retention pond storage tracking
+        self.retention_pond_capacity_m3 = float(retention_pond_capacity_m3)
+        self.retention_pond_storage_m3 = 0.0
+        self.total_pond_storage_inflow_m3 = 0.0
+        self.total_pond_spill_m3 = 0.0
+
+        # Storm surge / seawater intrusion
+        self.storm_surge_m = float(storm_surge_m)
+        self.total_surge_intrusion_m3 = 0.0
+
+        # Municipal pump stations
+        self.pump_stations = pump_stations or []
+        self.total_pumped_volume_m3 = 0.0
 
         # Providers and graph references
         self.rainfall_provider = rainfall_provider or DemoRainfallProvider(
@@ -121,7 +174,10 @@ class FloodEngine:
         self.upstream_river_inflow_m3_s = float(upstream_river_inflow_m3_s)
         self.tidal_lock = bool(tidal_lock)
         self.initial_river_storage_m3 = float(initial_river_storage_m3)
+        self.tidal_tailwater_stage_m = float(tidal_tailwater_stage_m)
+        self.tidal_cycle_start_hour = float(tidal_cycle_start_hour)
         self.total_upstream_inflow_m3 = 0.0
+        self._elapsed_sim_seconds = 0.0
 
         # Mass balance counters (m^3)
         self.total_rain_volume_m3 = 0.0
@@ -145,14 +201,11 @@ class FloodEngine:
         self.flow_directions = compute_d8_flow_directions(self.dem, self.cell_size)
         self.sinks_mask = identify_sinks(self.dem, self.flow_directions, self.cell_size)
 
-        # Precompute river bank cells: land cells directly adjacent (4-connected) to
-        # any water body cell. These receive overflow when the river exceeds bankfull.
+        # Precompute river bank cells and retention pond bank cells
         self.river_bank_mask = self._compute_river_bank_mask()
+        self.retention_pond_bank_mask = self._compute_retention_pond_bank_mask()
 
-        # Bankfull capacity of all river/channel cells (m³).
-        # Based on assumed average bankfull depth for the Mithi River / urban channels.
-        # Mithi River main channel: ~2.5m bankfull; smaller channels: ~1.0m.
-        # Conservative combined estimate: 1.8m average across all 1569 water body cells.
+        # Bankfull capacity of river/channel cells (m³).
         BANKFULL_DEPTH_M = 1.8
         n_water_cells = int(self.water_body_mask.sum())
         self.river_bankfull_capacity_m3 = max(
@@ -174,8 +227,27 @@ class FloodEngine:
         self.total_river_drain_volume_m3 = 0.0
         self.total_river_overflow_m3 = 0.0
         self.total_upstream_inflow_m3 = 0.0
+        self.total_surge_intrusion_m3 = 0.0
+        self.total_pumped_volume_m3 = 0.0
+        self.retention_pond_storage_m3 = 0.0
+        self.total_pond_storage_inflow_m3 = 0.0
+        self.total_pond_spill_m3 = 0.0
+
+        # Reset soil moisture store based on antecedent saturation fraction
+        self.soil_moisture_m = np.clip(
+            self.soil_saturation_capacity_m * self.antecedent_saturation_fraction,
+            0.0,
+            self.soil_saturation_capacity_m,
+        )
+
         self.river_storage_m3 = min(self.initial_river_storage_m3, self.river_bankfull_capacity_m3)
+        n_water_cells = int(self.water_body_mask.sum())
+        if n_water_cells > 0 and self.river_storage_m3 > 0.0:
+            init_channel_depth = self.river_storage_m3 / (n_water_cells * self.cell_area)
+            self.water_depth[self.water_body_mask] = init_channel_depth
         self.forecast_grids.clear()
+        # Reset tidal clock — simulation always starts at tidal_cycle_start_hour phase
+        self._elapsed_sim_seconds = 0.0
 
     # =========================================================================
     # Simulation Step Sub-methods
@@ -184,9 +256,8 @@ class FloodEngine:
     def apply_rainfall(self, dt: float, rain_rate_grid: np.ndarray) -> np.ndarray:
         """
         Apply rainfall deposition and subtract soil infiltration.
-
-        Effective runoff addition:
-            Δd = max(rain_rate * dt/3600 - infiltration * dt/3600, 0) / 1000  (m)
+        Infiltration is constrained by both the soil infiltration rate and
+        remaining pore space capacity (soil saturation feedback).
 
         Args:
             dt: Timestep in seconds
@@ -200,28 +271,34 @@ class FloodEngine:
         # Total gross rainfall in meters
         gross_rain_m = (rain_rate_grid.astype(np.float32) * dt_hr) / 1000.0
 
-        # Maximum soil infiltration capacity for this timestep in meters
+        # Maximum soil infiltration rate capacity for this timestep in meters
         max_infil_m = (self.infiltration * dt_hr) / 1000.0
 
-        # Actual infiltrated water (cannot exceed gross rain)
-        actual_infil_m = np.minimum(gross_rain_m, max_infil_m)
+        # Remaining soil moisture pore capacity before saturation (m)
+        remaining_capacity_m = np.maximum(self.soil_saturation_capacity_m - self.soil_moisture_m, 0.0)
+
+        # Actual infiltrated water (cannot exceed gross rain, rate capacity, or pore space)
+        actual_infil_m = np.minimum(gross_rain_m, np.minimum(max_infil_m, remaining_capacity_m))
+
+        # Update soil moisture store
+        self.soil_moisture_m += actual_infil_m
 
         # Net effective precipitation reaching surface
         net_addition_m = np.maximum(gross_rain_m - actual_infil_m, 0.0)
-
-        # Water body cells (rivers/channels) do not accumulate surface flood depth.
-        # Rain falling directly on them enters the waterway immediately.
-        net_addition_m[self.water_body_mask] = 0.0
 
         # Update grid state
         self.water_depth += net_addition_m
         self.cumulative_rain_m += gross_rain_m
         self.cumulative_infiltrated_m += actual_infil_m
 
-        # Update mass balance totals (count rainfall over land only for surface budget)
-        land_mask = ~self.water_body_mask
-        self.total_rain_volume_m3 += float(np.sum(gross_rain_m[land_mask]) * self.cell_area)
-        self.total_infiltrated_volume_m3 += float(np.sum(actual_infil_m[land_mask]) * self.cell_area)
+        # Update mass balance totals (entire domain)
+        self.total_rain_volume_m3 += float(np.sum(gross_rain_m) * self.cell_area)
+        self.total_infiltrated_volume_m3 += float(np.sum(actual_infil_m) * self.cell_area)
+
+        # Track direct precipitation on water body cells into river storage
+        if np.any(self.water_body_mask):
+            direct_rain_on_river = float(np.sum(net_addition_m[self.water_body_mask]) * self.cell_area)
+            self.river_storage_m3 += direct_rain_on_river
 
         return net_addition_m
 
@@ -231,6 +308,9 @@ class FloodEngine:
         """
         Execute 2D overland water routing based on hydraulic head gradients.
 
+        Water inside river channels is physically confined by channel banks;
+        overland runoff routing onto river cells enters the channel.
+
         Args:
             dt: Timestep in seconds
             sub_passes: Number of sub-iterations for stability
@@ -238,21 +318,32 @@ class FloodEngine:
         Returns:
             float: Volume of water exited past boundary in m^3
         """
-        self.water_depth, boundary_outflow = route_surface_water(
+        # Separate overland water from confined channel water
+        land_water = np.where(~self.water_body_mask, self.water_depth, 0.0)
+        routed_depth, boundary_outflow = route_surface_water(
             elevation=self.dem,
-            water_depth=self.water_depth,
+            water_depth=land_water,
             dt=dt,
             cell_size_m=self.cell_size,
             sub_passes=sub_passes,
             boundary_condition=self.boundary_condition,
         )
         self.total_boundary_outflow_m3 += boundary_outflow
+
+        # Overland runoff that reached channel cells enters the river
+        runoff_into_channel = float(np.sum(routed_depth[self.water_body_mask]) * self.cell_area)
+        self.river_storage_m3 += runoff_into_channel
+
+        # Update overland depth on land cells
+        self.water_depth[~self.water_body_mask] = routed_depth[~self.water_body_mask]
+
         return boundary_outflow
 
     def calculate_drainage_absorption(self, dt: float) -> float:
         """
         Interface: Pair B calls Pair A's absorb_surface_water method.
         Deducts absorbed water from the surface water depth.
+        Inlets absorb overland street runoff on land.
 
         Returns:
             float: Total volume absorbed by drainage network in m^3
@@ -262,12 +353,23 @@ class FloodEngine:
         ):
             return 0.0
 
+        # Submergence feedback: inform drainage network of downstream river stage
+        if hasattr(self.drainage_graph, "set_river_submergence"):
+            n_water = max(int(self.water_body_mask.sum()), 1)
+            stage_m = self.river_storage_m3 / (n_water * self.cell_area)
+            self.drainage_graph.set_river_submergence(stage_m, self.water_depth)
+
+        # Inlets absorb overland street runoff on land
+        land_depth = np.where(~self.water_body_mask, self.water_depth, 0.0)
         absorbed_depth_grid = self.drainage_graph.absorb_surface_water(
-            self.water_depth, dt
+            land_depth, dt
         )
-        # Limit absorption to what water actually exists on the surface
-        actual_absorbed = np.minimum(absorbed_depth_grid, self.water_depth)
-        self.water_depth -= actual_absorbed
+        # Apply drain blockage factor (debris/plastic clogging)
+        absorbed_depth_grid = absorbed_depth_grid * self.drain_blockage_factor
+
+        # Limit absorption to what overland water exists on the land surface
+        actual_absorbed = np.minimum(absorbed_depth_grid, land_depth)
+        self.water_depth[~self.water_body_mask] -= actual_absorbed[~self.water_body_mask]
 
         absorbed_vol_m3 = float(np.sum(actual_absorbed) * self.cell_area)
         self.total_absorbed_volume_m3 += absorbed_vol_m3
@@ -279,7 +381,7 @@ class FloodEngine:
         Puts overflowing sewer water back onto surface cells.
 
         Returns:
-            float: Total overflow volume added back to surface in m^3
+            float: Total volume added to surface from overflows in m^3
         """
         if self.drainage_graph is None or not hasattr(
             self.drainage_graph, "compute_overflow"
@@ -293,10 +395,20 @@ class FloodEngine:
             for node_id, vol_m3 in overflow_records.items():
                 if vol_m3 <= 0.0:
                     continue
+                pos = None
                 if hasattr(self.drainage_graph, "get_node_cell"):
-                    r, c = self.drainage_graph.get_node_cell(node_id)
-                    self.add_overflow_at_cell(r, c, vol_m3)
-                    total_overflow_vol += vol_m3
+                    pos = self.drainage_graph.get_node_cell(node_id)
+                elif hasattr(self.drainage_graph, "get_node_grid_position"):
+                    pos = self.drainage_graph.get_node_grid_position(node_id)
+                if pos is not None:
+                    r, c = pos
+                    if 0 <= r < self.rows and 0 <= c < self.cols:
+                        depth_add = vol_m3 / self.cell_area
+                        self.water_depth[r, c] += depth_add
+                        total_overflow_vol += vol_m3
+                        # If node is inside channel, also account in river storage
+                        if self.water_body_mask[r, c]:
+                            self.river_storage_m3 += vol_m3
 
         self.total_overflow_volume_m3 += total_overflow_vol
         return total_overflow_vol
@@ -314,53 +426,152 @@ class FloodEngine:
         bank[:, 1:]  |= wb[:, :-1]  # cell right of a water body
         return bank & ~wb  # exclude water body cells themselves
 
+    def _compute_retention_pond_bank_mask(self) -> np.ndarray:
+        """
+        Identifies land cells immediately adjacent (4-connected) to retention pond cells.
+        """
+        rp = self.retention_pond_mask
+        bank = np.zeros(rp.shape, dtype=bool)
+        bank[:-1, :] |= rp[1:, :]
+        bank[1:, :]  |= rp[:-1, :]
+        bank[:, :-1] |= rp[:, 1:]
+        bank[:, 1:]  |= rp[:, :-1]
+        return bank & ~rp & ~self.water_body_mask
+
+
     def _spill_river_overflow(self, overflow_vol_m3: float) -> None:
         """
-        Distributes river overflow volume evenly across all river bank land cells.
-        In reality overflow is non-uniform (elevation-dependent), but this conservative
-        approximation correctly puts water on the right spatial region.
+        Distributes river overflow volume across river bank land cells based on
+        broad-crested weir overtopping hydraulics:
+            Q_breach ~ w * (H_channel - Z_bank)^1.5
+        Low-elevation bank segments (e.g. Kranti Nagar / Kurla West) breach earliest
+        and receive the deepest flooding, matching physical flood observations.
+        Mass conservation is strictly preserved: sum of added volume == overflow_vol_m3.
         """
-        n_bank = int(self.river_bank_mask.sum())
-        if n_bank == 0 or overflow_vol_m3 <= 0.0:
+        if overflow_vol_m3 <= 0.0 or not np.any(self.river_bank_mask):
             return
-        depth_per_cell_m = overflow_vol_m3 / (n_bank * self.cell_area)
-        self.water_depth[self.river_bank_mask] += depth_per_cell_m
+
+        n_water = max(int(self.water_body_mask.sum()), 1)
+        # Channel water surface elevation prior to spill: bed elevation + stage
+        if np.any(self.water_body_mask):
+            river_bed_elev = float(np.mean(self.dem[self.water_body_mask]))
+        else:
+            river_bed_elev = float(np.min(self.dem))
+
+        # Peak stage depth in channel driving the overtopping
+        peak_stage_m = (self.river_bankfull_capacity_m3 + overflow_vol_m3) / (n_water * self.cell_area)
+        h_channel = river_bed_elev + peak_stage_m
+
+        bank_elev = self.dem[self.river_bank_mask]
+        # Overtopping hydraulic head above bank crest
+        dh = np.maximum(h_channel - bank_elev, 0.0)
+        # Broad-crested weir flux proportional to dh^1.5
+        weir_weights = dh ** 1.5
+        sum_w = float(np.sum(weir_weights))
+
+        if sum_w > 0.0:
+            norm_weights = (weir_weights / sum_w).astype(np.float64)
+        else:
+            # Fallback if channel stage is lower than bank crests (overflow triggered by volume):
+            # Spill breaches through the lowest 20% elevation bank cells
+            p20 = float(np.percentile(bank_elev, 20))
+            low_bank_mask = bank_elev <= p20
+            min_z = float(np.min(bank_elev))
+            inv_dist = np.where(low_bank_mask, 1.0 / (bank_elev - min_z + 0.1), 0.0)
+            norm_weights = (inv_dist / np.sum(inv_dist)).astype(np.float64)
+
+        # Distribute overflow volume onto bank cells according to hydraulic weir weighting
+        added_depth_m = (overflow_vol_m3 * norm_weights) / self.cell_area
+        self.water_depth[self.river_bank_mask] += added_depth_m.astype(np.float32)
+
+    def get_street_depth(self) -> np.ndarray:
+        """
+        Returns physical water depth in streets and alleys accounting for building volume displacement.
+            d_street = d_grid / surface_porosity
+        where surface_porosity = 1 - 0.60 * imperviousness in [0.35, 1.0].
+        In open channels or parks (porosity = 1.0), d_street == water_depth.
+        In dense urban blocks (porosity ~ 0.50), d_street is ~2.0x grid water_depth,
+        correcting the systematic 40-60% underestimation of street flood marks.
+        """
+        return (self.water_depth / self.surface_porosity).astype(np.float32)
+
+
+    def _tidal_outflow_rate(self) -> float:
+        """
+        Compute dynamic tidal outflow rate based on current simulation time.
+
+        Mumbai experiences semi-diurnal tides with ~12.4-hour period.
+        The outflow rate is modulated by the tidal phase:
+        - At low tide: max outflow (gravity drainage freely exits to Mahim Bay)
+        - At high tide: near-zero outflow (sea backs up into estuary, blocking discharge)
+
+        Returns:
+            float: fractional outflow rate per timestep (0.0 = fully blocked, 0.12 = free drain)
+        """
+        if self.tidal_lock:
+            return 0.0
+
+        # Elapsed simulation time in hours from start
+        elapsed_hours = self._elapsed_sim_seconds / 3600.0
+        # Tidal phase in radians: 0 = low tide, pi = high tide
+        # tidal_cycle_start_hour encodes where in the tidal cycle the simulation begins
+        # (14:00 IST on July 26 2023 = approximately 2 hrs after high tide in Mumbai)
+        TIDAL_PERIOD_HOURS = 12.4
+        phase_rad = 2.0 * np.pi * elapsed_hours / TIDAL_PERIOD_HOURS
+        # Shift by starting phase (0=low tide, pi=high tide)
+        # For a starting offset of e.g. 2h after high tide: start_phase = pi + 2*pi*2/12.4
+        start_phase = np.pi + 2.0 * np.pi * (self.tidal_cycle_start_hour % TIDAL_PERIOD_HOURS) / TIDAL_PERIOD_HOURS
+        tidal_height = 0.5 * (1.0 + np.cos(phase_rad + start_phase))  # 0=low tide, 1=high tide
+
+        # At low tide (tidal_height=0): outflow_rate = 0.12 (free gravity drain)
+        # At high tide (tidal_height=1): outflow_rate = 0.0 (fully blocked)
+        MAX_FREE_DRAIN_RATE = 0.12
+        return MAX_FREE_DRAIN_RATE * (1.0 - tidal_height)
 
     def drain_water_bodies(self, dt: float = DT_SECONDS) -> float:
         """
         Implements river/channel water level dynamics each timestep:
 
-        Step 0 — Upstream inflow: external catchment water enters river channel.
-        Step A — Collect runoff: any surface water that has routed onto water body cells
-                 is absorbed into the river channel (it enters the waterway).
-        Step B — Downstream outflow: a fraction of current river storage exits the domain
-                 each timestep (simplified kinematic routing). Under tidal lock, outflow is blocked.
-        Step C — Bankfull overflow: if river storage exceeds channel capacity, the excess
+        Step 0 — Upstream inflow: external catchment water (Powai/Vihar lakes) enters river.
+        Step 1 — Downstream outflow: modulated by dynamic tidal cycle (semi-diurnal 12.4-hr).
+                 Outflow is restricted at high tide and free at low tide.
+                 A sea-level tailwater floor prevents the channel draining below
+                 the minimum tidal stage depth (e.g. 0.5m base depth representing
+                 permanent tidal standing water in Mithi River estuary).
+        Step 2 — Bankfull overflow: if river storage exceeds channel capacity, the excess
                  is spilled back onto adjacent land cells as riverine flood water.
-                 This is the primary flood mechanism for low-lying BKC / Mithi basin.
+        Step 3 — Retain channel depth: water bodies retain actual water depth proportional
+                 to current channel storage rather than being zeroed out.
 
         Returns:
             float: Volume spilled onto land from river overflow this timestep (m³).
         """
-        # 0. Upstream river inflow entering from upstream catchment (e.g. Powai / Vihar lakes)
+        n_water = int(self.water_body_mask.sum())
+        if n_water == 0:
+            self._elapsed_sim_seconds += dt
+            return 0.0
+
+        # 0. Upstream river inflow entering from upstream catchment (Powai/Vihar lakes)
         if self.upstream_river_inflow_m3_s > 0.0:
             up_vol = self.upstream_river_inflow_m3_s * dt
             self.river_storage_m3 += up_vol
             self.total_upstream_inflow_m3 += up_vol
 
-        # A. Collect surface runoff that reached river cells
-        inflow_vol = float(np.sum(self.water_depth[self.water_body_mask]) * self.cell_area)
-        self.water_depth[self.water_body_mask] = 0.0
-        self.river_storage_m3 += inflow_vol
+        # 1. Sea-level tailwater floor: the minimum volume the channel always holds.
+        # Even at low tide, tidal backwater keeps ~tidal_tailwater_stage_m of standing depth.
+        # The channel cannot drain below this volume via gravity.
+        tailwater_min_storage = n_water * self.cell_area * self.tidal_tailwater_stage_m
 
-        # B. Natural downstream outflow via simplified kinematic routing.
-        # Under tidal lock (high spring tide in Arabian Sea), outflow is blocked/restricted.
-        outflow_rate = 0.0 if self.tidal_lock else 0.12
-        natural_outflow = min(self.river_storage_m3 * outflow_rate, self.river_storage_m3)
+        # Dynamic tidal outflow rate: 0.0 at high tide -> 0.12 at low tide
+        outflow_rate = self._tidal_outflow_rate()
+
+        # Only the storage ABOVE the tailwater floor can drain downstream.
+        drainable_storage = max(self.river_storage_m3 - tailwater_min_storage, 0.0)
+        natural_outflow = min(drainable_storage * outflow_rate, drainable_storage)
         self.river_storage_m3 -= natural_outflow
         self.total_river_drain_volume_m3 += natural_outflow
 
-        # C. Bankfull overflow: river exceeds channel capacity -> spill onto land
+        # 2. Bankfull overflow: river exceeds channel capacity -> spill onto land
         spilled_vol = 0.0
         if self.river_storage_m3 > self.river_bankfull_capacity_m3:
             spilled_vol = self.river_storage_m3 - self.river_bankfull_capacity_m3
@@ -368,18 +579,134 @@ class FloodEngine:
             self._spill_river_overflow(spilled_vol)
             self.total_river_overflow_m3 += spilled_vol
 
+        # 3. Retain physical channel stage depth in the water depth grid
+        channel_depth = self.river_storage_m3 / (n_water * self.cell_area)
+        self.water_depth[self.water_body_mask] = channel_depth
+
+        # Advance elapsed simulation clock
+        self._elapsed_sim_seconds += dt
+
         return spilled_vol
+
+    def drain_retention_ponds(self, dt: float) -> float:
+        """
+        Buffers overland runoff arriving on retention pond cells up to
+        retention_pond_capacity_m3, with controlled slow release spillway flow.
+
+        Returns:
+            float: Volume spilled from retention pond back onto land (m³).
+        """
+        n_pond = int(self.retention_pond_mask.sum())
+        if n_pond == 0:
+            return 0.0
+
+        # 1. Inflow: overland water pooling on pond cells enters detention storage
+        free_cap = max(self.retention_pond_capacity_m3 - self.retention_pond_storage_m3, 0.0)
+        depth_on_ponds = self.water_depth[self.retention_pond_mask]
+        avail_vol = float(np.sum(depth_on_ponds) * self.cell_area)
+        inflow_vol = min(avail_vol, free_cap)
+        if avail_vol > 0.0 and inflow_vol > 0.0:
+            frac = inflow_vol / avail_vol
+            self.water_depth[self.retention_pond_mask] -= depth_on_ponds * frac
+            self.retention_pond_storage_m3 += inflow_vol
+            self.total_pond_storage_inflow_m3 += inflow_vol
+
+        # 2. Controlled slow release spillway: release ~1% per 5-min timestep to adjacent land
+        spilled_vol = 0.0
+        if self.retention_pond_storage_m3 > 0.0:
+            n_bank = int(self.retention_pond_bank_mask.sum())
+            if n_bank > 0:
+                SLOW_RELEASE_FRAC = 0.01
+                release_vol = min(self.retention_pond_storage_m3 * SLOW_RELEASE_FRAC, self.retention_pond_storage_m3)
+                self.retention_pond_storage_m3 -= release_vol
+                depth_add = release_vol / (n_bank * self.cell_area)
+                self.water_depth[self.retention_pond_bank_mask] += depth_add
+                self.total_pond_spill_m3 += release_vol
+                spilled_vol = release_vol
+
+        return spilled_vol
+
+    def apply_storm_surge(self, dt: float) -> float:
+        """
+        Simulates tidal storm surge / seawater intrusion.
+        When storm_surge_m > 0, pushes seawater onto estuary-adjacent low-lying cells (DEM < surge).
+
+        Returns:
+            float: Seawater volume added this timestep in m³.
+        """
+        if self.storm_surge_m <= 0.0:
+            return 0.0
+
+        surge_mask = self.river_bank_mask & (self.dem < self.storm_surge_m)
+        if not np.any(surge_mask):
+            return 0.0
+
+        target_depth = self.storm_surge_m - self.dem[surge_mask]
+        current_depth = self.water_depth[surge_mask]
+        deficit = np.maximum(target_depth - current_depth, 0.0)
+
+        intrusion_depth = np.minimum(deficit, 0.10)  # gradual surge intrusion up to 10cm/step
+        added_vol = float(np.sum(intrusion_depth) * self.cell_area)
+        if added_vol > 0.0:
+            self.water_depth[surge_mask] += intrusion_depth
+            self.total_surge_intrusion_m3 += added_vol
+
+        return added_vol
+
+    def apply_pump_stations(self, dt: float) -> float:
+        """
+        Removes stormwater via operational municipal stormwater pumping stations.
+        If radius_cells > 0 (default 0), pumps draw from the surrounding wet well sump basin.
+
+        Returns:
+            float: Total volume pumped out of domain this timestep in m³.
+        """
+        if not self.pump_stations:
+            return 0.0
+
+        pumped_this_step = 0.0
+        for ps in self.pump_stations:
+            if not ps.get("operational", True):
+                continue
+            r, c = ps["row"], ps["col"]
+            radius = int(ps.get("radius_cells", 0))
+            cap_rate = float(ps.get("capacity_m3_s", 5.0))
+            max_vol = cap_rate * dt
+
+            if radius == 0:
+                if 0 <= r < self.rows and 0 <= c < self.cols:
+                    avail_vol = float(self.water_depth[r, c] * self.cell_area)
+                    rem_vol = min(max_vol, avail_vol)
+                    if rem_vol > 0.0:
+                        self.water_depth[r, c] -= rem_vol / self.cell_area
+                        pumped_this_step += rem_vol
+            else:
+                r_min, r_max = max(0, r - radius), min(self.rows, r + radius + 1)
+                c_min, c_max = max(0, c - radius), min(self.cols, c + radius + 1)
+                patch = self.water_depth[r_min:r_max, c_min:c_max]
+                avail_vol = float(np.sum(patch) * self.cell_area)
+                rem_vol = min(max_vol, avail_vol)
+                if rem_vol > 0.0 and avail_vol > 0.0:
+                    frac = rem_vol / avail_vol
+                    self.water_depth[r_min:r_max, c_min:c_max] -= patch * frac
+                    pumped_this_step += rem_vol
+
+        self.total_pumped_volume_m3 += pumped_this_step
+        return pumped_this_step
 
     def simulate_timestep(
         self, dt: float, rain_rate_grid: np.ndarray, sub_passes: int = FLOW_SUB_PASSES
     ) -> Dict[str, float]:
         """
         Advances the simulation by dt seconds:
-            1. Apply rainfall & subtract infiltration
+            1. Apply rainfall & subtract infiltration (soil saturation capped)
             2. Compute overland 2D surface routing
-            3. Absorb water into drainage inlets
-            4. Add pipe overflow back to surface
-            5. Drain water body cells (rivers/channels)
+            3. Absorb water into drainage inlets (blockage factor applied)
+            4. Municipal pump stations
+            5. Stormwater retention basins / ponds
+            6. Add sewer pipe overflow back to surface
+            7. Storm surge seawater intrusion
+            8. Drain water body cells (rivers/channels with tidal dynamics)
 
         Returns:
             Dict containing timestep summary metrics.
@@ -393,27 +720,45 @@ class FloodEngine:
         # 3. Drainage Absorption
         absorbed_m3 = self.calculate_drainage_absorption(dt)
 
-        # 4. Sewer Overflow
+        # 4. Municipal Pump Stations
+        pumped_m3 = self.apply_pump_stations(dt)
+
+        # 5. Retention Ponds
+        pond_spill_m3 = self.drain_retention_ponds(dt)
+
+        # 6. Sewer Overflow
         overflow_m3 = self.calculate_overflow()
 
-        # 5. River/Channel Drain: remove any water that flowed into water body cells
-        self.drain_water_bodies(dt)
+        # 7. Storm Surge Intrusion
+        surge_m3 = self.apply_storm_surge(dt)
 
-        # Stats are reported over land cells only (exclude water bodies from flood metrics)
+        # 8. River/Channel Drain: update storage, outflow, spill, and channel stage
+        river_spill_m3 = self.drain_water_bodies(dt)
+
+        # Stats are reported over land cells (for hazard/flooding alerts) as well as total domain:
         land_depth = np.where(~self.water_body_mask, self.water_depth, 0.0)
-        current_vol_m3 = float(np.sum(land_depth) * self.cell_area)
+        current_vol_m3 = float(np.sum(self.water_depth) * self.cell_area)
+        land_vol_m3 = float(np.sum(land_depth) * self.cell_area)
         max_depth = float(np.max(land_depth))
         mean_depth = float(np.mean(land_depth))
-        flooded_cells = int(np.sum(land_depth > 0.05))  # cells > 5 cm
+        flooded_cells = int(np.sum(land_depth > 0.05))  # land cells > 5 cm
 
         return {
             "max_depth_m": max_depth,
             "mean_depth_m": mean_depth,
             "surface_water_volume_m3": current_vol_m3,
+            "land_water_volume_m3": land_vol_m3,
+            "river_storage_volume_m3": self.river_storage_m3,
+            "retention_pond_storage_volume_m3": self.retention_pond_storage_m3,
             "flooded_cells_count": flooded_cells,
             "absorbed_volume_m3": absorbed_m3,
             "overflow_volume_m3": overflow_m3,
+            "pumped_volume_m3": pumped_m3,
+            "storm_surge_volume_m3": surge_m3,
+            "river_spill_volume_m3": river_spill_m3,
+            "pond_spill_volume_m3": pond_spill_m3,
         }
+
 
     # =========================================================================
     # Multi-Horizon Forecast Runner
@@ -464,15 +809,23 @@ class FloodEngine:
             current_time_min = (step * dt) / 60.0
 
             # Determine the appropriate rainfall grid for current minute
-            # Use most recent available forecast grid without looking into the future
-            active_rain_key = rain_time_keys[0]
-            for rk in rain_time_keys:
-                if rk <= current_time_min:
-                    active_rain_key = rk
-                else:
-                    break
+            # Use continuous dynamic provider hook if supported, otherwise step-down interpolation
+            dynamic_grid = None
+            if hasattr(self.rainfall_provider, "get_rain_rate_grid"):
+                dynamic_grid = self.rainfall_provider.get_rain_rate_grid(
+                    current_time_min, scenario=scenario
+                )
 
-            rain_grid = rain_nowcast[active_rain_key]
+            if dynamic_grid is not None:
+                rain_grid = dynamic_grid
+            else:
+                active_rain_key = rain_time_keys[0]
+                for rk in rain_time_keys:
+                    if rk <= current_time_min:
+                        active_rain_key = rk
+                    else:
+                        break
+                rain_grid = rain_nowcast[active_rain_key]
 
             # Step forward
             self.simulate_timestep(dt=dt, rain_rate_grid=rain_grid, sub_passes=sub_passes)
@@ -533,6 +886,15 @@ class FloodEngine:
         upstream_river_inflow_m3_s: float = 0.0,
         tidal_lock: bool = False,
         initial_river_storage_m3: float = 0.0,
+        tidal_tailwater_stage_m: float = 0.5,
+        tidal_cycle_start_hour: float = 14.0,
+        antecedent_saturation_fraction: float = 0.0,
+        drain_blockage_factor: float = 1.0,
+        enable_retention_ponds: bool = False,
+        retention_pond_mask: Optional[np.ndarray] = None,
+        retention_pond_capacity_m3: float = 25000.0,
+        storm_surge_m: float = 0.0,
+        pump_stations: Optional[List[Dict[str, Any]]] = None,
     ) -> "FloodEngine":
         """
         Instantiates FloodEngine loading the preprocessed Mumbai DEM,
@@ -547,8 +909,10 @@ class FloodEngine:
         dem = np.load(DEM_ELEVATION_FILE)
         imp = np.load(DEM_IMPERVIOUSNESS_FILE) if DEM_IMPERVIOUSNESS_FILE.exists() else None
         inf = np.load(DEM_INFILTRATION_FILE) if DEM_INFILTRATION_FILE.exists() else None
-        # Load pre-existing water body mask; fall back to negative-elevation detection
         wb_mask = np.load(DEM_WATER_BODY_MASK_FILE) if DEM_WATER_BODY_MASK_FILE.exists() else None
+        if retention_pond_mask is None and enable_retention_ponds and DEM_RETENTION_POND_MASK_FILE.exists():
+            retention_pond_mask = np.load(DEM_RETENTION_POND_MASK_FILE)
+
 
         return cls(
             dem=dem,
@@ -562,4 +926,13 @@ class FloodEngine:
             upstream_river_inflow_m3_s=upstream_river_inflow_m3_s,
             tidal_lock=tidal_lock,
             initial_river_storage_m3=initial_river_storage_m3,
+            tidal_tailwater_stage_m=tidal_tailwater_stage_m,
+            tidal_cycle_start_hour=tidal_cycle_start_hour,
+            antecedent_saturation_fraction=antecedent_saturation_fraction,
+            drain_blockage_factor=drain_blockage_factor,
+            retention_pond_mask=retention_pond_mask,
+            retention_pond_capacity_m3=retention_pond_capacity_m3,
+            storm_surge_m=storm_surge_m,
+            pump_stations=pump_stations,
         )
+

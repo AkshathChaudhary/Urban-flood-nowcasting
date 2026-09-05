@@ -267,9 +267,9 @@ def run_river_spill_test():
         "Old CST Road", "Kanzul Iman Road",
     ]
 
-    print("─" * 84)
-    print(f"{'Road Corridor':<33} │ {'Elev':>5} │ {'Bottleneck T+180':>16} │ {'Mean T+180':>10} │ Status")
-    print("─" * 84)
+    print("-" * 84)
+    print(f"{'Road Corridor':<33} | {'Elev':>5} | {'Bottleneck T+180':>16} | {'Mean T+180':>10} | Status")
+    print("-" * 84)
     evaluated_roads = []
     for rname in priority:
         if rname not in corridors:
@@ -282,12 +282,12 @@ def run_river_spill_test():
         peak_cm = max(d180_vals) * 100
         mean_cm = float(np.mean(d180_vals)) * 100
         elev = float(np.mean([engine.dem[r, c] for r, c in land_cells]))
-        status = "🔴 IMPASSABLE" if peak_cm > 30 else ("🟠 CAUTION" if peak_cm > 10 else "🟢 CLEAR")
+        status = "[IMPASSABLE]" if peak_cm > 30 else ("[CAUTION]" if peak_cm > 10 else "[CLEAR]")
         evaluated_roads.append({
             "name": rname, "elev": elev, "peak_cm": peak_cm, "mean_cm": mean_cm, "status": status
         })
-        print(f"{rname:<33} │ {elev:4.1f}m │ {peak_cm:12.1f} cm   │ {mean_cm:6.1f} cm   │ {status}")
-    print("─" * 84)
+        print(f"{rname:<33} | {elev:4.1f}m | {peak_cm:12.1f} cm   | {mean_cm:6.1f} cm   | {status}")
+    print("-" * 84)
 
     # 8. Mass Balance Audit
     print("\n[7] Domain Mass Balance Conservation Audit:")
@@ -471,7 +471,7 @@ def run_river_spill_test():
 
     # Save to backend/data and artifact directory
     out_f1 = PROJECT_ROOT / "backend/data/river_spill_simulation_results.png"
-    out_f2 = Path("C:/Users/Aniket/.gemini/antigravity-ide/brain/adfdab0d-39f9-47b6-a09a-df7b9eb2bb67/river_spill_simulation_results.png")
+    out_f2 = Path("C:/Users/Aniket/.gemini/antigravity-ide/brain/197042d9-fb12-44b5-8541-e645216de6b9/river_spill_simulation_results.png")
 
     fig.savefig(out_f1, dpi=180, facecolor=fig.get_facecolor(), edgecolor="none")
     try:

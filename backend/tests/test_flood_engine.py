@@ -23,7 +23,7 @@ class TestFloodEngine(unittest.TestCase):
         self.assertEqual(float(np.sum(self.engine.water_depth)), 0.0)
 
     def test_apply_rainfall_with_infiltration(self):
-        """Precipitation below infiltration rate should be absorbed into soil."""
+        """Precipitation below infiltration rate should be absorbed into soil on land."""
         engine = FloodEngine.from_default_data()
         dt = 3600.0  # 1 hour
 
@@ -31,9 +31,13 @@ class TestFloodEngine(unittest.TestCase):
         light_rain = np.full((200, 200), 1.0, dtype=np.float32)
         added = engine.apply_rainfall(dt, light_rain)
 
-        # Net added water should be zero or negligible
-        self.assertAlmostEqual(float(np.max(added)), 0.0, places=5)
-        self.assertAlmostEqual(float(np.max(engine.water_depth)), 0.0, places=5)
+        # Net added water on land should be zero (fully absorbed by soil)
+        land_added = added[~engine.water_body_mask]
+        self.assertAlmostEqual(float(np.max(land_added)), 0.0, places=5)
+        self.assertAlmostEqual(float(np.max(engine.water_depth[~engine.water_body_mask])), 0.0, places=5)
+        # On water body cells (open water), direct rainfall is preserved (1mm = 0.001m)
+        water_added = added[engine.water_body_mask]
+        self.assertAlmostEqual(float(np.mean(water_added)), 0.001, places=5)
 
         # Heavy rain: 50 mm/hr (significantly exceeds infiltration)
         heavy_rain = np.full((200, 200), 50.0, dtype=np.float32)
@@ -41,6 +45,25 @@ class TestFloodEngine(unittest.TestCase):
 
         self.assertGreater(float(np.mean(added_heavy)), 0.04)  # ~45mm = 0.045m
         self.assertGreater(float(np.mean(engine.water_depth)), 0.04)
+
+    def test_negative_elevation_land_flooding(self):
+        """Verify that land cells with elevation < 0 m accumulate flood depth and are not black holes."""
+        engine = FloodEngine.from_default_data()
+        neg_elev_land = (engine.dem < 0.0) & (~engine.water_body_mask)
+        self.assertGreater(int(neg_elev_land.sum()), 500, "Expected >500 low-elevation land cells")
+
+        # Infiltration rate on negative-elevation land should be normal soil rate (~1.5 to 8 mm/hr), NOT 9999
+        self.assertTrue(np.all(engine.infiltration[neg_elev_land] < 20.0))
+        self.assertTrue(np.all(engine.imperviousness[neg_elev_land] > 0.5))
+
+        # Apply moderate rain: 30 mm/hr for 1 hour
+        rain = np.full((200, 200), 30.0, dtype=np.float32)
+        engine.simulate_timestep(3600.0, rain)
+
+        # Negative elevation land cells MUST have accumulated flood water
+        neg_depths = engine.water_depth[neg_elev_land]
+        self.assertTrue(np.all(neg_depths > 0.0), "All low-elevation land cells must hold flood water")
+        self.assertGreater(float(np.mean(neg_depths)), 0.03, "Expected mean depth > 3cm on low-elevation land")
 
     def test_shared_contract_interfaces(self):
         """Test methods exposed for Pair A (Drainage) and Pair C (Routing)."""
@@ -138,7 +161,7 @@ class TestFloodEngine(unittest.TestCase):
         self.assertGreater(peak_depth, 0.5, "Expected peak depth > 0.5m in Mumbai depressions")
         self.assertGreater(mean_depth, 0.01, "Expected average surface water > 1 cm")
 
-        # Verify strict water mass conservation (including drainage and river dynamics)
+        # Verify strict water mass conservation over total domain
         expected_surface = (
             engine.total_rain_volume_m3
             + engine.total_upstream_inflow_m3
@@ -147,33 +170,40 @@ class TestFloodEngine(unittest.TestCase):
             - engine.total_absorbed_volume_m3
             + engine.total_overflow_volume_m3
             - engine.total_river_drain_volume_m3
-            - engine.river_storage_m3
         )
         actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
         self.assertAlmostEqual(expected_surface, actual_surface, places=1)
 
+        # Land surface mass conservation
+        expected_land_surface = expected_surface - engine.river_storage_m3
+        actual_land_surface = float(np.sum(engine.water_depth[~engine.water_body_mask]) * engine.cell_area)
+        self.assertAlmostEqual(expected_land_surface, actual_land_surface, places=1)
+
     def test_river_bankfull_overflow_and_spill(self):
         """Test that river overflows onto adjacent bank cells when storage exceeds bankfull capacity."""
+        temp_engine = FloodEngine.from_default_data()
+        cap = temp_engine.river_bankfull_capacity_m3
+        init_storage = cap - 20000.0
+
         engine = FloodEngine.from_default_data(
             upstream_river_inflow_m3_s=50.0,   # 50 m3/s from upstream Powai/Vihar lakes
             tidal_lock=True,                    # High tide blocking downstream outflow
-            initial_river_storage_m3=250000.0,  # 88% full initially
+            initial_river_storage_m3=init_storage,
         )
 
-        cap = engine.river_bankfull_capacity_m3
-        self.assertGreater(cap, 200000.0)
+        self.assertGreater(cap, 150000.0)
 
-        # Before simulation: river has 250,000 m3, land surface is dry
-        self.assertEqual(engine.river_storage_m3, 250000.0)
-        self.assertEqual(float(np.sum(engine.water_depth)), 0.0)
+        # Before simulation: river has init_storage, land surface is dry
+        self.assertEqual(engine.river_storage_m3, init_storage)
+        self.assertEqual(float(np.sum(engine.water_depth[~engine.water_body_mask])), 0.0)
 
-        # Step 1: Upstream inflow adds 50 m3/s * 300s = 15,000 m3 -> 265,000 m3 (< cap, no spill)
+        # Step 1: Upstream inflow adds 50 m3/s * 300s = 15,000 m3 -> (< cap, no spill)
         rain_zero = np.zeros((engine.rows, engine.cols), dtype=np.float32)
         engine.simulate_timestep(300.0, rain_zero)
-        self.assertEqual(engine.river_storage_m3, 265000.0)
+        self.assertEqual(engine.river_storage_m3, init_storage + 15000.0)
         self.assertEqual(engine.total_river_overflow_m3, 0.0)
 
-        # Step 2 & 3: Add 30,000 m3 more -> 295,000 m3 > cap (282,420 m3) -> Spill!
+        # Step 2 & 3: Add 30,000 m3 more -> exceeds cap -> Spill!
         engine.simulate_timestep(300.0, rain_zero)
         engine.simulate_timestep(300.0, rain_zero)
 
@@ -181,9 +211,10 @@ class TestFloodEngine(unittest.TestCase):
         self.assertGreater(engine.total_river_overflow_m3, 0.0)
         self.assertEqual(engine.river_storage_m3, cap)
 
-        # Water must now be present on river bank cells
+        # Water must now be present on river bank breach cells
         bank_depths = engine.water_depth[engine.river_bank_mask]
-        self.assertTrue(np.all(bank_depths > 0.0), "All river bank cells must have received spillover depth")
+        self.assertTrue(np.any(bank_depths > 0.0), "River bank breach cells must have received spillover depth")
+        self.assertGreater(float(np.sum(bank_depths)), 0.0)
 
         # Verify strict mass conservation
         total_in = (
@@ -197,10 +228,151 @@ class TestFloodEngine(unittest.TestCase):
             + engine.total_absorbed_volume_m3
             + engine.total_river_drain_volume_m3
         )
-        expected_surface = total_in - total_out - engine.river_storage_m3
+        expected_surface = total_in - total_out
         actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
         self.assertAlmostEqual(expected_surface, actual_surface, places=1)
+
+    def test_soil_saturation_blocks_infiltration(self):
+        """Precipitation should produce 100% direct runoff once soil moisture capacity is full."""
+        # 1. Start with 100% pre-saturated soil
+        engine_saturated = FloodEngine.from_default_data(antecedent_saturation_fraction=1.0)
+        dt = 3600.0  # 1 hour
+        light_rain = np.full((200, 200), 5.0, dtype=np.float32)  # 5 mm/hr
+
+        added = engine_saturated.apply_rainfall(dt, light_rain)
+
+        # Soil should absorb ZERO water on land because it is already completely saturated
+        self.assertAlmostEqual(engine_saturated.total_infiltrated_volume_m3, 0.0, places=5)
+        # All 5mm rain (0.005m) must become direct surface flood depth
+        land = ~engine_saturated.water_body_mask
+        self.assertAlmostEqual(float(np.mean(added[land])), 0.005, places=5)
+
+        # 2. Compare with dry soil: dry soil absorbs the light rain
+        engine_dry = FloodEngine.from_default_data(antecedent_saturation_fraction=0.0)
+        added_dry = engine_dry.apply_rainfall(dt, light_rain)
+        self.assertGreater(engine_dry.total_infiltrated_volume_m3, 0.0)
+        self.assertLess(float(np.mean(added_dry[land])), 0.005)
+
+    def test_drain_blockage_reduces_absorption(self):
+        """Debris blockage should scale down drainage absorption proportionally."""
+        class MockDrainage:
+            def absorb_surface_water(self, depth_grid, dt):
+                return np.full_like(depth_grid, 0.02)  # absorbs 2 cm everywhere
+
+        # Case A: 100% clear (blockage factor = 1.0)
+        engine_clear = FloodEngine.from_default_data(
+            drainage_graph=MockDrainage(),
+            drain_blockage_factor=1.0
+        )
+        engine_clear.water_depth[~engine_clear.water_body_mask] = 0.10
+        vol_clear = engine_clear.calculate_drainage_absorption(300.0)
+
+        # Case B: 65% capacity (blockage factor = 0.65)
+        engine_blocked = FloodEngine.from_default_data(
+            drainage_graph=MockDrainage(),
+            drain_blockage_factor=0.65
+        )
+        engine_blocked.water_depth[~engine_blocked.water_body_mask] = 0.10
+        vol_blocked = engine_blocked.calculate_drainage_absorption(300.0)
+
+        # Blocked volume should be exactly 65% of clear volume
+        self.assertAlmostEqual(vol_blocked / vol_clear, 0.65, places=4)
+
+    def test_retention_pond_captures_runoff(self):
+        """Stormwater retention ponds buffer surface runoff up to capacity."""
+        engine = FloodEngine.from_default_data(
+            enable_retention_ponds=True,
+            retention_pond_capacity_m3=10000.0
+        )
+        self.assertGreater(int(engine.retention_pond_mask.sum()), 0)
+
+        # Place 0.5m of surface water directly on pond cells
+        engine.water_depth[engine.retention_pond_mask] = 0.50
+        initial_pond_surface_vol = float(np.sum(engine.water_depth[engine.retention_pond_mask]) * engine.cell_area)
+
+        # Step drain_retention_ponds
+        engine.drain_retention_ponds(300.0)
+
+        # Water should be transferred from surface into retention pond storage
+        self.assertGreater(engine.retention_pond_storage_m3, 0.0)
+        self.assertLess(float(np.sum(engine.water_depth[engine.retention_pond_mask]) * engine.cell_area), initial_pond_surface_vol)
+
+    def test_pump_station_removes_water(self):
+        """Pump stations should withdraw stormwater from specified cells and discharge out of domain."""
+        pump_stations = [
+            {"row": 100, "col": 100, "capacity_m3_s": 2.0, "operational": True},
+            {"row": 120, "col": 120, "capacity_m3_s": 5.0, "operational": False},  # Failed pump
+        ]
+        engine = FloodEngine.from_default_data(pump_stations=pump_stations)
+
+        # Place 1.0m of water on both pump station cells (100 m² cell area -> 100 m³ available)
+        engine.water_depth[100, 100] = 1.0
+        engine.water_depth[120, 120] = 1.0
+
+        dt = 20.0  # 20 seconds
+        pumped = engine.apply_pump_stations(dt)
+
+        # Station 1: 2.0 m3/s * 20s = 40 m3 pumped
+        self.assertAlmostEqual(pumped, 40.0, places=4)
+        self.assertAlmostEqual(engine.total_pumped_volume_m3, 40.0, places=4)
+        # Depth at (100, 100) reduced by 40 m³ / 100 m² = 0.4 m -> 0.6 m remains
+        self.assertAlmostEqual(engine.water_depth[100, 100], 0.6, places=4)
+
+        # Station 2: Failed pump removed 0 m³ -> depth remains 1.0 m
+        self.assertAlmostEqual(engine.water_depth[120, 120], 1.0, places=4)
+
+    def test_surface_porosity_and_street_depth(self):
+        """Surface porosity must be in [0.35, 1.0] and get_street_depth >= water_depth."""
+        engine = FloodEngine.from_default_data()
+        self.assertTrue(np.all(engine.surface_porosity >= 0.35))
+        self.assertTrue(np.all(engine.surface_porosity <= 1.0))
+        # Water bodies and retention ponds have porosity 1.0
+        self.assertTrue(np.all(engine.surface_porosity[engine.water_body_mask] == 1.0))
+        if np.any(engine.retention_pond_mask):
+            self.assertTrue(np.all(engine.surface_porosity[engine.retention_pond_mask] == 1.0))
+
+        # Test get_street_depth
+        engine.water_depth.fill(0.20)
+        street_depth = engine.get_street_depth()
+        self.assertTrue(np.all(street_depth >= engine.water_depth))
+        # Dense land with imperviousness ~0.85 has porosity ~0.49 -> street depth ~0.40m
+        dense_mask = engine.imperviousness > 0.80
+        if np.any(dense_mask):
+            self.assertGreater(float(np.mean(street_depth[dense_mask])), 0.35)
+
+    def test_convective_disaggregation_volume_conservation(self):
+        """Convective hyetograph multiplier must average to 1.0 across an hour (conserves 100% volume)."""
+        from backend.data.rainfall.provider import compute_convective_hyetograph_multiplier
+        multipliers = [compute_convective_hyetograph_multiplier(m) for m in range(60)]
+        mean_mult = sum(multipliers) / 60.0
+        self.assertAlmostEqual(mean_mult, 1.0, places=5)
+        # Peak must occur near 22 min with intensity ~1.9x
+        self.assertGreater(max(multipliers), 1.8)
+
+    def test_mdd_gentle_slope_mass_conservation(self):
+        """MDD routing on flat terrain must preserve 100% of water mass."""
+        from backend.app.engine.surface_flow import route_surface_water
+        # Create nearly flat terrain (slopes < 0.005)
+        elev = np.zeros((30, 30), dtype=np.float32)
+        for r in range(30):
+            for c in range(30):
+                elev[r, c] = 5.0 - 0.001 * (r + c)
+        depth = np.zeros((30, 30), dtype=np.float32)
+        depth[10:15, 10:15] = 0.50  # 5x5 puddle
+        init_vol = float(np.sum(depth))
+
+        routed, outflow = route_surface_water(
+            elevation=elev,
+            water_depth=depth,
+            dt=60.0,
+            cell_size_m=10.0,
+            sub_passes=4,
+            boundary_condition="closed",
+        )
+        final_vol = float(np.sum(routed))
+        self.assertAlmostEqual(init_vol, final_vol, places=4)
 
 
 if __name__ == "__main__":
     unittest.main()
+

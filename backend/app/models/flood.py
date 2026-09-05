@@ -54,4 +54,6 @@ class PointDepthResponse(BaseModel):
     col: int
     elevation_m: float
     depth_m_at_horizon: Dict[int, float]
+    street_depth_m_at_horizon: Optional[Dict[int, float]] = None
+    porosity: Optional[float] = None
     hazard_level: str  # CLEAR, CAUTION, IMPASSABLE

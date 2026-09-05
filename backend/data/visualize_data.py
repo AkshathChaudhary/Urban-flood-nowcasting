@@ -118,6 +118,6 @@ def generate_visualizations(output_paths: list[str]):
 if __name__ == "__main__":
     out_files = [
         "backend/data/dem/viz/terrain_and_drainage_overview.png",
-        r"C:\Users\aksha\.gemini\antigravity-ide\brain\b556da51-b646-4066-ab55-d8f127de6be3\terrain_and_drainage_overview.png"
+        r"C:\Users\Aniket\.gemini\antigravity-ide\brain\197042d9-fb12-44b5-8541-e645216de6b9\terrain_and_drainage_overview.png",
     ]
     generate_visualizations(out_files)

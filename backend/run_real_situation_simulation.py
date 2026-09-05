@@ -31,7 +31,7 @@ from matplotlib.colors import LinearSegmentedColormap
 import numpy as np
 
 from backend.app.engine.flood_engine import FloodEngine
-from backend.data.rainfall.provider import HistoricalRainfallProvider
+from backend.data.rainfall.provider import HistoricalRainfallProvider, SpatialHistoricalProvider
 
 
 # ---------------------------------------------------------------------------
@@ -60,17 +60,32 @@ class RealOSMDrainageNetwork:
 
         self.surcharge_nodes = self.outfalls[:8]
         self.surcharge_volume_per_step = surcharge_threshold_m3
+        self.submergence_factor = 0.0
+
+    def set_river_submergence(self, river_depth_m: float, water_depth_grid=None):
+        """
+        Dynamically models sewer outfall submergence & backpressure:
+        When Mithi River rises (> 1.0m stage depth), outfalls discharging into the river
+        are drowned. Hydrostatic backpressure:
+        1. Throttles gravity absorption at inlets by up to 50%.
+        2. Increases surcharge overflow boiling up from outfalls/manholes by up to 2.2x.
+        """
+        self.submergence_factor = float(np.clip((river_depth_m - 1.0) / 1.5, 0.0, 1.0))
 
     def absorb_surface_water(self, depth_grid, dt):
         absorbed = np.zeros_like(depth_grid)
+        inlet_efficiency = 1.0 - (0.50 * self.submergence_factor)
+        base_capacity = 0.04 * inlet_efficiency
         for r, c, _ in self.inlets:
             avail = depth_grid[r, c]
             if avail > 0.001:
-                absorbed[r, c] = min(avail, 0.04)
+                absorbed[r, c] = min(avail, base_capacity)
         return absorbed
 
     def compute_overflow(self):
-        return {nid: self.surcharge_volume_per_step for r, c, nid in self.surcharge_nodes}
+        surcharge_multiplier = 1.0 + (1.20 * self.submergence_factor)
+        vol = self.surcharge_volume_per_step * surcharge_multiplier
+        return {nid: vol for r, c, nid in self.surcharge_nodes}
 
     def get_node_cell(self, node_id):
         return self.node_positions.get(node_id, (160, 160))
@@ -136,24 +151,71 @@ def run_real_situation_test(event_date="2023-07-26", start_hour=10):
           f"{len(drain.junctions)} manholes | {len(drain.outfalls)} outfalls")
     print(f"    {len(drain.edges_data)} conduit pipe segments")
 
-    # 2. Historical rainfall
-    print(f"\n[2] Fetching Historical Rainfall (Open-Meteo Archive, {event_date})...")
-    provider = HistoricalRainfallProvider(19.07, 72.85, event_date, start_hour, (200, 200), 10.0)
+    # 2. Historical rainfall (Spatial Gaussian Cloudburst Plume)
+    print(f"\n[2] Fetching Historical Rainfall & Generating Spatial Cloudburst Plume ({event_date})...")
+    provider = SpatialHistoricalProvider(
+        lat=19.07,
+        lon=72.85,
+        date_str=event_date,
+        start_hour=start_hour,
+        grid_shape=(200, 200),
+        cell_size_m=10.0,
+        hotspot_row=120,   # Kurla/BKC depression core
+        hotspot_col=80,
+        sigma_cells=60.0,  # 600m plume radius
+        peak_ratio=2.5,    # 2.5x intensity at storm core
+    )
     rain_nowcast = provider.generate_nowcast(horizon_minutes=180)
     for t, g in sorted(rain_nowcast.items()):
-        print(f"    T+{t:3d} min: {g.mean():5.2f} mm/hr")
+        print(f"    T+{t:3d} min: Mean {g.mean():5.2f} mm/hr | Peak {g.max():5.2f} mm/hr")
 
-    # 3. Engine initialisation
-    print("\n[3] Initialising Flood Engine with corrected terrain data...")
+    # 3. Engine initialisation with comprehensive real-world urban physics
+    # - Soil saturation feedback: 60% pre-saturated soil (mid-monsoon Mumbai conditions)
+    # - Drain blockage factor: 0.65 (35% clogged with debris / plastic, MCGM 2019 survey)
+    # - Stormwater detention basins: Vidyapeeth Pond & campus detention basin (25,000 m³ capacity)
+    # - Municipal pump stations: Kurla Car Shed (4.0 m³/s) and Mahim Creek Outfall (6.0 m³/s)
+    INITIAL_MONSOON_RIVER_STORAGE_M3 = 80000.0
+    UPSTREAM_CATCHMENT_INFLOW_M3_S = 15.0   # Powai/Vihar lake overflow into Mithi River
+    TIDAL_TAILWATER_STAGE_M = 0.5           # Min permanent tidal standing depth (m)
+    TIDAL_CYCLE_START_HOUR = 14.0           # 14:00 IST start (~2h after high tide on Jul 26)
+    ANTECEDENT_SOIL_SATURATION = 0.60       # 60% pre-saturated soil
+    DRAIN_BLOCKAGE_FACTOR = 0.65            # 35% clogged with urban debris
+    RETENTION_POND_CAPACITY_M3 = 25000.0    # 25,000 m³ capacity for Vidyapeeth Pond & basin
+    PUMP_STATIONS = [
+        {"name": "Kurla Car Shed Pump", "row": 135, "col": 85, "capacity_m3_s": 4.0, "operational": True, "radius_cells": 3},
+        {"name": "Mahim Creek Outfall Pump", "row": 160, "col": 45, "capacity_m3_s": 6.0, "operational": True, "radius_cells": 3},
+    ]
+
+    print("\n[3] Initialising Flood Engine with comprehensive real-world urban physics...")
     engine = FloodEngine.from_default_data(
         rainfall_provider=provider,
         drainage_graph=drain,
         boundary_condition="closed",
+        initial_river_storage_m3=INITIAL_MONSOON_RIVER_STORAGE_M3,
+        upstream_river_inflow_m3_s=UPSTREAM_CATCHMENT_INFLOW_M3_S,
+        tidal_tailwater_stage_m=TIDAL_TAILWATER_STAGE_M,
+        tidal_cycle_start_hour=TIDAL_CYCLE_START_HOUR,
+        antecedent_saturation_fraction=ANTECEDENT_SOIL_SATURATION,
+        drain_blockage_factor=DRAIN_BLOCKAGE_FACTOR,
+        enable_retention_ponds=True,
+        retention_pond_capacity_m3=RETENTION_POND_CAPACITY_M3,
+        storm_surge_m=0.0,
+        pump_stations=PUMP_STATIONS,
     )
     wb = engine.water_body_mask
     land = ~wb
+    init_stage_m = engine.river_storage_m3 / (wb.sum() * engine.cell_area)
+    tailwater_min_m3 = wb.sum() * engine.cell_area * TIDAL_TAILWATER_STAGE_M
     print(f"    DEM  : {engine.dem.min():.2f} m -> {engine.dem.max():.2f} m ASL")
     print(f"    Water body cells (rivers/channels): {wb.sum()} ({wb.sum()/400:.1f}%)")
+    print(f"    Retention pond cells: {engine.retention_pond_mask.sum()} (Capacity: {RETENTION_POND_CAPACITY_M3:,.0f} m³)")
+    print(f"    Antecedent soil saturation: {ANTECEDENT_SOIL_SATURATION*100:.0f}% (Horton infiltration feedback active)")
+    print(f"    Drain blockage factor: {DRAIN_BLOCKAGE_FACTOR*100:.0f}% rated capacity ({100-DRAIN_BLOCKAGE_FACTOR*100:.0f}% clogged)")
+    print(f"    Pump stations active: {len(PUMP_STATIONS)} stations ({sum(p['capacity_m3_s'] for p in PUMP_STATIONS):.1f} m³/s total capacity)")
+    print(f"    Pre-existing river water held: {engine.river_storage_m3:,.0f} m3 (Stage: {init_stage_m:.2f} m, {engine.river_storage_m3/engine.river_bankfull_capacity_m3*100:.1f}% full)")
+    print(f"    Upstream catchment inflow: {UPSTREAM_CATCHMENT_INFLOW_M3_S:.1f} m3/s (Powai/Vihar lakes)")
+    print(f"    Tidal tailwater floor: {tailwater_min_m3:,.0f} m3 ({TIDAL_TAILWATER_STAGE_M}m base stage, cannot drain below this)")
+    print(f"    Tidal cycle: semi-diurnal 12.4-hr, starting at {TIDAL_CYCLE_START_HOUR:.0f}:00 IST (~2h after high tide)")
     print(f"    River bank cells (adjacent land): {engine.river_bank_mask.sum()}")
     print(f"    River bankfull capacity: {engine.river_bankfull_capacity_m3:,.0f} m3 ({engine.river_bankfull_capacity_m3/1000:.1f} thousand m3)")
     print(f"    Land cells available for flood simulation: {land.sum()}")
@@ -181,83 +243,101 @@ def run_real_situation_test(event_date="2023-07-26", start_hour=10):
     print(f"  River stage at T+180: {engine.river_storage_m3:,.0f} m3 stored "
           f"/ {engine.river_bankfull_capacity_m3:,.0f} m3 bankfull ({pct_full:.1f}% full)")
 
-    # 6. Drainage performance
-    print("\n[5] Drainage System Performance:")
-    print(f"    Inlets absorbed      : {engine.total_absorbed_volume_m3:10.1f} m3")
+    # 6. Drainage & Mitigation Infrastructure Performance:
+    print("\n[5] Drainage & Mitigation Infrastructure Performance:")
+    print(f"    Inlets absorbed      : {engine.total_absorbed_volume_m3:10.1f} m3 (blockage {DRAIN_BLOCKAGE_FACTOR*100:.0f}%)")
     print(f"    Sewer overflow       : {engine.total_overflow_volume_m3:10.1f} m3")
+    print(f"    Municipal pump removed: {engine.total_pumped_volume_m3:10.1f} m3 (Kurla & Mahim pumps)")
+    print(f"    Retention pond stored: {engine.retention_pond_storage_m3:10.1f} m3 (Vidyapeeth Pond detention)")
     print(f"    River outflow (exit) : {engine.total_river_drain_volume_m3:10.1f} m3")
     print(f"    River bankfull spill : {engine.total_river_overflow_m3:10.1f} m3  <- riverine flood onto land")
-    net = engine.total_absorbed_volume_m3 - engine.total_overflow_volume_m3
-    print(f"    Net sewer effect     : {net:10.1f} m3 ({'sewer worsened flood' if net < 0 else 'sewer helped'})")
+    net = engine.total_absorbed_volume_m3 + engine.total_pumped_volume_m3 - engine.total_overflow_volume_m3
+    print(f"    Net drainage effect  : {net:10.1f} m3 ({'drainage helped' if net > 0 else 'sewer worsened flood'})")
     if engine.total_river_overflow_m3 > 0:
         print(f"    [!] River exceeded bankfull capacity and flooded adjacent land!")
 
-    # 7. Road passability audit
-    print("\n[6] Road Corridor Passability (Pair C Interface):")
+    # 7. Road Corridor Passability (Pair C Interface):
+    print("\n[6] Road Corridor Passability (Street-Level Depth d / porosity):")
     corridors = load_road_corridors(roads_f)
     priority = [
         "Santa Cruz - Chembur Link Road", "Bandra Kurla Complex Road",
         "Swadeshi Mill Road", "Sunder Nagar Road Number 2",
-        "Vidya Nagari Marg", "BKC - CST Link Road",
-        "Jawaharlal Nehru Road", "Bharat Nagar Road",
-        "Pipeline Road", "Parshiwadi Road",
-        "Street 3", "Street 7",
-        "Old CST Road", "Kanzul Iman Road", "JL Shirshekar Marg",
+        "Hans Bhugra Marg", "CST Road",
     ]
-
+    street_depth_grid = engine.get_street_depth()
     evaluated = []
-    for rname in priority:
-        if rname not in corridors:
+    for name in priority:
+        if name not in corridors:
             continue
-        cells = corridors[rname]
-        # Only consider land cells for road flooding
-        land_cells = [(r, c) for r, c in cells if land[r, c]]
-        if not land_cells:
+        cells = corridors[name]
+        d180 = [street_depth_grid[r, c] * 100 for r, c in cells if land[r, c]]
+        raw_d180 = [forecast[180][r, c] * 100 for r, c in cells if land[r, c]]
+        if not d180:
             continue
-        d180_vals = [forecast[180][r, c] for r, c in land_cells]
-        peak_idx = int(np.argmax(d180_vals))
-        pr, pc = land_cells[peak_idx]
-        peak_cm = d180_vals[peak_idx] * 100
-        mean_cm = float(np.mean(d180_vals)) * 100
-        history = [forecast[t][pr, pc] * 100 for t in [0, 30, 60, 90, 120, 180]]
-        evaluated.append(dict(name=rname, peak_r=pr, peak_c=pc, elev=engine.dem[pr, pc],
-                               peak_d180=peak_cm, mean_d180=mean_cm, history=history))
+        history = [
+            float(np.percentile([(forecast[t][r, c] / engine.surface_porosity[r, c]) * 100 for r, c in cells if land[r, c]], 90))
+            for t in [0, 30, 60, 90, 120, 180]
+        ]
+        elevs = [engine.dem[r, c] for r, c in cells]
+        peak_idx = int(np.argmax(d180))
+        evaluated.append({
+            "name": name,
+            "peak_d180": float(np.max(d180)),
+            "raw_peak_d180": float(np.max(raw_d180)),
+            "mean_d180": float(np.mean(d180)),
+            "peak_r": cells[peak_idx][0],
+            "peak_c": cells[peak_idx][1],
+            "elev": float(np.mean(elevs)),
+            "history": history,
+        })
 
-    print("─" * 80)
-    print(f"{'Road Corridor':<33} │ {'Elev':>5} │ {'Bottleneck T+180':>16} │ {'Mean T+180':>10} │ Status")
-    print("─" * 80)
+    print("-" * 88)
+    print(f"{'Corridor':<33} | {'Elev':<6} | {'Street Depth':<14} | {'Grid Raw':<10} | Status")
+    print("-" * 88)
     for rd in evaluated:
         d = rd["peak_d180"]
-        status = "🔴 IMPASSABLE" if d > 30 else ("🟠 CAUTION" if d > 10 else "🟢 CLEAR")
-        print(f"{rd['name']:<33} │ {rd['elev']:4.1f}m │ {d:12.1f} cm   │ {rd['mean_d180']:6.1f} cm   │ {status}")
-    print("─" * 80)
+        raw = rd["raw_peak_d180"]
+        status = "[IMPASSABLE]" if d > 30 else ("[CAUTION]" if d > 10 else "[CLEAR]")
+        print(f"{rd['name']:<33} | {rd['elev']:4.1f}m | {d:12.1f} cm   | {raw:8.1f} cm | {status}")
+    print("-" * 88)
 
     # 8. Mass balance
-    print("\n[7] Mass Balance Audit (land cells only):")
-    gross   = engine.total_rain_volume_m3
-    infil   = engine.total_infiltrated_volume_m3
-    abs_d   = engine.total_absorbed_volume_m3
-    ovf     = engine.total_overflow_volume_m3
-    river_out   = engine.total_river_drain_volume_m3
-    river_spill = engine.total_river_overflow_m3
-    river_stored = engine.river_storage_m3     # water currently held in channel
-    actual  = float(np.sum(np.where(land, engine.water_depth, 0.0)) * engine.cell_area)
-    # Full water budget:
-    #   Input  = rain + sewer_overflow + river_spill_back
-    #   Output = infiltration + inlet_absorption + river_downstream_exit + river_in_channel + surface_ponding
-    expected = gross - infil - abs_d + ovf - river_out + river_spill - river_stored
-    err_pct = abs(actual - expected) / (gross + 1e-9) * 100
-    print(f"    Rain deposited (land) :  +{gross:12.2f} m3")
-    print(f"    Soil infiltration     :  -{infil:12.2f} m3")
-    print(f"    Inlet absorption      :  -{abs_d:12.2f} m3")
+    print("\n[7] Mass Balance Audit:")
+    init_river   = engine.initial_river_storage_m3
+    upstream_in  = engine.total_upstream_inflow_m3
+    surge_in     = engine.total_surge_intrusion_m3
+    gross        = engine.total_rain_volume_m3
+    infil        = engine.total_infiltrated_volume_m3
+    abs_d        = engine.total_absorbed_volume_m3
+    pumped       = engine.total_pumped_volume_m3
+    ovf          = engine.total_overflow_volume_m3
+    river_out    = engine.total_river_drain_volume_m3
+    river_stored = engine.river_storage_m3
+    pond_stored  = engine.retention_pond_storage_m3
+    actual_land  = float(np.sum(np.where(land, engine.water_depth, 0.0)) * engine.cell_area)
+    actual_total = float(np.sum(engine.water_depth) * engine.cell_area)
+
+    expected_total = init_river + upstream_in + surge_in + gross - infil - abs_d - pumped + ovf - river_out
+    expected_land  = expected_total - river_stored - pond_stored
+    err_pct = abs(actual_land - expected_land) / (gross + init_river + upstream_in + surge_in + 1e-9) * 100
+
+    print(f"    Initial river storage :  +{init_river:12.2f} m3")
+    print(f"    Upstream catchment    :  +{upstream_in:12.2f} m3  (Powai/Vihar inflow)")
+    if surge_in > 0:
+        print(f"    Storm surge intrusion :  +{surge_in:12.2f} m3  (seawater backup)")
+    print(f"    Total Rain deposited  :  +{gross:12.2f} m3")
+    print(f"    Soil infiltration     :  -{infil:12.2f} m3  (Horton saturation capped)")
+    print(f"    Inlet absorption      :  -{abs_d:12.2f} m3  (blockage factor {DRAIN_BLOCKAGE_FACTOR*100:.0f}%)")
+    print(f"    Municipal pump stations: -{pumped:12.2f} m3  (Kurla & Mahim pumps)")
     print(f"    Sewer overflow        :  +{ovf:12.2f} m3")
-    print(f"    River downstream exit :  -{river_out:12.2f} m3")
-    print(f"    River in-channel held :  -{river_stored:12.2f} m3  (current river storage)")
-    print(f"    River bankfull spill  :  +{river_spill:12.2f} m3")
+    print(f"    River downstream exit :  -{river_out:12.2f} m3  (tidal-modulated)")
+    print(f"    River in-channel held :  -{river_stored:12.2f} m3  (channel storage)")
+    print(f"    Retention pond buffer :  -{pond_stored:12.2f} m3  (Vidyapeeth Pond detention)")
     print(f"    -----------------------------------------------")
-    print(f"    Expected surface vol  :   {expected:12.2f} m3")
-    print(f"    Actual tracked vol    :   {actual:12.2f} m3")
-    print(f"    Error                 :   {abs(actual-expected):.4f} m3  ({err_pct:.6f}%)")
+    print(f"    Expected land vol     :   {expected_land:12.2f} m3")
+    print(f"    Actual tracked land   :   {actual_land:12.2f} m3")
+    print(f"    Total domain surface  :   {actual_total:12.2f} m3 (expected: {expected_total - pond_stored:12.2f} m3)")
+    print(f"    Error                 :   {abs(actual_land - expected_land):.4f} m3  ({err_pct:.6f}%)")
     print(f"    {'[PASS]' if err_pct < 0.01 else '[WARN]'} Mass conservation {'preserved' if err_pct < 0.01 else 'failed'}")
 
     # 9. Visuals
@@ -312,22 +392,33 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
     river_rgba = np.zeros((*wb_mask.shape, 4))
     river_rgba[wb_mask] = [0.0, 0.55, 1.0, 0.85]
     ax1.imshow(river_rgba, origin="lower", extent=cell_ext, zorder=2)
-    # River bank cells overlay (yellow-green outline — shows the cells that can receive overflow)
+    # Retention pond overlay in bright lime green
+    pond_rgba = np.zeros((*wb_mask.shape, 4))
+    pond_rgba[engine.retention_pond_mask] = [0.0, 0.95, 0.45, 0.95]
+    ax1.imshow(pond_rgba, origin="lower", extent=cell_ext, zorder=3)
+    # River bank cells overlay (yellow-green outline)
     bank_rgba = np.zeros((*wb_mask.shape, 4))
-    bank_rgba[engine.river_bank_mask] = [1.0, 0.9, 0.1, 0.55]
+    bank_rgba[engine.river_bank_mask] = [1.0, 0.9, 0.1, 0.45]
     ax1.imshow(bank_rgba, origin="lower", extent=cell_ext, zorder=3)
     # Drain inlets
     ix = [(c/200)*2 for r, c, _ in drain.inlets]
     iy = [(r/200)*2 for r, c, _ in drain.inlets]
-    ax1.scatter(ix, iy, c="#00ffe0", s=5, alpha=0.45, zorder=3, label=f"Inlets ({len(drain.inlets)})")
+    ax1.scatter(ix, iy, c="#00ffe0", s=4, alpha=0.35, zorder=3, label=f"Inlets ({len(drain.inlets)})")
+    # Pump stations
+    for ps in engine.pump_stations:
+        px, py = (ps["col"]/200)*2, (ps["row"]/200)*2
+        ax1.scatter(px, py, c="#ff00ea", s=95, marker="^", edgecolors="#ffffff", linewidth=1.2, zorder=6)
+        ax1.text(px + 0.04, py, ps["name"][:12], color="#ff00ea", fontsize=7.5, fontweight="bold", zorder=7)
     # Road bottleneck markers
     for rd in evaluated:
         rx, ry = (rd["peak_c"]/200)*2, (rd["peak_r"]/200)*2
         ax1.scatter(rx, ry, c="#ff4757", s=35, edgecolors="#fff", linewidth=0.8, zorder=5)
     river_patch = mpatches.Patch(color="#008cff", label="Mithi River / Channels")
-    ax1.legend(handles=[river_patch,
-                         mpatches.Patch(color="#00ffe0", label=f"Storm Inlets ({len(drain.inlets)})")],
-               loc="upper right", facecolor="#161b22", edgecolor="#30363d", fontsize=8)
+    pond_patch = mpatches.Patch(color="#00e676", label=f"Retention Pond ({engine.retention_pond_mask.sum()} cells)")
+    pump_marker = plt.Line2D([0], [0], marker="^", color="w", markerfacecolor="#ff00ea", markersize=8, label="Pump Stations")
+    ax1.legend(handles=[river_patch, pond_patch, pump_marker,
+                         mpatches.Patch(color="#00ffe0", label=f"Inlets ({len(drain.inlets)})")],
+               loc="upper right", facecolor="#161b22", edgecolor="#30363d", fontsize=7.5)
     cb1 = fig.colorbar(im1, ax=ax1, fraction=0.04, pad=0.03)
     cb1.set_label("Elevation (m ASL)", color="white", fontsize=8)
     cb1.ax.tick_params(colors="white", labelsize=7)
@@ -337,9 +428,10 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
     d60 = np.where(land_mask, forecast[60], np.nan)
     ax2.imshow(dem, cmap="gray", origin="lower", extent=cell_ext, alpha=0.4)
     ax2.imshow(river_rgba, origin="lower", extent=cell_ext, zorder=2)
+    ax2.imshow(pond_rgba, origin="lower", extent=cell_ext, zorder=3)
     vm2 = max(0.5, float(np.nanmax(d60)))
     im2 = ax2.imshow(np.ma.masked_where(d60 < 0.02, d60), cmap=flood_cmap,
-                     origin="lower", extent=cell_ext, vmin=0, vmax=vm2, zorder=3)
+                     origin="lower", extent=cell_ext, vmin=0, vmax=vm2, zorder=4)
     cb2 = fig.colorbar(im2, ax=ax2, fraction=0.04, pad=0.03)
     cb2.set_label("Depth (m)", color="white", fontsize=8)
     cb2.ax.tick_params(colors="white", labelsize=7)
@@ -349,9 +441,10 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
     d180 = np.where(land_mask, forecast[180], np.nan)
     ax3.imshow(dem, cmap="gray", origin="lower", extent=cell_ext, alpha=0.4)
     ax3.imshow(river_rgba, origin="lower", extent=cell_ext, zorder=2)
+    ax3.imshow(pond_rgba, origin="lower", extent=cell_ext, zorder=3)
     vm3 = max(0.5, float(np.nanmax(d180)))
     im3 = ax3.imshow(np.ma.masked_where(d180 < 0.02, d180), cmap=hazard_cmap,
-                     origin="lower", extent=cell_ext, vmin=0, vmax=vm3, zorder=3)
+                     origin="lower", extent=cell_ext, vmin=0, vmax=vm3, zorder=4)
     cb3 = fig.colorbar(im3, ax=ax3, fraction=0.04, pad=0.03)
     cb3.set_label("Depth (m)", color="white", fontsize=8)
     cb3.ax.tick_params(colors="white", labelsize=7)
@@ -385,7 +478,7 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
     ax4.grid(True, linestyle=":", alpha=0.25, color="#8b949e")
     ax4.set_title("4 · Road Corridor Flood Depth Hydrograph", fontsize=11, fontweight="bold", color="#a29bfe", pad=8)
 
-    # ─── Panel 5: Depth distribution by elevation band (violin-style histogram) ───
+    # ─── Panel 5: Depth distribution by elevation band ───
     bands = [
         ("0–1 m\n(Coastal)", (dem >= 0) & (dem < 1) & land_mask),
         ("1–3 m\n(Low urban)", (dem >= 1) & (dem < 3) & land_mask),
@@ -397,11 +490,9 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
         depths_cm = forecast[180][mask] * 100
         if depths_cm.size == 0:
             continue
-        # Histogram as horizontal bars
         bins = np.linspace(0, min(depths_cm.max(), 120), 30)
         counts, edges = np.histogram(depths_cm, bins=bins)
         bin_centers = 0.5 * (edges[:-1] + edges[1:])
-        # Normalize to width 0.8
         norm_counts = counts / (counts.max() + 1e-6) * 0.7
         ax5.barh(bin_centers, norm_counts, left=i, height=(edges[1]-edges[0])*0.85,
                  color=band_colors[i], alpha=0.75, edgecolor="none")
@@ -419,32 +510,45 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
     ax5.set_title("5 · Flood Depth Distribution by Elevation Band (T+180)", fontsize=11, fontweight="bold", color="#d2a8ff", pad=8)
 
     # ─── Panel 6: Water Budget Waterfall ───
-    labels = ["Rain\n(land)", "Infiltration", "Inlet\nAbsorption", "Sewer\nOverflow", "River\nExit", "Surface\nPonding"]
+    labels = ["Rain", "Infil.", "Inlet Abs.", "Pumps", "Pond Ret.", "Sewer Ovf.", "River Exit", "Land Flood"]
     gross   = engine.total_rain_volume_m3 / 1000
     infil   = engine.total_infiltrated_volume_m3 / 1000
     abs_d   = engine.total_absorbed_volume_m3 / 1000
+    pumped  = engine.total_pumped_volume_m3 / 1000
+    pond    = engine.retention_pond_storage_m3 / 1000
     ovf     = engine.total_overflow_volume_m3 / 1000
     river   = engine.total_river_drain_volume_m3 / 1000
     ponding = float(np.sum(np.where(land_mask, engine.water_depth, 0)) * engine.cell_area) / 1000
 
-    values  = [gross, -infil, -abs_d, ovf, -river, None]
-    running = [0, gross, gross - infil, gross - infil - abs_d,
-               gross - infil - abs_d + ovf, gross - infil - abs_d + ovf - river]
-    bar_h   = [gross, infil, abs_d, ovf, river, ponding]
-    bar_cols = ["#58a6ff", "#3fb950", "#3fb950", "#ff6b6b", "#3fb950", "#ffd166"]
-    bar_bottom = [0, running[1] - infil, running[2] - abs_d, running[3], running[4] - river, 0]
+    bar_h   = [gross, infil, abs_d, pumped, pond, ovf, river, ponding]
+    bar_cols = ["#58a6ff", "#3fb950", "#3fb950", "#3fb950", "#3fb950", "#ff6b6b", "#3fb950", "#ffd166"]
+    running_top = [gross, gross - infil, gross - infil - abs_d,
+                   gross - infil - abs_d - pumped, gross - infil - abs_d - pumped - pond,
+                   gross - infil - abs_d - pumped - pond + ovf,
+                   gross - infil - abs_d - pumped - pond + ovf - river, ponding]
+    bar_bottom = [
+        0,
+        running_top[1],
+        running_top[2],
+        running_top[3],
+        running_top[4],
+        running_top[4],
+        running_top[6],
+        0
+    ]
 
     for i, (lbl, h, bot, col) in enumerate(zip(labels, bar_h, bar_bottom, bar_cols)):
-        ax6.bar(i, h, bottom=bot, color=col, alpha=0.85, edgecolor="#30363d", linewidth=0.8, width=0.6)
-        ax6.text(i, bot + h + 0.5, f"{h*1000:.0f} m³", ha="center", va="bottom",
-                 color="white", fontsize=7.5, fontweight="bold")
+        ax6.bar(i, h, bottom=bot, color=col, alpha=0.85, edgecolor="#30363d", linewidth=0.8, width=0.55)
+        ax6.text(i, bot + h + 0.3, f"{h*1000:.0f} m³", ha="center", va="bottom",
+                 color="white", fontsize=6.8, fontweight="bold", rotation=0)
 
     ax6.set_xticks(range(len(labels)))
-    ax6.set_xticklabels(labels, color="#8b949e", fontsize=8)
+    ax6.set_xticklabels(labels, color="#8b949e", fontsize=7.5)
     ax6.set_ylabel("Volume (×10³ m³)", color="#8b949e", fontsize=9)
-    ax6.tick_params(colors="#8b949e", labelsize=8)
+    ax6.tick_params(colors="#8b949e", labelsize=7.5)
     ax6.grid(True, linestyle=":", alpha=0.25, color="#8b949e", axis="y")
-    ax6.set_title("6 · Water Budget Waterfall (Land Cells Only)", fontsize=11, fontweight="bold", color="#ffd166", pad=8)
+    ax6.set_title("6 · Comprehensive Water Budget Waterfall", fontsize=11, fontweight="bold", color="#ffd166", pad=8)
+
 
     # Global title
     fig.suptitle(
@@ -454,7 +558,7 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
 
     out_paths = [
         PROJECT_ROOT / "backend/data/real_simulation_results_v2.png",
-        Path(r"C:\Users\Aniket\.gemini\antigravity-ide\brain\adfdab0d-39f9-47b6-a09a-df7b9eb2bb67\real_simulation_results_v2.png"),
+        Path(r"C:\Users\Aniket\.gemini\antigravity-ide\brain\197042d9-fb12-44b5-8541-e645216de6b9\real_simulation_results_v2.png"),
     ]
     for p in out_paths:
         p.parent.mkdir(parents=True, exist_ok=True)

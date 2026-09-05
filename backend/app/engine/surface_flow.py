@@ -199,10 +199,24 @@ def route_surface_water(
         flux_depth = np.minimum(depth * flux_fraction, head_diff * 0.5)
         flux_depth = np.where(active_mask, flux_depth, 0.0).astype(np.float32)
 
-        # Place fluxes into corresponding direction layers
+        # Multi-Directional Distribution (MDD) on gentle urban terrain (< 1% slope):
+        # Eliminates artificial D8 single-cell ray striping on flat urban floodplains.
+        pos_slopes = np.maximum(slopes, 0.0)
+        sum_pos_slopes = np.sum(pos_slopes, axis=0)  # shape (rows, cols)
+
+        # Cells with gentle slope where multi-directional spreading applies
+        gentle_mask = active_mask & (best_slope < 0.01) & (sum_pos_slopes > 1e-6)
+        steep_mask = active_mask & ~gentle_mask
+
         for k in range(8):
-            mask_k = (best_dir == k) & (flux_depth > 0.0)
-            outflow_grid[k, mask_k] = flux_depth[mask_k]
+            # Steep cells: 100% of flux routed to steepest descent direction (D8)
+            mask_steep_k = steep_mask & (best_dir == k) & (flux_depth > 0.0)
+            outflow_grid[k, mask_steep_k] = flux_depth[mask_steep_k]
+
+            # Gentle cells: flux proportionally distributed across all downhill neighbors
+            if np.any(gentle_mask):
+                k_fraction = pos_slopes[k, gentle_mask] / sum_pos_slopes[gentle_mask]
+                outflow_grid[k, gentle_mask] = (flux_depth[gentle_mask] * k_fraction).astype(np.float32)
 
         # Deduct total outflow from source cells
         total_outflow = np.sum(outflow_grid, axis=0)
