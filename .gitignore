@@ -1,96 +1,30 @@
-# =============================================================================
-# Python & Hydrological Modeling Git Ignore
-# =============================================================================
+# Virtual Environments
+venv/
+.venv/
+env/
+.env/
+ENV/
 
-# Byte-compiled / optimized / DLL files
+# Python cache & compiled files
 __pycache__/
 *.py[cod]
 *$py.class
-
-# C extensions
 *.so
-
-# Distribution / packaging
-.Python
-build/
-develop-eggs/
-dist/
-downloads/
-eggs/
-.eggs/
-lib/
-lib64/
-parts/
-sdist/
-var/
-wheels/
-share/python-wheels/
-*.egg-info/
-.installed.cfg
-*.egg
-MANIFEST
-
-# PyInstaller
-*.manifest
-*.spec
-
-# Installer logs
-pip-log.txt
-pip-delete-this-directory.txt
-
-# Unit test / coverage reports
-htmlcov/
-.tox/
-.nox/
-.coverage
-.coverage.*
-.cache
-nosetests.xml
-coverage.xml
-*.cover
-*.py,cover
-.hypothesis/
 .pytest_cache/
-cover/
+.mypy_cache/
 
-# Jupyter Notebook checkpoints
-.ipynb_checkpoints
-
-# Environments & Virtual Envs
-.env
-.venv
-env/
-venv/
-ENV/
-env.bak/
-venv.bak/
-
-# IDEs and Code Editors
-.idea/
+# IDE & Editor files
 .vscode/
+.idea/
 *.swp
 *.swo
-*~
-.project
-.pydevproject
-.settings/
 
-# Operating System files
+# OS files
 .DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
 Thumbs.db
-desktop.ini
 
-# Logs & temporary files
-*.log
-*.tmp
-*.bak
+# Jupyter checkpoints
+.ipynb_checkpoints/
 
-# Antigravity / AI Agent System & Internal directories
-.system_generated/
-.gemini/
-.agents/
+# Local workspace cache
+.freebuff/
