@@ -152,14 +152,14 @@ class FloodEngine:
 #### Overpass Query (run this to get drainage from OSM)
 ```
 [out:json][timeout:180];
-area["name"="Mumbai"]->.city;
+
 (
-  way["man_made"="drain"](area.city);
-  way["waterway"="drain"](area.city);
-  way["waterway"="canal"](area.city);
-  way["tunnel"="culvert"](area.city);
-  node["man_made"="manhole"](area.city);
-  node["man_made"="drainage"](area.city);
+  way["man_made"="drain"](19.06,72.85,19.08,72.87);
+  way["waterway"="drain"](19.06,72.85,19.08,72.87);
+  way["waterway"="canal"](19.06,72.85,19.08,72.87);
+  way["tunnel"="culvert"](19.06,72.85,19.08,72.87);
+  node["man_made"="manhole"](19.06,72.85,19.08,72.87);
+  node["man_made"="drainage"](19.06,72.85,19.08,72.87);
 );
 out body geom;
 ```
@@ -168,7 +168,7 @@ out body geom;
 
 | # | Task | Hours | Deadline |
 |---|------|-------|----------|
-| A1.1 | Run OSM Overpass query for target city, download raw data | 3 h | Sep 2 |
+| A1.1 | Run OSM Overpass query for target study area, download raw data | 3 h | Sep 2 |
 | A1.2 | Clean and filter: keep only storm-water relevant features, remove duplicates | 3 h | Sep 3 |
 | A1.3 | If real data is sparse → generate synthetic drainage network: design topology of 50 nodes + 60 edges following real city street grid | 4 h | Sep 4 |
 | A1.4 | Assign realistic attributes to each node: `type` (inlet/manhole/junction/pump/outlet), `capacity_m3s` (0.1–2.0), `elevation_m` (from DEM or estimated) | 3 h | Sep 5 |

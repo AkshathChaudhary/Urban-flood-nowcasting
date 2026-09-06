@@ -70,19 +70,27 @@ def generate_visualizations(output_paths: list[str]):
             x2, y2 = node_coords[v]
             ax3.plot([x1, x2], [y1, y2], color='#38d430', linewidth=2.0, alpha=0.85, zorder=2)
 
-    # Draw Nodes
-    type_colors = {'inlet': '#00d2ff', 'junction': '#ffd166', 'outfall': '#ff4757'}
-    type_labels_plotted = set()
+    # Draw Nodes — differentiated by type with calibrated sizes
+    # Count node types for legend
+    inlet_nodes = [(gx, gy) for n_id, (gx, gy) in node_coords.items() if node_types.get(n_id) == 'inlet']
+    junction_nodes = [(gx, gy) for n_id, (gx, gy) in node_coords.items() if node_types.get(n_id) == 'junction']
+    outfall_nodes = [(gx, gy) for n_id, (gx, gy) in node_coords.items() if node_types.get(n_id) == 'outfall']
     
-    for n_id, (gx, gy) in node_coords.items():
-        ntype = node_types.get(n_id, 'junction')
-        label = ntype.capitalize() if ntype not in type_labels_plotted else None
-        if label:
-            type_labels_plotted.add(ntype)
-        ax3.scatter(gx, gy, c=type_colors.get(ntype, '#ffd166'), s=45, edgecolors='black', linewidth=0.5, zorder=3, label=label)
+    if inlet_nodes:
+        ix, iy = zip(*inlet_nodes)
+        ax3.scatter(ix, iy, c='#00d2ff', s=15, edgecolors='black', linewidth=0.3, zorder=3,
+                    label=f'Inlets (n={len(inlet_nodes)})', alpha=0.7)
+    if junction_nodes:
+        jx, jy = zip(*junction_nodes)
+        ax3.scatter(jx, jy, c='#ffd166', s=20, edgecolors='black', linewidth=0.3, zorder=3,
+                    label=f'Junctions (n={len(junction_nodes)})', alpha=0.8)
+    if outfall_nodes:
+        ox, oy = zip(*outfall_nodes)
+        ax3.scatter(ox, oy, c='#ff4757', s=120, marker='^', edgecolors='white', linewidth=1.0, zorder=5,
+                    label=f'Mithi Outfalls (n={len(outfall_nodes)})')
 
-    ax3.legend(loc='upper right', facecolor='#161b22', edgecolor='#30363d')
-    ax3.set_title(f'3. Real Drainage Network Graph ({len(nodes_data["features"])} Nodes, {len(edges_data["features"])} Edges)', fontsize=13, fontweight='bold', pad=10, color='#3fb950')
+    ax3.legend(loc='upper right', facecolor='#161b22', edgecolor='#30363d', fontsize=9)
+    ax3.set_title(f'3. Calibrated Drainage Graph ({len(nodes_data["features"])} Nodes, {len(edges_data["features"])} Edges, {len(outfall_nodes)} Outfalls)', fontsize=12, fontweight='bold', pad=10, color='#3fb950')
     ax3.set_xlabel('DEM Grid Column (0-199)', color='#8b949e')
     ax3.set_ylabel('DEM Grid Row (0-199)', color='#8b949e')
     ax3.grid(True, linestyle=':', alpha=0.3, color='#8b949e')
@@ -118,6 +126,6 @@ def generate_visualizations(output_paths: list[str]):
 if __name__ == "__main__":
     out_files = [
         "backend/data/dem/viz/terrain_and_drainage_overview.png",
-        r"C:\Users\aksha\.gemini\antigravity-ide\brain\b556da51-b646-4066-ab55-d8f127de6be3\terrain_and_drainage_overview.png"
+        r"C:\Users\Aniket\.gemini\antigravity-ide\brain\197042d9-fb12-44b5-8541-e645216de6b9\terrain_and_drainage_overview.png",
     ]
     generate_visualizations(out_files)
