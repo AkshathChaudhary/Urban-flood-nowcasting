@@ -1,0 +1,4589 @@
+{
+  "type": "FeatureCollection",
+  "metadata": {
+    "total_hotspots": 229,
+    "elevation_cutoff_m": 4.0
+  },
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-001",
+        "node_id": "RN-0274",
+        "elevation_m": -2.97,
+        "intersection_degree": 2,
+        "grid_row": 81,
+        "grid_col": 29,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.97m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852688,
+          19.067541
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-002",
+        "node_id": "RN-0347",
+        "elevation_m": -2.62,
+        "intersection_degree": 3,
+        "grid_row": 152,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.62m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868786,
+          19.073943
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-003",
+        "node_id": "RN-0346",
+        "elevation_m": -2.41,
+        "intersection_degree": 3,
+        "grid_row": 150,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868758,
+          19.073776
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-004",
+        "node_id": "RN-0507",
+        "elevation_m": -2.41,
+        "intersection_degree": 3,
+        "grid_row": 150,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.869247,
+          19.073816
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-005",
+        "node_id": "RN-0186",
+        "elevation_m": -2.28,
+        "intersection_degree": 2,
+        "grid_row": 80,
+        "grid_col": 30,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.28m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852761,
+          19.067481
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-006",
+        "node_id": "RN-0345",
+        "elevation_m": -2.09,
+        "intersection_degree": 3,
+        "grid_row": 149,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -2.09m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868785,
+          19.073701
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-007",
+        "node_id": "RN-0357",
+        "elevation_m": -1.67,
+        "intersection_degree": 3,
+        "grid_row": 138,
+        "grid_col": 197,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.67m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868641,
+          19.072708
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-008",
+        "node_id": "RN-0139",
+        "elevation_m": -1.16,
+        "intersection_degree": 4,
+        "grid_row": 70,
+        "grid_col": 4,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.16m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850315,
+          19.06655
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-009",
+        "node_id": "RN-0191",
+        "elevation_m": -1.14,
+        "intersection_degree": 3,
+        "grid_row": 76,
+        "grid_col": 16,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.14m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851458,
+          19.067055
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-010",
+        "node_id": "RN-0142",
+        "elevation_m": -1.04,
+        "intersection_degree": 5,
+        "grid_row": 75,
+        "grid_col": 13,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851186,
+          19.066987
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-011",
+        "node_id": "RN-0259",
+        "elevation_m": -1.01,
+        "intersection_degree": 3,
+        "grid_row": 144,
+        "grid_col": 196,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.01m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868505,
+          19.073227
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-012",
+        "node_id": "RN-0042",
+        "elevation_m": -1.0,
+        "intersection_degree": 2,
+        "grid_row": 131,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.87026,
+          19.072043
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-013",
+        "node_id": "RN-0141",
+        "elevation_m": -1.0,
+        "intersection_degree": 3,
+        "grid_row": 74,
+        "grid_col": 12,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -1.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851012,
+          19.0669
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-014",
+        "node_id": "RN-0148",
+        "elevation_m": -0.68,
+        "intersection_degree": 2,
+        "grid_row": 22,
+        "grid_col": 41,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.68m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853769,
+          19.062144
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-015",
+        "node_id": "RN-0185",
+        "elevation_m": -0.63,
+        "intersection_degree": 2,
+        "grid_row": 62,
+        "grid_col": 43,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.63m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854028,
+          19.065788
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-016",
+        "node_id": "RN-0691",
+        "elevation_m": -0.63,
+        "intersection_degree": 3,
+        "grid_row": 148,
+        "grid_col": 194,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.63m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868317,
+          19.073581
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-017",
+        "node_id": "RN-0135",
+        "elevation_m": -0.56,
+        "intersection_degree": 3,
+        "grid_row": 96,
+        "grid_col": 2,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.56m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850086,
+          19.068862
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-018",
+        "node_id": "RN-0095",
+        "elevation_m": -0.52,
+        "intersection_degree": 3,
+        "grid_row": 59,
+        "grid_col": 48,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.52m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854507,
+          19.065506
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-019",
+        "node_id": "RN-0094",
+        "elevation_m": -0.51,
+        "intersection_degree": 3,
+        "grid_row": 61,
+        "grid_col": 46,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.51m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854253,
+          19.065705
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-020",
+        "node_id": "RN-0192",
+        "elevation_m": -0.51,
+        "intersection_degree": 3,
+        "grid_row": 61,
+        "grid_col": 45,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.51m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854207,
+          19.065752
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-021",
+        "node_id": "RN-0140",
+        "elevation_m": -0.39,
+        "intersection_degree": 3,
+        "grid_row": 72,
+        "grid_col": 8,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.39m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850692,
+          19.066739
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-022",
+        "node_id": "RN-0173",
+        "elevation_m": -0.27,
+        "intersection_degree": 2,
+        "grid_row": 21,
+        "grid_col": 39,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853563,
+          19.062099
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-023",
+        "node_id": "RN-0556",
+        "elevation_m": -0.27,
+        "intersection_degree": 3,
+        "grid_row": 147,
+        "grid_col": 194,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868352,
+          19.073515
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-024",
+        "node_id": "RN-0653",
+        "elevation_m": -0.14,
+        "intersection_degree": 3,
+        "grid_row": 75,
+        "grid_col": 17,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.14m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851487,
+          19.066999
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-025",
+        "node_id": "RN-0363",
+        "elevation_m": -0.05,
+        "intersection_degree": 2,
+        "grid_row": 27,
+        "grid_col": 57,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at -0.05m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855274,
+          19.062667
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-026",
+        "node_id": "RN-0566",
+        "elevation_m": 0.09,
+        "intersection_degree": 2,
+        "grid_row": 193,
+        "grid_col": 36,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.09m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853373,
+          19.077706
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-027",
+        "node_id": "RN-0358",
+        "elevation_m": 0.16,
+        "intersection_degree": 3,
+        "grid_row": 72,
+        "grid_col": 3,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.16m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850201,
+          19.066748
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-028",
+        "node_id": "RN-0606",
+        "elevation_m": 0.19,
+        "intersection_degree": 3,
+        "grid_row": 176,
+        "grid_col": 42,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.19m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853936,
+          19.076111
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-029",
+        "node_id": "RN-0190",
+        "elevation_m": 0.22,
+        "intersection_degree": 3,
+        "grid_row": 76,
+        "grid_col": 18,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.22m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851627,
+          19.06711
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-030",
+        "node_id": "RN-0656",
+        "elevation_m": 0.22,
+        "intersection_degree": 3,
+        "grid_row": 76,
+        "grid_col": 18,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.22m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851661,
+          19.067054
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-031",
+        "node_id": "RN-0199",
+        "elevation_m": 0.33,
+        "intersection_degree": 3,
+        "grid_row": 182,
+        "grid_col": 39,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.33m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853636,
+          19.076675
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-032",
+        "node_id": "RN-0503",
+        "elevation_m": 0.38,
+        "intersection_degree": 2,
+        "grid_row": 57,
+        "grid_col": 0,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.38m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849861,
+          19.065372
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-033",
+        "node_id": "RN-0685",
+        "elevation_m": 0.41,
+        "intersection_degree": 2,
+        "grid_row": 44,
+        "grid_col": 21,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851858,
+          19.064186
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-034",
+        "node_id": "RN-0686",
+        "elevation_m": 0.41,
+        "intersection_degree": 3,
+        "grid_row": 44,
+        "grid_col": 21,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851886,
+          19.064146
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-035",
+        "node_id": "RN-0405",
+        "elevation_m": 0.45,
+        "intersection_degree": 3,
+        "grid_row": 58,
+        "grid_col": 48,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.45m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854444,
+          19.065468
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-036",
+        "node_id": "RN-0198",
+        "elevation_m": 0.57,
+        "intersection_degree": 3,
+        "grid_row": 180,
+        "grid_col": 40,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.57m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853742,
+          19.076547
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-037",
+        "node_id": "RN-0091",
+        "elevation_m": 0.68,
+        "intersection_degree": 4,
+        "grid_row": 53,
+        "grid_col": 3,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.68m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850158,
+          19.064991
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-038",
+        "node_id": "RN-0096",
+        "elevation_m": 0.69,
+        "intersection_degree": 4,
+        "grid_row": 57,
+        "grid_col": 49,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.69m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854605,
+          19.065392
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-039",
+        "node_id": "RN-0104",
+        "elevation_m": 0.69,
+        "intersection_degree": 3,
+        "grid_row": 57,
+        "grid_col": 49,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.69m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854533,
+          19.065351
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-040",
+        "node_id": "RN-0197",
+        "elevation_m": 0.72,
+        "intersection_degree": 3,
+        "grid_row": 176,
+        "grid_col": 43,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 0.72m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854006,
+          19.076143
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-041",
+        "node_id": "RN-0200",
+        "elevation_m": 1.01,
+        "intersection_degree": 4,
+        "grid_row": 182,
+        "grid_col": 38,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.01m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853529,
+          19.07672
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-042",
+        "node_id": "RN-0109",
+        "elevation_m": 1.02,
+        "intersection_degree": 3,
+        "grid_row": 58,
+        "grid_col": 0,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.02m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849926,
+          19.065409
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-043",
+        "node_id": "RN-0098",
+        "elevation_m": 1.04,
+        "intersection_degree": 3,
+        "grid_row": 47,
+        "grid_col": 55,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855155,
+          19.064448
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-044",
+        "node_id": "RN-0403",
+        "elevation_m": 1.04,
+        "intersection_degree": 3,
+        "grid_row": 47,
+        "grid_col": 55,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855086,
+          19.064411
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-045",
+        "node_id": "RN-0502",
+        "elevation_m": 1.06,
+        "intersection_degree": 3,
+        "grid_row": 53,
+        "grid_col": 2,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.06m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850093,
+          19.064958
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-046",
+        "node_id": "RN-0658",
+        "elevation_m": 1.06,
+        "intersection_degree": 4,
+        "grid_row": 82,
+        "grid_col": 5,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.06m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850363,
+          19.067623
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-047",
+        "node_id": "RN-0472",
+        "elevation_m": 1.14,
+        "intersection_degree": 3,
+        "grid_row": 124,
+        "grid_col": 127,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.14m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862005,
+          19.071458
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-048",
+        "node_id": "RN-0116",
+        "elevation_m": 1.15,
+        "intersection_degree": 3,
+        "grid_row": 23,
+        "grid_col": 69,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.15m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856412,
+          19.062242
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-049",
+        "node_id": "RN-0453",
+        "elevation_m": 1.15,
+        "intersection_degree": 3,
+        "grid_row": 22,
+        "grid_col": 68,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.15m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856366,
+          19.06222
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-050",
+        "node_id": "RN-0687",
+        "elevation_m": 1.17,
+        "intersection_degree": 3,
+        "grid_row": 40,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.17m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852092,
+          19.063769
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-051",
+        "node_id": "RN-0688",
+        "elevation_m": 1.17,
+        "intersection_degree": 2,
+        "grid_row": 40,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.17m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852065,
+          19.06381
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-052",
+        "node_id": "RN-0689",
+        "elevation_m": 1.17,
+        "intersection_degree": 3,
+        "grid_row": 35,
+        "grid_col": 25,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.17m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852322,
+          19.063396
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-053",
+        "node_id": "RN-0690",
+        "elevation_m": 1.17,
+        "intersection_degree": 2,
+        "grid_row": 36,
+        "grid_col": 25,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.17m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852294,
+          19.063437
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-054",
+        "node_id": "RN-0099",
+        "elevation_m": 1.21,
+        "intersection_degree": 3,
+        "grid_row": 45,
+        "grid_col": 56,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.21m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855264,
+          19.064256
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-055",
+        "node_id": "RN-0203",
+        "elevation_m": 1.22,
+        "intersection_degree": 3,
+        "grid_row": 197,
+        "grid_col": 39,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.22m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853633,
+          19.078062
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-056",
+        "node_id": "RN-0657",
+        "elevation_m": 1.24,
+        "intersection_degree": 2,
+        "grid_row": 83,
+        "grid_col": 7,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.24m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850571,
+          19.067705
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-057",
+        "node_id": "RN-0348",
+        "elevation_m": 1.27,
+        "intersection_degree": 3,
+        "grid_row": 154,
+        "grid_col": 198,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868688,
+          19.074166
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-058",
+        "node_id": "RN-0402",
+        "elevation_m": 1.3,
+        "intersection_degree": 3,
+        "grid_row": 44,
+        "grid_col": 56,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.3m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855197,
+          19.064218
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-059",
+        "node_id": "RN-0621",
+        "elevation_m": 1.3,
+        "intersection_degree": 3,
+        "grid_row": 49,
+        "grid_col": 72,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.3m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856709,
+          19.064609
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-060",
+        "node_id": "RN-0149",
+        "elevation_m": 1.37,
+        "intersection_degree": 3,
+        "grid_row": 31,
+        "grid_col": 36,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.37m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853371,
+          19.062969
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-061",
+        "node_id": "RN-0283",
+        "elevation_m": 1.39,
+        "intersection_degree": 3,
+        "grid_row": 78,
+        "grid_col": 20,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.39m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851797,
+          19.067257
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-062",
+        "node_id": "RN-0508",
+        "elevation_m": 1.44,
+        "intersection_degree": 3,
+        "grid_row": 42,
+        "grid_col": 62,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.44m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855823,
+          19.063969
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-063",
+        "node_id": "RN-0401",
+        "elevation_m": 1.47,
+        "intersection_degree": 3,
+        "grid_row": 40,
+        "grid_col": 58,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.47m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855453,
+          19.063774
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-064",
+        "node_id": "RN-0100",
+        "elevation_m": 1.58,
+        "intersection_degree": 4,
+        "grid_row": 40,
+        "grid_col": 59,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.58m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855518,
+          19.063805
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-065",
+        "node_id": "RN-0115",
+        "elevation_m": 1.66,
+        "intersection_degree": 3,
+        "grid_row": 26,
+        "grid_col": 67,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.66m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856229,
+          19.06253
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-066",
+        "node_id": "RN-0273",
+        "elevation_m": 1.71,
+        "intersection_degree": 2,
+        "grid_row": 79,
+        "grid_col": 24,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.71m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852142,
+          19.067374
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-067",
+        "node_id": "RN-0184",
+        "elevation_m": 1.72,
+        "intersection_degree": 2,
+        "grid_row": 61,
+        "grid_col": 38,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.72m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853544,
+          19.065737
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-068",
+        "node_id": "RN-0189",
+        "elevation_m": 1.72,
+        "intersection_degree": 4,
+        "grid_row": 77,
+        "grid_col": 20,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.72m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851833,
+          19.067176
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-069",
+        "node_id": "RN-0616",
+        "elevation_m": 1.75,
+        "intersection_degree": 2,
+        "grid_row": 17,
+        "grid_col": 41,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.75m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853822,
+          19.061719
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-070",
+        "node_id": "RN-0264",
+        "elevation_m": 1.78,
+        "intersection_degree": 3,
+        "grid_row": 125,
+        "grid_col": 123,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.78m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861557,
+          19.071494
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-071",
+        "node_id": "RN-0284",
+        "elevation_m": 1.82,
+        "intersection_degree": 4,
+        "grid_row": 79,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.82m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852046,
+          19.067343
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-072",
+        "node_id": "RN-0684",
+        "elevation_m": 1.83,
+        "intersection_degree": 3,
+        "grid_row": 42,
+        "grid_col": 19,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.83m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851667,
+          19.064028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-073",
+        "node_id": "RN-0201",
+        "elevation_m": 1.86,
+        "intersection_degree": 3,
+        "grid_row": 193,
+        "grid_col": 39,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.86m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853572,
+          19.077706
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-074",
+        "node_id": "RN-0017",
+        "elevation_m": 1.87,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 93,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.87m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.858765,
+          19.078952
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-075",
+        "node_id": "RN-0087",
+        "elevation_m": 1.88,
+        "intersection_degree": 3,
+        "grid_row": 41,
+        "grid_col": 19,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.88m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851749,
+          19.063887
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-076",
+        "node_id": "RN-0623",
+        "elevation_m": 1.88,
+        "intersection_degree": 3,
+        "grid_row": 44,
+        "grid_col": 64,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.88m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855973,
+          19.064149
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-077",
+        "node_id": "RN-0365",
+        "elevation_m": 1.9,
+        "intersection_degree": 4,
+        "grid_row": 61,
+        "grid_col": 37,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.9m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853408,
+          19.065708
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-078",
+        "node_id": "RN-0117",
+        "elevation_m": 1.91,
+        "intersection_degree": 3,
+        "grid_row": 20,
+        "grid_col": 70,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.91m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85658,
+          19.061992
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-079",
+        "node_id": "RN-0452",
+        "elevation_m": 1.91,
+        "intersection_degree": 3,
+        "grid_row": 20,
+        "grid_col": 70,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.91m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856531,
+          19.061964
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-080",
+        "node_id": "RN-0620",
+        "elevation_m": 1.91,
+        "intersection_degree": 3,
+        "grid_row": 50,
+        "grid_col": 73,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.91m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856852,
+          19.064727
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-081",
+        "node_id": "RN-0659",
+        "elevation_m": 1.93,
+        "intersection_degree": 3,
+        "grid_row": 81,
+        "grid_col": 3,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.93m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850199,
+          19.067536
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-082",
+        "node_id": "RN-0319",
+        "elevation_m": 1.97,
+        "intersection_degree": 3,
+        "grid_row": 79,
+        "grid_col": 44,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 1.97m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854127,
+          19.067373
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-083",
+        "node_id": "RN-0070",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 80,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.869635,
+          19.06748
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-084",
+        "node_id": "RN-0071",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 80,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.869574,
+          19.067433
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-085",
+        "node_id": "RN-0290",
+        "elevation_m": 2.0,
+        "intersection_degree": 4,
+        "grid_row": 81,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86952,
+          19.067505
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-086",
+        "node_id": "RN-0292",
+        "elevation_m": 2.0,
+        "intersection_degree": 4,
+        "grid_row": 81,
+        "grid_col": 199,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.869581,
+          19.067548
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-087",
+        "node_id": "RN-0355",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 194,
+        "grid_col": 133,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862543,
+          19.077803
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-088",
+        "node_id": "RN-0356",
+        "elevation_m": 2.0,
+        "intersection_degree": 2,
+        "grid_row": 191,
+        "grid_col": 131,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862354,
+          19.077504
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-089",
+        "node_id": "RN-0369",
+        "elevation_m": 2.0,
+        "intersection_degree": 2,
+        "grid_row": 191,
+        "grid_col": 131,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862311,
+          19.077531
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-090",
+        "node_id": "RN-0370",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 192,
+        "grid_col": 131,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86235,
+          19.077586
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-091",
+        "node_id": "RN-0371",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 194,
+        "grid_col": 132,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862453,
+          19.077808
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-092",
+        "node_id": "RN-0454",
+        "elevation_m": 2.0,
+        "intersection_degree": 3,
+        "grid_row": 26,
+        "grid_col": 66,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856188,
+          19.062504
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-093",
+        "node_id": "RN-0111",
+        "elevation_m": 2.04,
+        "intersection_degree": 2,
+        "grid_row": 53,
+        "grid_col": 22,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852016,
+          19.064995
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-094",
+        "node_id": "RN-0174",
+        "elevation_m": 2.04,
+        "intersection_degree": 3,
+        "grid_row": 20,
+        "grid_col": 37,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853392,
+          19.062016
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-095",
+        "node_id": "RN-0499",
+        "elevation_m": 2.05,
+        "intersection_degree": 2,
+        "grid_row": 52,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.05m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852048,
+          19.064936
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-096",
+        "node_id": "RN-0416",
+        "elevation_m": 2.07,
+        "intersection_degree": 3,
+        "grid_row": 17,
+        "grid_col": 43,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.07m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854012,
+          19.061717
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-097",
+        "node_id": "RN-0509",
+        "elevation_m": 2.07,
+        "intersection_degree": 3,
+        "grid_row": 43,
+        "grid_col": 64,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.07m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856019,
+          19.064086
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-098",
+        "node_id": "RN-0014",
+        "elevation_m": 2.08,
+        "intersection_degree": 4,
+        "grid_row": 184,
+        "grid_col": 125,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.08m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861811,
+          19.07686
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-099",
+        "node_id": "RN-0379",
+        "elevation_m": 2.09,
+        "intersection_degree": 3,
+        "grid_row": 115,
+        "grid_col": 119,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.09m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861182,
+          19.070617
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-100",
+        "node_id": "RN-0265",
+        "elevation_m": 2.13,
+        "intersection_degree": 3,
+        "grid_row": 127,
+        "grid_col": 121,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.13m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861349,
+          19.071696
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-101",
+        "node_id": "RN-0608",
+        "elevation_m": 2.13,
+        "intersection_degree": 3,
+        "grid_row": 183,
+        "grid_col": 36,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.13m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853338,
+          19.076755
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-102",
+        "node_id": "RN-0625",
+        "elevation_m": 2.13,
+        "intersection_degree": 3,
+        "grid_row": 195,
+        "grid_col": 130,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.13m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862276,
+          19.077838
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-103",
+        "node_id": "RN-0156",
+        "elevation_m": 2.14,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 60,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.14m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855561,
+          19.078217
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-104",
+        "node_id": "RN-0086",
+        "elevation_m": 2.18,
+        "intersection_degree": 3,
+        "grid_row": 38,
+        "grid_col": 21,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.18m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85188,
+          19.063657
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-105",
+        "node_id": "RN-0463",
+        "elevation_m": 2.18,
+        "intersection_degree": 3,
+        "grid_row": 122,
+        "grid_col": 135,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.18m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862694,
+          19.07124
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-106",
+        "node_id": "RN-0318",
+        "elevation_m": 2.22,
+        "intersection_degree": 3,
+        "grid_row": 185,
+        "grid_col": 54,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.22m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855027,
+          19.076949
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-107",
+        "node_id": "RN-0005",
+        "elevation_m": 2.23,
+        "intersection_degree": 3,
+        "grid_row": 194,
+        "grid_col": 134,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.23m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862607,
+          19.077805
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-108",
+        "node_id": "RN-0013",
+        "elevation_m": 2.24,
+        "intersection_degree": 4,
+        "grid_row": 184,
+        "grid_col": 126,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.24m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861848,
+          19.076835
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-109",
+        "node_id": "RN-0157",
+        "elevation_m": 2.27,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 59,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855547,
+          19.07822
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-110",
+        "node_id": "RN-0650",
+        "elevation_m": 2.27,
+        "intersection_degree": 3,
+        "grid_row": 198,
+        "grid_col": 59,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855554,
+          19.078159
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-111",
+        "node_id": "RN-0473",
+        "elevation_m": 2.31,
+        "intersection_degree": 3,
+        "grid_row": 122,
+        "grid_col": 132,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.31m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862484,
+          19.071278
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-112",
+        "node_id": "RN-0263",
+        "elevation_m": 2.34,
+        "intersection_degree": 3,
+        "grid_row": 120,
+        "grid_col": 134,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.34m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862653,
+          19.071028
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-113",
+        "node_id": "RN-0471",
+        "elevation_m": 2.39,
+        "intersection_degree": 3,
+        "grid_row": 54,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.39m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852109,
+          19.065041
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-114",
+        "node_id": "RN-0353",
+        "elevation_m": 2.41,
+        "intersection_degree": 4,
+        "grid_row": 186,
+        "grid_col": 121,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861416,
+          19.077073
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-115",
+        "node_id": "RN-0380",
+        "elevation_m": 2.41,
+        "intersection_degree": 3,
+        "grid_row": 115,
+        "grid_col": 120,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861322,
+          19.070599
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-116",
+        "node_id": "RN-0609",
+        "elevation_m": 2.42,
+        "intersection_degree": 3,
+        "grid_row": 182,
+        "grid_col": 36,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.42m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853337,
+          19.076687
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-117",
+        "node_id": "RN-0465",
+        "elevation_m": 2.43,
+        "intersection_degree": 3,
+        "grid_row": 57,
+        "grid_col": 29,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.43m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852679,
+          19.065333
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-118",
+        "node_id": "RN-0084",
+        "elevation_m": 2.45,
+        "intersection_degree": 3,
+        "grid_row": 34,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.45m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852097,
+          19.063275
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-119",
+        "node_id": "RN-0464",
+        "elevation_m": 2.46,
+        "intersection_degree": 3,
+        "grid_row": 55,
+        "grid_col": 25,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.46m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852288,
+          19.065132
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-120",
+        "node_id": "RN-0361",
+        "elevation_m": 2.47,
+        "intersection_degree": 3,
+        "grid_row": 195,
+        "grid_col": 129,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.47m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862197,
+          19.077844
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-121",
+        "node_id": "RN-0151",
+        "elevation_m": 2.5,
+        "intersection_degree": 3,
+        "grid_row": 51,
+        "grid_col": 25,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.5m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852324,
+          19.064849
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-122",
+        "node_id": "RN-0575",
+        "elevation_m": 2.5,
+        "intersection_degree": 3,
+        "grid_row": 51,
+        "grid_col": 25,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.5m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852247,
+          19.064802
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-123",
+        "node_id": "RN-0202",
+        "elevation_m": 2.52,
+        "intersection_degree": 3,
+        "grid_row": 195,
+        "grid_col": 40,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.52m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853685,
+          19.077857
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-124",
+        "node_id": "RN-0250",
+        "elevation_m": 2.52,
+        "intersection_degree": 3,
+        "grid_row": 100,
+        "grid_col": 198,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.52m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868726,
+          19.069227
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-125",
+        "node_id": "RN-0573",
+        "elevation_m": 2.52,
+        "intersection_degree": 3,
+        "grid_row": 56,
+        "grid_col": 29,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.52m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852703,
+          19.065292
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-126",
+        "node_id": "RN-0134",
+        "elevation_m": 2.53,
+        "intersection_degree": 2,
+        "grid_row": 91,
+        "grid_col": 0,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.53m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849232,
+          19.068431
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-127",
+        "node_id": "RN-0196",
+        "elevation_m": 2.57,
+        "intersection_degree": 3,
+        "grid_row": 165,
+        "grid_col": 49,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.57m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854528,
+          19.07517
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-128",
+        "node_id": "RN-0520",
+        "elevation_m": 2.57,
+        "intersection_degree": 2,
+        "grid_row": 152,
+        "grid_col": 29,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.57m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85268,
+          19.073986
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-129",
+        "node_id": "RN-0090",
+        "elevation_m": 2.6,
+        "intersection_degree": 3,
+        "grid_row": 42,
+        "grid_col": 10,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.6m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850902,
+          19.063951
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-130",
+        "node_id": "RN-0214",
+        "elevation_m": 2.6,
+        "intersection_degree": 3,
+        "grid_row": 190,
+        "grid_col": 183,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.6m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867282,
+          19.077386
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-131",
+        "node_id": "RN-0158",
+        "elevation_m": 2.61,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 58,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.61m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855411,
+          19.078273
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-132",
+        "node_id": "RN-0481",
+        "elevation_m": 2.61,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 58,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.61m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855367,
+          19.078202
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-133",
+        "node_id": "RN-0320",
+        "elevation_m": 2.63,
+        "intersection_degree": 3,
+        "grid_row": 80,
+        "grid_col": 45,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.63m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854173,
+          19.06743
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-134",
+        "node_id": "RN-0622",
+        "elevation_m": 2.63,
+        "intersection_degree": 3,
+        "grid_row": 54,
+        "grid_col": 68,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.63m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85641,
+          19.065054
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-135",
+        "node_id": "RN-0535",
+        "elevation_m": 2.64,
+        "intersection_degree": 3,
+        "grid_row": 152,
+        "grid_col": 112,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.64m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.860583,
+          19.073979
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-136",
+        "node_id": "RN-0153",
+        "elevation_m": 2.65,
+        "intersection_degree": 3,
+        "grid_row": 54,
+        "grid_col": 24,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.65m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852193,
+          19.065083
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-137",
+        "node_id": "RN-0085",
+        "elevation_m": 2.67,
+        "intersection_degree": 3,
+        "grid_row": 35,
+        "grid_col": 22,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.67m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852044,
+          19.063369
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-138",
+        "node_id": "RN-0698",
+        "elevation_m": 2.67,
+        "intersection_degree": 3,
+        "grid_row": 145,
+        "grid_col": 180,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.67m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867038,
+          19.07331
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-139",
+        "node_id": "RN-0466",
+        "elevation_m": 2.69,
+        "intersection_degree": 3,
+        "grid_row": 60,
+        "grid_col": 36,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.69m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853308,
+          19.065637
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-140",
+        "node_id": "RN-0618",
+        "elevation_m": 2.69,
+        "intersection_degree": 3,
+        "grid_row": 51,
+        "grid_col": 75,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.69m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856993,
+          19.064843
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-141",
+        "node_id": "RN-0152",
+        "elevation_m": 2.72,
+        "intersection_degree": 4,
+        "grid_row": 53,
+        "grid_col": 24,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.72m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852225,
+          19.065033
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-142",
+        "node_id": "RN-0574",
+        "elevation_m": 2.72,
+        "intersection_degree": 4,
+        "grid_row": 53,
+        "grid_col": 24,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.72m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85214,
+          19.064987
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-143",
+        "node_id": "RN-0510",
+        "elevation_m": 2.78,
+        "intersection_degree": 2,
+        "grid_row": 44,
+        "grid_col": 66,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.78m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856217,
+          19.064203
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-144",
+        "node_id": "RN-0408",
+        "elevation_m": 2.81,
+        "intersection_degree": 3,
+        "grid_row": 17,
+        "grid_col": 71,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.81m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856683,
+          19.061736
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-145",
+        "node_id": "RN-0092",
+        "elevation_m": 2.82,
+        "intersection_degree": 3,
+        "grid_row": 58,
+        "grid_col": 11,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.82m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850954,
+          19.065433
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-146",
+        "node_id": "RN-0613",
+        "elevation_m": 2.83,
+        "intersection_degree": 3,
+        "grid_row": 184,
+        "grid_col": 35,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.83m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853235,
+          19.076888
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-147",
+        "node_id": "RN-0450",
+        "elevation_m": 2.87,
+        "intersection_degree": 2,
+        "grid_row": 65,
+        "grid_col": 19,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.87m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851727,
+          19.066066
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-148",
+        "node_id": "RN-0451",
+        "elevation_m": 2.87,
+        "intersection_degree": 3,
+        "grid_row": 65,
+        "grid_col": 19,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.87m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851701,
+          19.06611
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-149",
+        "node_id": "RN-0532",
+        "elevation_m": 2.88,
+        "intersection_degree": 2,
+        "grid_row": 152,
+        "grid_col": 28,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.88m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85256,
+          19.073939
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-150",
+        "node_id": "RN-0239",
+        "elevation_m": 2.9,
+        "intersection_degree": 3,
+        "grid_row": 122,
+        "grid_col": 138,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.9m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863005,
+          19.071216
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-151",
+        "node_id": "RN-0097",
+        "elevation_m": 2.91,
+        "intersection_degree": 3,
+        "grid_row": 54,
+        "grid_col": 51,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.91m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854788,
+          19.065077
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-152",
+        "node_id": "RN-0040",
+        "elevation_m": 2.95,
+        "intersection_degree": 2,
+        "grid_row": 113,
+        "grid_col": 185,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.95m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867493,
+          19.070401
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-153",
+        "node_id": "RN-0187",
+        "elevation_m": 2.95,
+        "intersection_degree": 2,
+        "grid_row": 78,
+        "grid_col": 24,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.95m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852174,
+          19.067297
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-154",
+        "node_id": "RN-0660",
+        "elevation_m": 2.95,
+        "intersection_degree": 3,
+        "grid_row": 81,
+        "grid_col": 2,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.95m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850122,
+          19.067496
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-155",
+        "node_id": "RN-0188",
+        "elevation_m": 2.96,
+        "intersection_degree": 3,
+        "grid_row": 78,
+        "grid_col": 23,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.96m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852082,
+          19.067268
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-156",
+        "node_id": "RN-0103",
+        "elevation_m": 2.98,
+        "intersection_degree": 3,
+        "grid_row": 31,
+        "grid_col": 64,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.98m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855962,
+          19.06298
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-157",
+        "node_id": "RN-0489",
+        "elevation_m": 2.98,
+        "intersection_degree": 3,
+        "grid_row": 92,
+        "grid_col": 154,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.98m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.864569,
+          19.068545
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-158",
+        "node_id": "RN-0118",
+        "elevation_m": 2.99,
+        "intersection_degree": 4,
+        "grid_row": 17,
+        "grid_col": 72,
+        "severity": "CRITICAL",
+        "description": "Low-elevation road crossing at 2.99m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856738,
+          19.061757
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-159",
+        "node_id": "RN-0513",
+        "elevation_m": 3.0,
+        "intersection_degree": 3,
+        "grid_row": 4,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851395,
+          19.060561
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-160",
+        "node_id": "RN-0514",
+        "elevation_m": 3.0,
+        "intersection_degree": 3,
+        "grid_row": 4,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851433,
+          19.060516
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-161",
+        "node_id": "RN-0551",
+        "elevation_m": 3.0,
+        "intersection_degree": 2,
+        "grid_row": 75,
+        "grid_col": 51,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854791,
+          19.066954
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-162",
+        "node_id": "RN-0577",
+        "elevation_m": 3.0,
+        "intersection_degree": 3,
+        "grid_row": 3,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851398,
+          19.06047
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-163",
+        "node_id": "RN-0147",
+        "elevation_m": 3.01,
+        "intersection_degree": 3,
+        "grid_row": 4,
+        "grid_col": 15,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.01m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851349,
+          19.060552
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-164",
+        "node_id": "RN-0228",
+        "elevation_m": 3.04,
+        "intersection_degree": 3,
+        "grid_row": 193,
+        "grid_col": 161,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.04m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.865168,
+          19.077701
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-165",
+        "node_id": "RN-0395",
+        "elevation_m": 3.07,
+        "intersection_degree": 3,
+        "grid_row": 76,
+        "grid_col": 21,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.07m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851865,
+          19.067119
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-166",
+        "node_id": "RN-0080",
+        "elevation_m": 3.08,
+        "intersection_degree": 3,
+        "grid_row": 3,
+        "grid_col": 15,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.08m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851377,
+          19.060467
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-167",
+        "node_id": "RN-0323",
+        "elevation_m": 3.08,
+        "intersection_degree": 3,
+        "grid_row": 3,
+        "grid_col": 15,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.08m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851336,
+          19.060493
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-168",
+        "node_id": "RN-0545",
+        "elevation_m": 3.09,
+        "intersection_degree": 3,
+        "grid_row": 170,
+        "grid_col": 56,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.09m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855216,
+          19.075601
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-169",
+        "node_id": "RN-0114",
+        "elevation_m": 3.11,
+        "intersection_degree": 3,
+        "grid_row": 28,
+        "grid_col": 65,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.11m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856076,
+          19.06277
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-170",
+        "node_id": "RN-0455",
+        "elevation_m": 3.11,
+        "intersection_degree": 3,
+        "grid_row": 28,
+        "grid_col": 65,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.11m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.856031,
+          19.062753
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-171",
+        "node_id": "RN-0422",
+        "elevation_m": 3.15,
+        "intersection_degree": 2,
+        "grid_row": 150,
+        "grid_col": 183,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.15m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867241,
+          19.073812
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-172",
+        "node_id": "RN-0615",
+        "elevation_m": 3.15,
+        "intersection_degree": 3,
+        "grid_row": 183,
+        "grid_col": 35,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.15m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85326,
+          19.076771
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-173",
+        "node_id": "RN-0352",
+        "elevation_m": 3.2,
+        "intersection_degree": 2,
+        "grid_row": 182,
+        "grid_col": 118,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.2m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861099,
+          19.076723
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-174",
+        "node_id": "RN-0692",
+        "elevation_m": 3.21,
+        "intersection_degree": 3,
+        "grid_row": 157,
+        "grid_col": 196,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.21m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86855,
+          19.074417
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-175",
+        "node_id": "RN-0460",
+        "elevation_m": 3.23,
+        "intersection_degree": 3,
+        "grid_row": 43,
+        "grid_col": 10,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.23m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850841,
+          19.064065
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-176",
+        "node_id": "RN-0670",
+        "elevation_m": 3.24,
+        "intersection_degree": 3,
+        "grid_row": 11,
+        "grid_col": 15,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.24m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851363,
+          19.061221
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-177",
+        "node_id": "RN-0505",
+        "elevation_m": 3.27,
+        "intersection_degree": 2,
+        "grid_row": 153,
+        "grid_col": 28,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.27m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852522,
+          19.074091
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-178",
+        "node_id": "RN-0082",
+        "elevation_m": 3.28,
+        "intersection_degree": 3,
+        "grid_row": 24,
+        "grid_col": 29,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.28m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852641,
+          19.062323
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-179",
+        "node_id": "RN-0222",
+        "elevation_m": 3.29,
+        "intersection_degree": 4,
+        "grid_row": 74,
+        "grid_col": 199,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.29m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868853,
+          19.066879
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-180",
+        "node_id": "RN-0359",
+        "elevation_m": 3.29,
+        "intersection_degree": 3,
+        "grid_row": 75,
+        "grid_col": 2,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.29m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850077,
+          19.066962
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-181",
+        "node_id": "RN-0480",
+        "elevation_m": 3.29,
+        "intersection_degree": 3,
+        "grid_row": 196,
+        "grid_col": 56,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.29m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855215,
+          19.07794
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-182",
+        "node_id": "RN-0649",
+        "elevation_m": 3.29,
+        "intersection_degree": 3,
+        "grid_row": 199,
+        "grid_col": 56,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.29m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85527,
+          19.078248
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-183",
+        "node_id": "RN-0146",
+        "elevation_m": 3.3,
+        "intersection_degree": 3,
+        "grid_row": 4,
+        "grid_col": 12,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.3m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851022,
+          19.060578
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-184",
+        "node_id": "RN-0324",
+        "elevation_m": 3.3,
+        "intersection_degree": 3,
+        "grid_row": 4,
+        "grid_col": 12,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.3m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851025,
+          19.06051
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-185",
+        "node_id": "RN-0378",
+        "elevation_m": 3.33,
+        "intersection_degree": 3,
+        "grid_row": 106,
+        "grid_col": 117,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.33m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861052,
+          19.069774
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-186",
+        "node_id": "RN-0400",
+        "elevation_m": 3.34,
+        "intersection_degree": 3,
+        "grid_row": 37,
+        "grid_col": 60,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.34m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855591,
+          19.063523
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-187",
+        "node_id": "RN-0683",
+        "elevation_m": 3.37,
+        "intersection_degree": 4,
+        "grid_row": 46,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.37m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851457,
+          19.064388
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-188",
+        "node_id": "RN-0102",
+        "elevation_m": 3.39,
+        "intersection_degree": 3,
+        "grid_row": 34,
+        "grid_col": 62,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.39m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855811,
+          19.06327
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-189",
+        "node_id": "RN-0399",
+        "elevation_m": 3.39,
+        "intersection_degree": 3,
+        "grid_row": 34,
+        "grid_col": 62,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.39m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855751,
+          19.063231
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-190",
+        "node_id": "RN-0398",
+        "elevation_m": 3.41,
+        "intersection_degree": 2,
+        "grid_row": 31,
+        "grid_col": 63,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.41m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855893,
+          19.062973
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-191",
+        "node_id": "RN-0275",
+        "elevation_m": 3.43,
+        "intersection_degree": 2,
+        "grid_row": 113,
+        "grid_col": 186,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.43m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867581,
+          19.070417
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-192",
+        "node_id": "RN-0702",
+        "elevation_m": 3.44,
+        "intersection_degree": 2,
+        "grid_row": 195,
+        "grid_col": 127,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.44m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861944,
+          19.07786
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-193",
+        "node_id": "RN-0581",
+        "elevation_m": 3.46,
+        "intersection_degree": 3,
+        "grid_row": 15,
+        "grid_col": 42,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.46m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853876,
+          19.061526
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-194",
+        "node_id": "RN-0584",
+        "elevation_m": 3.46,
+        "intersection_degree": 3,
+        "grid_row": 15,
+        "grid_col": 42,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.46m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853909,
+          19.061561
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-195",
+        "node_id": "RN-0585",
+        "elevation_m": 3.46,
+        "intersection_degree": 3,
+        "grid_row": 15,
+        "grid_col": 42,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.46m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853932,
+          19.06157
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-196",
+        "node_id": "RN-0101",
+        "elevation_m": 3.47,
+        "intersection_degree": 3,
+        "grid_row": 37,
+        "grid_col": 61,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.47m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855655,
+          19.063554
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-197",
+        "node_id": "RN-0517",
+        "elevation_m": 3.48,
+        "intersection_degree": 3,
+        "grid_row": 157,
+        "grid_col": 106,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.48m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86001,
+          19.074467
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-198",
+        "node_id": "RN-0150",
+        "elevation_m": 3.49,
+        "intersection_degree": 3,
+        "grid_row": 36,
+        "grid_col": 34,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.49m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853102,
+          19.063444
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-199",
+        "node_id": "RN-0155",
+        "elevation_m": 3.5,
+        "intersection_degree": 3,
+        "grid_row": 198,
+        "grid_col": 62,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.5m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855824,
+          19.078165
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-200",
+        "node_id": "RN-0089",
+        "elevation_m": 3.56,
+        "intersection_degree": 4,
+        "grid_row": 40,
+        "grid_col": 8,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.56m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850653,
+          19.063824
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-201",
+        "node_id": "RN-0612",
+        "elevation_m": 3.58,
+        "intersection_degree": 3,
+        "grid_row": 187,
+        "grid_col": 32,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.58m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852919,
+          19.077154
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-202",
+        "node_id": "RN-0072",
+        "elevation_m": 3.61,
+        "intersection_degree": 3,
+        "grid_row": 73,
+        "grid_col": 199,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.61m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868924,
+          19.066819
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-203",
+        "node_id": "RN-0428",
+        "elevation_m": 3.62,
+        "intersection_degree": 2,
+        "grid_row": 150,
+        "grid_col": 187,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.62m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867686,
+          19.073792
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-204",
+        "node_id": "RN-0576",
+        "elevation_m": 3.64,
+        "intersection_degree": 3,
+        "grid_row": 36,
+        "grid_col": 33,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.64m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853051,
+          19.063413
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-205",
+        "node_id": "RN-0506",
+        "elevation_m": 3.66,
+        "intersection_degree": 2,
+        "grid_row": 33,
+        "grid_col": 32,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.66m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.852954,
+          19.063188
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-206",
+        "node_id": "RN-0213",
+        "elevation_m": 3.67,
+        "intersection_degree": 3,
+        "grid_row": 181,
+        "grid_col": 182,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.67m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.867165,
+          19.076647
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-207",
+        "node_id": "RN-0414",
+        "elevation_m": 3.67,
+        "intersection_degree": 3,
+        "grid_row": 160,
+        "grid_col": 101,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.67m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.859473,
+          19.07473
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-208",
+        "node_id": "RN-0586",
+        "elevation_m": 3.7,
+        "intersection_degree": 3,
+        "grid_row": 15,
+        "grid_col": 43,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.7m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854013,
+          19.061535
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-209",
+        "node_id": "RN-0587",
+        "elevation_m": 3.7,
+        "intersection_degree": 3,
+        "grid_row": 15,
+        "grid_col": 43,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.7m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854024,
+          19.061508
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-210",
+        "node_id": "RN-0171",
+        "elevation_m": 3.71,
+        "intersection_degree": 3,
+        "grid_row": 100,
+        "grid_col": 195,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.71m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.868405,
+          19.069221
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-211",
+        "node_id": "RN-0500",
+        "elevation_m": 3.73,
+        "intersection_degree": 3,
+        "grid_row": 49,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.73m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851417,
+          19.064618
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-212",
+        "node_id": "RN-0412",
+        "elevation_m": 3.74,
+        "intersection_degree": 3,
+        "grid_row": 168,
+        "grid_col": 56,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.74m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.855247,
+          19.075463
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-213",
+        "node_id": "RN-0439",
+        "elevation_m": 3.74,
+        "intersection_degree": 3,
+        "grid_row": 157,
+        "grid_col": 104,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.74m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.859765,
+          19.074455
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-214",
+        "node_id": "RN-0518",
+        "elevation_m": 3.74,
+        "intersection_degree": 3,
+        "grid_row": 157,
+        "grid_col": 104,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.74m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.85979,
+          19.074448
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-215",
+        "node_id": "RN-0110",
+        "elevation_m": 3.77,
+        "intersection_degree": 3,
+        "grid_row": 50,
+        "grid_col": 16,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.77m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851385,
+          19.064686
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-216",
+        "node_id": "RN-0012",
+        "elevation_m": 3.81,
+        "intersection_degree": 3,
+        "grid_row": 181,
+        "grid_col": 129,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.81m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.862152,
+          19.076623
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-217",
+        "node_id": "RN-0404",
+        "elevation_m": 3.84,
+        "intersection_degree": 3,
+        "grid_row": 53,
+        "grid_col": 51,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.84m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854722,
+          19.065038
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-218",
+        "node_id": "RN-0611",
+        "elevation_m": 3.85,
+        "intersection_degree": 3,
+        "grid_row": 184,
+        "grid_col": 34,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.85m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.853119,
+          19.076834
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-219",
+        "node_id": "RN-0231",
+        "elevation_m": 3.89,
+        "intersection_degree": 3,
+        "grid_row": 169,
+        "grid_col": 171,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.89m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.866119,
+          19.075532
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-220",
+        "node_id": "RN-0225",
+        "elevation_m": 3.95,
+        "intersection_degree": 3,
+        "grid_row": 193,
+        "grid_col": 138,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.95m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.86301,
+          19.07774
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-221",
+        "node_id": "RN-0246",
+        "elevation_m": 3.95,
+        "intersection_degree": 3,
+        "grid_row": 120,
+        "grid_col": 141,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.95m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863263,
+          19.071031
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-222",
+        "node_id": "RN-0661",
+        "elevation_m": 3.97,
+        "intersection_degree": 3,
+        "grid_row": 80,
+        "grid_col": 1,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 3.97m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.850049,
+          19.067459
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-223",
+        "node_id": "RN-0107",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 37,
+        "grid_col": 13,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.851129,
+          19.063566
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-224",
+        "node_id": "RN-0242",
+        "elevation_m": 4.0,
+        "intersection_degree": 4,
+        "grid_row": 140,
+        "grid_col": 118,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861094,
+          19.072914
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-225",
+        "node_id": "RN-0262",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 121,
+        "grid_col": 145,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.863705,
+          19.071147
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-226",
+        "node_id": "RN-0360",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 79,
+        "grid_col": 0,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.849849,
+          19.067356
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-227",
+        "node_id": "RN-0411",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 167,
+        "grid_col": 52,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.854856,
+          19.075314
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-228",
+        "node_id": "RN-0531",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 144,
+        "grid_col": 116,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.860961,
+          19.07328
+        ]
+      }
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "id": "HS-229",
+        "node_id": "RN-0626",
+        "elevation_m": 4.0,
+        "intersection_degree": 3,
+        "grid_row": 145,
+        "grid_col": 118,
+        "severity": "HIGH",
+        "description": "Low-elevation road crossing at 4.0m elev"
+      },
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          72.861096,
+          19.0733
+        ]
+      }
+    }
+  ]
+}
