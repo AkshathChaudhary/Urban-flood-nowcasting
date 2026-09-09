@@ -59,9 +59,17 @@ class DrainageGraph:
         # Dynamic simulation state
         self.current_water_m3: Dict[str, float] = {}
         self.total_discharged_m3: float = 0.0
+        self.elevation_sorted_nodes: List[str] = []
 
         # Load GeoJSON data into graph
         self._load_from_geojson(Path(nodes_path), Path(edges_path))
+        
+        # Precompute elevation-sorted node order once (avoids re-sorting on every timestep)
+        self.elevation_sorted_nodes = sorted(
+            self.graph.nodes(),
+            key=lambda nid: self.node_data[nid]["elevation_m"],
+            reverse=True,
+        )
 
     def _load_from_geojson(self, nodes_path: Path, edges_path: Path) -> None:
         """
@@ -234,14 +242,10 @@ class DrainageGraph:
             volume_discharged_this_step_m3: Total water volume safely discharged through outfalls.
         """
         # Determine processing sequence:
-        # In a standard gravity drainage network, sorting from higher elevation to lower elevation
+        # In a standard gravity drainage network, traversing from higher elevation to lower elevation
         # ensures upstream nodes transfer water before downstream nodes process it.
-        # This is physically robust and immune to graph cycle errors.
-        sorted_nodes = sorted(
-            self.graph.nodes(),
-            key=lambda nid: self.node_data[nid]["elevation_m"],
-            reverse=True,
-        )
+        # Uses precomputed sorted order to guarantee O(V + E) per timestep without re-sorting overhead.
+        sorted_nodes = self.elevation_sorted_nodes
 
         volume_discharged_this_step = 0.0
 

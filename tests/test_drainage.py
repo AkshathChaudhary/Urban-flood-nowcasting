@@ -166,10 +166,30 @@ class TestPairBIntegrationContract(unittest.TestCase):
             surface_depth[r, c] += vol_m3 / graph.cell_area_m2
 
 
+class SyncASGIClient:
+    def __init__(self, app):
+        import httpx
+        self.transport = httpx.ASGITransport(app=app)
+
+    def get(self, url, **kwargs):
+        import asyncio, httpx
+        async def _req():
+            async with httpx.AsyncClient(transport=self.transport, base_url="http://test") as c:
+                return await c.get(url, **kwargs)
+        return asyncio.run(_req())
+
+    def post(self, url, **kwargs):
+        import asyncio, httpx
+        async def _req():
+            async with httpx.AsyncClient(transport=self.transport, base_url="http://test") as c:
+                return await c.post(url, **kwargs)
+        return asyncio.run(_req())
+
+
 class TestFastAPIDrainageEndpoints(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.client = TestClient(app)
+        cls.client = SyncASGIClient(app)
 
     def test_summary_endpoint(self):
         res = self.client.get("/api/drainage/summary")
