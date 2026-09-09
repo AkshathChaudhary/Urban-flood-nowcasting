@@ -12,7 +12,11 @@ class SimulateRequest(BaseModel):
     dt_seconds: float = Field(default=300.0, ge=60.0, le=600.0)
     lat: Optional[float] = Field(default=19.07, description="Latitude for live/historical query")
     lon: Optional[float] = Field(default=72.85, description="Longitude for live/historical query")
-    date_str: Optional[str] = Field(default="2023-07-26", description="YYYY-MM-DD for historical query")
+    date_str: Optional[str] = Field(
+        default="2023-07-26",
+        description="YYYY-MM-DD for historical query",
+        pattern=r"^\d{4}-\d{2}-\d{2}$",
+    )
     start_hour: Optional[int] = Field(default=11, ge=0, le=23)
 
 

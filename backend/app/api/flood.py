@@ -17,6 +17,7 @@ from backend.app.engine_state import (
     compute_summary,
     get_current_scenario,
     get_engine,
+    grid_to_lat_lon,
     lat_lon_to_grid,
 )
 from backend.app.models.flood import (
@@ -53,36 +54,6 @@ def get_flood_forecast_overview():
     )
 
 
-@router.get("/flood-forecast/{minutes}", response_model=FloodGridResponse)
-def get_flood_forecast_grid(minutes: int):
-    """
-    Returns the complete 200x200 water depth grid (in meters) for a specific time horizon.
-    Ideal for GIS heatmap visualization in MapLibre / Leaflet.
-    """
-    engine = get_engine()
-    if minutes not in engine.forecast_grids:
-        available = sorted(engine.forecast_grids.keys())
-        raise HTTPException(
-            status_code=404,
-            detail=f"Horizon {minutes} min not found. Available horizons: {available}",
-        )
-
-    grid = engine.forecast_grids[minutes]
-    summary = compute_summary(grid, minutes)
-
-    return FloodGridResponse(
-        scenario=get_current_scenario(),
-        horizon_minutes=minutes,
-        rows=GRID_ROWS,
-        cols=GRID_COLS,
-        cell_size_m=CELL_SIZE_M,
-        origin_lat=ORIGIN_LAT,
-        origin_lon=ORIGIN_LON,
-        summary=summary,
-        depth_grid=np.round(grid, 3).tolist(),
-    )
-
-
 @router.get("/flood-forecast/point/query", response_model=PointDepthResponse)
 def query_point_depth(
     row: Optional[int] = Query(None, ge=0, lt=GRID_ROWS),
@@ -104,6 +75,8 @@ def query_point_depth(
                 status_code=400,
                 detail="Must provide either (row, col) or (lat, lon) coordinates.",
             )
+    elif lat is None or lon is None:
+        lat, lon = grid_to_lat_lon(row, col)
 
     elevation = float(engine.dem[row, col])
     porosity = float(engine.surface_porosity[row, col]) if hasattr(engine, "surface_porosity") else 1.0
@@ -138,4 +111,34 @@ def query_point_depth(
         street_depth_m_at_horizon=street_depth_at_horizons,
         porosity=round(porosity, 3),
         hazard_level=hazard,
+    )
+
+
+@router.get("/flood-forecast/{minutes}", response_model=FloodGridResponse)
+def get_flood_forecast_grid(minutes: int):
+    """
+    Returns the complete 200x200 water depth grid (in meters) for a specific time horizon.
+    Ideal for GIS heatmap visualization in MapLibre / Leaflet.
+    """
+    engine = get_engine()
+    if minutes not in engine.forecast_grids:
+        available = sorted(engine.forecast_grids.keys())
+        raise HTTPException(
+            status_code=404,
+            detail=f"Horizon {minutes} min not found. Available horizons: {available}",
+        )
+
+    grid = engine.forecast_grids[minutes]
+    summary = compute_summary(grid, minutes)
+
+    return FloodGridResponse(
+        scenario=get_current_scenario(),
+        horizon_minutes=minutes,
+        rows=GRID_ROWS,
+        cols=GRID_COLS,
+        cell_size_m=CELL_SIZE_M,
+        origin_lat=ORIGIN_LAT,
+        origin_lon=ORIGIN_LON,
+        summary=summary,
+        depth_grid=np.round(grid, 3).tolist(),
     )

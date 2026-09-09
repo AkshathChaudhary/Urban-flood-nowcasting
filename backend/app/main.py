@@ -10,6 +10,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from backend.app.api.flood import router as flood_router
+from backend.app.api.rainfall import router as rainfall_router
 from backend.app.api.simulate import router as simulate_router
 from backend.app.config import (
     CELL_SIZE_M,
@@ -42,7 +43,7 @@ app = FastAPI(
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
-    allow_credentials=True,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -50,6 +51,7 @@ app.add_middleware(
 # Mount Pair B API Routers
 app.include_router(flood_router)
 app.include_router(simulate_router)
+app.include_router(rainfall_router)
 
 
 @app.get("/", tags=["system"])

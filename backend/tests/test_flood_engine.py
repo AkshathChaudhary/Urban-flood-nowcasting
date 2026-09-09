@@ -166,10 +166,14 @@ class TestFloodEngine(unittest.TestCase):
             engine.total_rain_volume_m3
             + engine.total_upstream_inflow_m3
             + engine.initial_river_storage_m3
+            + engine.total_overflow_volume_m3
+            + engine.total_surge_intrusion_m3
             - engine.total_infiltrated_volume_m3
             - engine.total_absorbed_volume_m3
-            + engine.total_overflow_volume_m3
             - engine.total_river_drain_volume_m3
+            - engine.total_pumped_volume_m3
+            - engine.total_boundary_outflow_m3
+            - engine.retention_pond_storage_m3
         )
         actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
         self.assertAlmostEqual(expected_surface, actual_surface, places=1)
@@ -371,6 +375,64 @@ class TestFloodEngine(unittest.TestCase):
         )
         final_vol = float(np.sum(routed))
         self.assertAlmostEqual(init_vol, final_vol, places=4)
+
+    def test_all_subsystems_mass_conservation(self):
+        """Verify strict water mass conservation when all subsystems (surge, pumps, ponds, upstream inflow) are active."""
+        # Create a pond mask on dry land
+        pond_mask = np.zeros((200, 200), dtype=bool)
+        pond_mask[50:55, 50:55] = True
+
+        pump_stations = [
+            {"row": 80, "col": 80, "capacity_m3_s": 2.0, "radius_cells": 1, "operational": True}
+        ]
+
+        engine = FloodEngine.from_default_data(
+            retention_pond_mask=pond_mask,
+            retention_pond_capacity_m3=5000.0,
+            pump_stations=pump_stations,
+            storm_surge_m=1.0,
+            upstream_river_inflow_m3_s=10.0,
+        )
+
+        dt = 300.0
+        # Rain grid: 20 mm/hr
+        rain_grid = np.full((200, 200), 20.0, dtype=np.float32)
+
+        for _ in range(5):
+            engine.simulate_timestep(dt, rain_grid)
+
+        # Check that subsystems actually engaged
+        self.assertGreater(engine.total_rain_volume_m3, 0.0)
+        self.assertGreater(engine.total_upstream_inflow_m3, 0.0)
+        self.assertGreater(engine.total_infiltrated_volume_m3, 0.0)
+        self.assertGreater(engine.total_surge_intrusion_m3, 0.0)
+        self.assertGreater(engine.total_pumped_volume_m3, 0.0)
+        self.assertGreater(engine.total_pond_storage_inflow_m3, 0.0)
+
+        # Full mass conservation across all active components
+        expected_surface = (
+            engine.total_rain_volume_m3
+            + engine.total_upstream_inflow_m3
+            + engine.initial_river_storage_m3
+            + engine.total_overflow_volume_m3
+            + engine.total_surge_intrusion_m3
+            - engine.total_infiltrated_volume_m3
+            - engine.total_absorbed_volume_m3
+            - engine.total_river_drain_volume_m3
+            - engine.total_pumped_volume_m3
+            - engine.total_boundary_outflow_m3
+            - engine.retention_pond_storage_m3
+        )
+        actual_surface = float(np.sum(engine.water_depth) * engine.cell_area)
+        self.assertAlmostEqual(expected_surface, actual_surface, places=1)
+
+    def test_robust_horizon_capture(self):
+        """Verify that all forecast horizons are captured even with non-standard dt values (B5 fix)."""
+        engine = FloodEngine.from_default_data()
+        # dt = 420s (7 min) which does not evenly divide 30, 60, 90 min
+        snapshots = engine.run_forecast(scenario="moderate", horizon_minutes=180, dt=420.0)
+        for h in [0, 30, 60, 90, 120, 180]:
+            self.assertIn(h, snapshots, f"Horizon {h} min missing with dt=420s")
 
 
 if __name__ == "__main__":

@@ -1,0 +1,1217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mumbai Flood Simulation — Interactive Dashboard</title>
+    <meta name="description" content="Interactive visualization of the coupled monsoon flood simulation for Kurla/BKC, Mumbai. July 26, 2023 event.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2234;
+            --bg-card-hover: #1f2942;
+            --border: #2a3550;
+            --border-glow: rgba(56, 189, 248, 0.25);
+            --text-primary: #f0f6ff;
+            --text-secondary: #8899b4;
+            --text-muted: #5a6a85;
+            --accent-cyan: #38bdf8;
+            --accent-blue: #3b82f6;
+            --accent-indigo: #6366f1;
+            --accent-green: #22c55e;
+            --accent-yellow: #facc15;
+            --accent-orange: #f97316;
+            --accent-red: #ef4444;
+            --accent-pink: #ec4899;
+            --gradient-hero: linear-gradient(135deg, #0a0e17 0%, #0f1729 50%, #131b30 100%);
+            --gradient-card: linear-gradient(145deg, #1a2234 0%, #151d30 100%);
+            --gradient-accent: linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #ec4899 100%);
+            --shadow-card: 0 4px 24px rgba(0,0,0,0.4);
+            --shadow-glow: 0 0 30px rgba(56,189,248,0.12);
+            --radius: 14px;
+            --radius-sm: 8px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* Ambient glow background */
+        body::before {
+            content: '';
+            position: fixed;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(ellipse at 30% 20%, rgba(56,189,248,0.04) 0%, transparent 50%),
+                        radial-gradient(ellipse at 70% 80%, rgba(99,102,241,0.03) 0%, transparent 50%);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── Header ─── */
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(10, 14, 23, 0.85);
+            backdrop-filter: blur(20px) saturate(180%);
+            border-bottom: 1px solid var(--border);
+            padding: 0 32px;
+        }
+
+        .header-inner {
+            max-width: 1600px;
+            margin: 0 auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            height: 64px;
+        }
+
+        .header-brand {
+            display: flex;
+            align-items: center;
+            gap: 14px;
+        }
+
+        .header-brand .logo {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: var(--gradient-accent);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            font-weight: 800;
+            color: white;
+        }
+
+        .header-brand h1 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: -0.02em;
+        }
+
+        .header-brand h1 span {
+            color: var(--text-muted);
+            font-weight: 400;
+            font-size: 13px;
+            margin-left: 8px;
+        }
+
+        .header-meta {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+        }
+
+        .status-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 5px 14px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(34, 197, 94, 0.12);
+            color: var(--accent-green);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+        }
+
+        .status-badge .dot {
+            width: 7px; height: 7px;
+            border-radius: 50%;
+            background: var(--accent-green);
+            animation: pulse-dot 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse-dot {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        .event-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            color: var(--text-muted);
+        }
+
+        /* ─── Main Layout ─── */
+        .main {
+            position: relative;
+            z-index: 1;
+            max-width: 1600px;
+            margin: 0 auto;
+            padding: 28px 32px 60px;
+        }
+
+        /* ─── Timeline Control ─── */
+        .timeline-bar {
+            background: var(--gradient-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 22px 28px;
+            margin-bottom: 24px;
+            box-shadow: var(--shadow-card);
+        }
+
+        .timeline-label {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 14px;
+        }
+
+        .timeline-label .label-left {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .timeline-label .label-left span {
+            font-size: 13px;
+            color: var(--text-secondary);
+            font-weight: 500;
+        }
+
+        .time-display {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 28px;
+            font-weight: 700;
+            background: var(--gradient-accent);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .timeline-stats {
+            display: flex;
+            gap: 24px;
+        }
+
+        .timeline-stats .stat {
+            text-align: right;
+        }
+
+        .timeline-stats .stat .val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 18px;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+
+        .timeline-stats .stat .lbl {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .slider-track {
+            position: relative;
+            height: 44px;
+            display: flex;
+            align-items: center;
+        }
+
+        .slider-track input[type="range"] {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: var(--border);
+            outline: none;
+            cursor: pointer;
+        }
+
+        .slider-track input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 22px;
+            height: 22px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            cursor: pointer;
+            box-shadow: 0 0 12px rgba(56, 189, 248, 0.5);
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .slider-track input[type="range"]::-webkit-slider-thumb:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 20px rgba(56, 189, 248, 0.7);
+        }
+
+        .slider-marks {
+            display: flex;
+            justify-content: space-between;
+            margin-top: 6px;
+            padding: 0 2px;
+        }
+
+        .slider-marks span {
+            font-size: 11px;
+            color: var(--text-muted);
+            font-family: 'JetBrains Mono', monospace;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .slider-marks span:hover, .slider-marks span.active {
+            color: var(--accent-cyan);
+        }
+
+        .play-btn {
+            position: absolute;
+            right: 0;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            border: 2px solid var(--accent-cyan);
+            background: rgba(56, 189, 248, 0.1);
+            color: var(--accent-cyan);
+            font-size: 14px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .play-btn:hover {
+            background: rgba(56, 189, 248, 0.2);
+            box-shadow: 0 0 16px rgba(56, 189, 248, 0.3);
+        }
+
+        /* ─── Grid Layout ─── */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto auto;
+            gap: 20px;
+        }
+
+        .card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 24px;
+            box-shadow: var(--shadow-card);
+            transition: border-color 0.3s, box-shadow 0.3s;
+        }
+
+        .card:hover {
+            border-color: var(--border-glow);
+            box-shadow: var(--shadow-glow);
+        }
+
+        .card-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .card-title .icon {
+            font-size: 16px;
+        }
+
+        .card.span-full {
+            grid-column: 1 / -1;
+        }
+
+        /* ─── Canvas Maps ─── */
+        .map-container {
+            position: relative;
+            width: 100%;
+            aspect-ratio: 1;
+            border-radius: var(--radius-sm);
+            overflow: hidden;
+            background: #0d111b;
+        }
+
+        .map-container canvas {
+            width: 100%;
+            height: 100%;
+            image-rendering: pixelated;
+        }
+
+        .map-legend {
+            position: absolute;
+            bottom: 12px;
+            right: 12px;
+            background: rgba(10, 14, 23, 0.88);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 11px;
+        }
+
+        .map-legend .leg-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 4px;
+        }
+
+        .map-legend .leg-item:last-child { margin-bottom: 0; }
+
+        .map-legend .swatch {
+            width: 14px;
+            height: 8px;
+            border-radius: 2px;
+        }
+
+        .map-overlay-label {
+            position: absolute;
+            top: 12px;
+            left: 12px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+            font-weight: 600;
+            padding: 4px 10px;
+            border-radius: 6px;
+            background: rgba(10, 14, 23, 0.8);
+            border: 1px solid var(--border);
+        }
+
+        .map-tooltip {
+            position: absolute;
+            display: none;
+            background: rgba(10, 14, 23, 0.92);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius-sm);
+            padding: 10px 14px;
+            font-size: 12px;
+            pointer-events: none;
+            z-index: 50;
+            white-space: nowrap;
+        }
+
+        .map-tooltip .tt-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            color: var(--accent-cyan);
+        }
+
+        /* ─── Layer toggle ─── */
+        .layer-toggles {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 14px;
+            flex-wrap: wrap;
+        }
+
+        .layer-toggle {
+            padding: 5px 12px;
+            border-radius: 20px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-secondary);
+            font-size: 11px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            font-family: 'Inter', sans-serif;
+        }
+
+        .layer-toggle.active {
+            background: rgba(56, 189, 248, 0.12);
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+
+        .layer-toggle:hover {
+            border-color: var(--text-muted);
+        }
+
+        /* ─── Roads Table ─── */
+        .roads-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .roads-table th, .roads-table td {
+            text-align: left;
+            padding: 10px 14px;
+            font-size: 13px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .roads-table th {
+            color: var(--text-muted);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .roads-table td {
+            color: var(--text-primary);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 12px;
+        }
+
+        .roads-table .road-name {
+            font-family: 'Inter', sans-serif;
+            font-weight: 500;
+            font-size: 13px;
+        }
+
+        .roads-table tr:hover { background: rgba(56, 189, 248, 0.03); }
+
+        .badge-clear { color: var(--accent-green); }
+        .badge-caution { color: var(--accent-yellow); }
+        .badge-impassable { color: var(--accent-red); }
+
+        /* ─── Water Budget Chart ─── */
+        .budget-chart {
+            display: flex;
+            gap: 6px;
+            align-items: flex-end;
+            height: 200px;
+            padding: 0 6px;
+        }
+
+        .budget-bar-wrap {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100%;
+            justify-content: flex-end;
+        }
+
+        .budget-bar {
+            width: 100%;
+            border-radius: 4px 4px 0 0;
+            min-height: 2px;
+            transition: height 0.6s cubic-bezier(.22,.68,0,.9);
+            position: relative;
+        }
+
+        .budget-bar-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 10px;
+            color: var(--text-secondary);
+            margin-bottom: 4px;
+            text-align: center;
+            white-space: nowrap;
+        }
+
+        .budget-bar-label {
+            font-size: 10px;
+            color: var(--text-muted);
+            margin-top: 6px;
+            text-align: center;
+            line-height: 1.3;
+        }
+
+        /* ─── Road Hydrograph ─── */
+        .hydrograph-container {
+            position: relative;
+            width: 100%;
+            height: 240px;
+        }
+
+        .hydrograph-container canvas {
+            width: 100% !important;
+            height: 100% !important;
+        }
+
+        /* ─── KPI Row ─── */
+        .kpi-row {
+            display: grid;
+            grid-template-columns: repeat(5, 1fr);
+            gap: 16px;
+            margin-bottom: 24px;
+        }
+
+        .kpi-card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 18px 20px;
+            text-align: center;
+            box-shadow: var(--shadow-card);
+            transition: transform 0.2s, border-color 0.3s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-2px);
+            border-color: var(--border-glow);
+        }
+
+        .kpi-val {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 26px;
+            font-weight: 800;
+            margin-bottom: 4px;
+        }
+
+        .kpi-unit {
+            font-size: 14px;
+            font-weight: 400;
+            color: var(--text-muted);
+        }
+
+        .kpi-label {
+            font-size: 11px;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        /* ─── Mass Balance ─── */
+        .mass-pass {
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            padding: 6px 16px;
+            border-radius: 8px;
+            background: rgba(34, 197, 94, 0.1);
+            border: 1px solid rgba(34, 197, 94, 0.2);
+            color: var(--accent-green);
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+            font-size: 14px;
+        }
+
+        /* ─── Responsive ─── */
+        @media (max-width: 900px) {
+            .dashboard-grid { grid-template-columns: 1fr; }
+            .kpi-row { grid-template-columns: repeat(2, 1fr); }
+            .header-meta { display: none; }
+            .main { padding: 16px; }
+        }
+    </style>
+</head>
+<body>
+
+<header class="header">
+    <div class="header-inner">
+        <div class="header-brand">
+            <div class="logo">🌊</div>
+            <h1>Mumbai Flood Nowcasting <span>— Interactive Dashboard</span></h1>
+        </div>
+        <div class="header-meta">
+            <span class="event-tag">26 Jul 2023 · Kurla / BKC · 2×2 km</span>
+            <span class="status-badge"><span class="dot"></span> Mass Balance PASS</span>
+        </div>
+    </div>
+</header>
+
+<main class="main" id="app">
+    <div class="loading-msg" id="loadingMsg" style="text-align:center;padding:80px;color:var(--text-muted);font-size:15px;">
+        Loading simulation data…
+    </div>
+</main>
+
+<script>
+// ─── DATA LOAD ───
+(async function() {
+    const resp = await fetch('simulation_data.json');
+    if (!resp.ok) { document.getElementById('loadingMsg').textContent = 'Failed to load data.'; return; }
+    const D = await resp.json();
+    window._D = D;
+    buildDashboard(D);
+})();
+
+// ─── Color Helpers ───
+function depthColor(d, maxD) {
+    if (d < 0.005) return [0,0,0,0];
+    const t = Math.min(d / Math.max(maxD, 0.5), 1.0);
+    if (t < 0.15) return [0, 255, 224, Math.round(100 + t/0.15*155)];
+    if (t < 0.4)  return [0, 119, 255, 220];
+    if (t < 0.7)  return [0, 48, 204, 235];
+    return [100, 0, 180, 245];
+}
+
+function terrainColor(z, zMin, zMax) {
+    const t = (z - zMin) / (zMax - zMin + 1e-6);
+    const r = Math.round(30 + 80 * t);
+    const g = Math.round(80 + 120 * t);
+    const b = Math.round(40 + 30 * t);
+    return [r, g, b, 255];
+}
+
+function hazardColor(d, maxD) {
+    if (d < 0.005) return [0,0,0,0];
+    const t = Math.min(d / Math.max(maxD, 0.5), 1.0);
+    if (t < 0.10) return [255, 224, 102, Math.round(80 + t/0.1*175)];
+    if (t < 0.35) return [255, 140, 0, 230];
+    if (t < 0.65) return [224, 48, 0, 240];
+    return [107, 0, 0, 250];
+}
+
+// ─── Build Dashboard ───
+function buildDashboard(D) {
+    const app = document.getElementById('app');
+    app.innerHTML = '';
+
+    const N = D.meta.grid_size[0];
+    const horizons = D.meta.horizons;
+    let currentH = 180;
+
+    // Find DEM range
+    let zMin = Infinity, zMax = -Infinity;
+    for (let r = 0; r < N; r++)
+        for (let c = 0; c < N; c++) {
+            if (D.dem[r][c] < zMin) zMin = D.dem[r][c];
+            if (D.dem[r][c] > zMax) zMax = D.dem[r][c];
+        }
+
+    // ─── KPI Row ───
+    const stats180 = D.horizon_stats.find(s => s.t === 180);
+    const kpiHTML = `
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--accent-red)" id="kpiMaxDepth">${stats180.max_depth.toFixed(2)}<span class="kpi-unit"> m</span></div>
+            <div class="kpi-label">Peak Depth</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--accent-cyan)" id="kpiVolume">${(stats180.volume_m3/1000).toFixed(1)}<span class="kpi-unit"> ×10³ m³</span></div>
+            <div class="kpi-label">Flood Volume</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--accent-yellow)" id="kpiCells30">${stats180.cells_gt_30cm.toLocaleString()}</div>
+            <div class="kpi-label">Cells > 30 cm</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-val" style="color:var(--accent-indigo)" id="kpiRiver">${D.mass_balance.river_pct_full}<span class="kpi-unit">%</span></div>
+            <div class="kpi-label">River Bankfull</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-val"><span class="mass-pass">✓ ${D.mass_balance.status}</span></div>
+            <div class="kpi-label">Mass Balance</div>
+        </div>
+    </div>`;
+
+    // ─── Timeline ───
+    const timelineHTML = `
+    <div class="timeline-bar">
+        <div class="timeline-label">
+            <div class="label-left">
+                <span>Forecast Horizon</span>
+                <span class="time-display" id="timeDisplay">T+180 min</span>
+            </div>
+            <div class="timeline-stats" id="timelineStats">
+                <div class="stat"><div class="val" id="tsMax">${stats180.max_depth.toFixed(2)} m</div><div class="lbl">Max Depth</div></div>
+                <div class="stat"><div class="val" id="tsVol">${(stats180.volume_m3/1000).toFixed(1)}k m³</div><div class="lbl">Volume</div></div>
+                <div class="stat"><div class="val" id="tsCells">${stats180.cells_gt_10cm}</div><div class="lbl">Cells > 10cm</div></div>
+            </div>
+        </div>
+        <div class="slider-track">
+            <input type="range" id="timeSlider" min="0" max="5" value="5" step="1">
+            <button class="play-btn" id="playBtn" title="Animate">▶</button>
+        </div>
+        <div class="slider-marks" id="sliderMarks">
+            ${horizons.map((h, i) => `<span data-idx="${i}" class="${h === 180 ? 'active' : ''}">T+${h}</span>`).join('')}
+        </div>
+    </div>`;
+
+    // ─── Grid Cards ───
+    const gridHTML = `
+    <div class="dashboard-grid">
+        <!-- Flood Depth Map -->
+        <div class="card">
+            <div class="card-title"><span class="icon">🗺️</span> Inundation Depth Map</div>
+            <div class="layer-toggles">
+                <button class="layer-toggle active" data-layer="terrain" id="ltTerrain">Terrain</button>
+                <button class="layer-toggle active" data-layer="flood" id="ltFlood">Flood Depth</button>
+                <button class="layer-toggle active" data-layer="river" id="ltRiver">River/Channels</button>
+                <button class="layer-toggle" data-layer="drainage" id="ltDrainage">Drainage Nodes</button>
+                <button class="layer-toggle" data-layer="roads" id="ltRoads">Road Corridors</button>
+                <button class="layer-toggle" data-layer="pumps" id="ltPumps">Pump Stations</button>
+            </div>
+            <div class="map-container" id="mapFlood">
+                <canvas id="canvasFlood"></canvas>
+                <div class="map-overlay-label" id="mapLabel">T+180 min</div>
+                <div class="map-tooltip" id="mapTooltip"></div>
+                <div class="map-legend">
+                    <div class="leg-item"><span class="swatch" style="background:#00ffe0"></span> <span>Shallow (< 20 cm)</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#0077ff"></span> <span>Moderate (20–50 cm)</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#0030cc"></span> <span>Deep (50–100 cm)</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#6400b4"></span> <span>Severe (> 100 cm)</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Hazard Map -->
+        <div class="card">
+            <div class="card-title"><span class="icon">⚠️</span> Hazard Classification Map (T+180)</div>
+            <div class="layer-toggles">
+                <button class="layer-toggle active" data-layer="hazard">Hazard Zones</button>
+                <button class="layer-toggle active" data-layer="roadStatus">Road Status</button>
+            </div>
+            <div class="map-container" id="mapHazard">
+                <canvas id="canvasHazard"></canvas>
+                <div class="map-overlay-label">T+180 — Street Depth</div>
+                <div class="map-legend">
+                    <div class="leg-item"><span class="swatch" style="background:#ffe066"></span> <span>Low Risk</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#ff8c00"></span> <span>Moderate</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#e03000"></span> <span>High Risk</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#6b0000"></span> <span>Extreme</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#22c55e;border-radius:50%;width:10px;height:10px"></span> <span>Clear Road</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#facc15;border-radius:50%;width:10px;height:10px"></span> <span>Caution</span></div>
+                    <div class="leg-item"><span class="swatch" style="background:#ef4444;border-radius:50%;width:10px;height:10px"></span> <span>Impassable</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Road Corridor Table -->
+        <div class="card">
+            <div class="card-title"><span class="icon">🛣️</span> Road Corridor Status</div>
+            <table class="roads-table" id="roadsTable">
+                <thead><tr>
+                    <th>Corridor</th>
+                    <th>Elevation</th>
+                    <th>Street Depth</th>
+                    <th>Status</th>
+                </tr></thead>
+                <tbody id="roadsBody"></tbody>
+            </table>
+            <div style="margin-top:20px">
+                <div class="card-title" style="margin-bottom:10px"><span class="icon">📈</span> Road Depth Hydrograph</div>
+                <div class="hydrograph-container"><canvas id="canvasHydro"></canvas></div>
+            </div>
+        </div>
+
+        <!-- Water Budget -->
+        <div class="card">
+            <div class="card-title"><span class="icon">💧</span> Water Budget Breakdown</div>
+            <div class="budget-chart" id="budgetChart"></div>
+            <div style="margin-top:24px">
+                <div class="card-title"><span class="icon">📊</span> Horizon Statistics</div>
+                <table class="roads-table">
+                    <thead><tr><th>Horizon</th><th>Max Depth</th><th>Mean (cm)</th><th>>10cm</th><th>>30cm</th><th>Vol (m³)</th></tr></thead>
+                    <tbody id="horizonStatsBody"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>`;
+
+    app.innerHTML = kpiHTML + timelineHTML + gridHTML;
+
+    // ─── Render Maps ───
+    const SCALE = 4; // Each data cell = 4×4 canvas pixels
+    const canvasFlood = document.getElementById('canvasFlood');
+    const ctxFlood = canvasFlood.getContext('2d');
+    canvasFlood.width = N * SCALE;
+    canvasFlood.height = N * SCALE;
+
+    const canvasHazard = document.getElementById('canvasHazard');
+    const ctxHazard = canvasHazard.getContext('2d');
+    canvasHazard.width = N * SCALE;
+    canvasHazard.height = N * SCALE;
+
+    const layers = { terrain: true, flood: true, river: true, drainage: false, roads: false, pumps: false };
+
+    function drawFloodMap(horizon) {
+        const frame = D.depth_frames[String(horizon)];
+        if (!frame) return;
+        const imgData = ctxFlood.createImageData(N * SCALE, N * SCALE);
+        let maxD = 0;
+        for (let r = 0; r < N; r++)
+            for (let c = 0; c < N; c++)
+                if (frame[r][c] > maxD) maxD = frame[r][c];
+
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                const dr = N - 1 - r; // flip Y for display
+                // Base: terrain or dark
+                let rgba = layers.terrain ? terrainColor(D.dem[r][c], zMin, zMax) : [13, 17, 27, 255];
+
+                // River overlay
+                if (layers.river && D.water_body[r][c]) rgba = [0, 90, 180, 255];
+                if (D.retention_pond[r] && D.retention_pond[r][c]) rgba = [0, 200, 100, 240];
+
+                // Flood overlay (alpha blend)
+                if (layers.flood && frame[r][c] > 0.005) {
+                    const fc = depthColor(frame[r][c], maxD);
+                    const a = fc[3] / 255;
+                    rgba[0] = Math.round(rgba[0] * (1-a) + fc[0] * a);
+                    rgba[1] = Math.round(rgba[1] * (1-a) + fc[1] * a);
+                    rgba[2] = Math.round(rgba[2] * (1-a) + fc[2] * a);
+                    rgba[3] = 255;
+                }
+
+                for (let dy = 0; dy < SCALE; dy++) {
+                    for (let dx = 0; dx < SCALE; dx++) {
+                        const idx = ((dr * SCALE + dy) * N * SCALE + c * SCALE + dx) * 4;
+                        imgData.data[idx] = rgba[0];
+                        imgData.data[idx+1] = rgba[1];
+                        imgData.data[idx+2] = rgba[2];
+                        imgData.data[idx+3] = rgba[3];
+                    }
+                }
+            }
+        }
+        ctxFlood.putImageData(imgData, 0, 0);
+
+        // Overlay markers
+        if (layers.drainage) {
+            ctxFlood.fillStyle = 'rgba(0, 255, 224, 0.4)';
+            D.inlets.forEach(([r, c]) => {
+                ctxFlood.fillRect(c * SCALE, (N-1-r) * SCALE, SCALE, SCALE);
+            });
+            ctxFlood.fillStyle = '#ff4757';
+            D.outfalls.forEach(([r, c]) => {
+                ctxFlood.beginPath();
+                ctxFlood.arc(c * SCALE + SCALE/2, (N-1-r) * SCALE + SCALE/2, SCALE*1.5, 0, Math.PI*2);
+                ctxFlood.fill();
+            });
+        }
+
+        if (layers.pumps) {
+            D.pumps.forEach(p => {
+                const x = p.col * SCALE + SCALE/2;
+                const y = (N - 1 - p.row) * SCALE + SCALE/2;
+                ctxFlood.fillStyle = '#ec4899';
+                ctxFlood.beginPath();
+                ctxFlood.moveTo(x, y - SCALE*2);
+                ctxFlood.lineTo(x - SCALE*1.5, y + SCALE);
+                ctxFlood.lineTo(x + SCALE*1.5, y + SCALE);
+                ctxFlood.closePath();
+                ctxFlood.fill();
+                ctxFlood.strokeStyle = '#fff';
+                ctxFlood.lineWidth = 1;
+                ctxFlood.stroke();
+            });
+        }
+
+        if (layers.roads) {
+            D.roads.forEach(rd => {
+                ctxFlood.fillStyle = 'rgba(255, 200, 0, 0.7)';
+                (rd.cells || []).forEach(([r, c]) => {
+                    ctxFlood.fillRect(c * SCALE, (N-1-r) * SCALE, SCALE, SCALE);
+                });
+            });
+        }
+    }
+
+    function drawHazardMap() {
+        const frame = D.street_depth_180;
+        if (!frame) return;
+        const imgData = ctxHazard.createImageData(N * SCALE, N * SCALE);
+        let maxD = 0;
+        for (let r = 0; r < N; r++)
+            for (let c = 0; c < N; c++)
+                if (frame[r][c] > maxD) maxD = frame[r][c];
+
+        for (let r = 0; r < N; r++) {
+            for (let c = 0; c < N; c++) {
+                const dr = N - 1 - r;
+                let rgba = [20, 24, 36, 255];
+
+                // Subtle terrain
+                const tCol = terrainColor(D.dem[r][c], zMin, zMax);
+                rgba = [Math.round(tCol[0]*0.3), Math.round(tCol[1]*0.3), Math.round(tCol[2]*0.3), 255];
+
+                if (D.water_body[r][c]) rgba = [0, 60, 140, 255];
+
+                if (frame[r][c] > 0.005) {
+                    const hc = hazardColor(frame[r][c], maxD);
+                    const a = hc[3] / 255;
+                    rgba[0] = Math.round(rgba[0] * (1-a) + hc[0] * a);
+                    rgba[1] = Math.round(rgba[1] * (1-a) + hc[1] * a);
+                    rgba[2] = Math.round(rgba[2] * (1-a) + hc[2] * a);
+                    rgba[3] = 255;
+                }
+
+                for (let dy = 0; dy < SCALE; dy++) {
+                    for (let dx = 0; dx < SCALE; dx++) {
+                        const idx = ((dr * SCALE + dy) * N * SCALE + c * SCALE + dx) * 4;
+                        imgData.data[idx] = rgba[0];
+                        imgData.data[idx+1] = rgba[1];
+                        imgData.data[idx+2] = rgba[2];
+                        imgData.data[idx+3] = rgba[3];
+                    }
+                }
+            }
+        }
+        ctxHazard.putImageData(imgData, 0, 0);
+
+        // Road status dots
+        D.roads.forEach(rd => {
+            const x = (rd.peak_col / 2) * SCALE + SCALE/2;
+            const y = (N - 1 - rd.peak_row / 2) * SCALE + SCALE/2;
+            const d = rd.peak_depth_cm;
+            ctxHazard.beginPath();
+            ctxHazard.arc(x, y, SCALE*2.5, 0, Math.PI*2);
+            ctxHazard.fillStyle = d > 30 ? '#ef4444' : d > 10 ? '#facc15' : '#22c55e';
+            ctxHazard.fill();
+            ctxHazard.strokeStyle = '#fff';
+            ctxHazard.lineWidth = 1.5;
+            ctxHazard.stroke();
+        });
+    }
+
+    // ─── Tooltip on flood map ───
+    const tooltip = document.getElementById('mapTooltip');
+    const mapFloodEl = document.getElementById('mapFlood');
+    mapFloodEl.addEventListener('mousemove', (e) => {
+        const rect = canvasFlood.getBoundingClientRect();
+        const sx = canvasFlood.width / rect.width;
+        const sy = canvasFlood.height / rect.height;
+        const px = (e.clientX - rect.left) * sx;
+        const py = (e.clientY - rect.top) * sy;
+        const c = Math.floor(px / SCALE);
+        const r = N - 1 - Math.floor(py / SCALE);
+        if (r >= 0 && r < N && c >= 0 && c < N) {
+            const frame = D.depth_frames[String(currentH)];
+            const dep = frame ? frame[r][c] : 0;
+            const elev = D.dem[r][c];
+            const isWB = D.water_body[r][c];
+            tooltip.style.display = 'block';
+            tooltip.style.left = (e.clientX - mapFloodEl.getBoundingClientRect().left + 16) + 'px';
+            tooltip.style.top = (e.clientY - mapFloodEl.getBoundingClientRect().top - 10) + 'px';
+            tooltip.innerHTML = `
+                Elev: <span class="tt-val">${elev.toFixed(1)} m</span> &nbsp;
+                Depth: <span class="tt-val">${(dep*100).toFixed(1)} cm</span>
+                ${isWB ? ' <span style="color:#38bdf8">[River]</span>' : ''}
+            `;
+        }
+    });
+    mapFloodEl.addEventListener('mouseleave', () => { tooltip.style.display = 'none'; });
+
+    // ─── Roads Table ───
+    const roadsBody = document.getElementById('roadsBody');
+    D.roads.forEach(rd => {
+        const d = rd.peak_depth_cm;
+        const statusClass = d > 30 ? 'badge-impassable' : d > 10 ? 'badge-caution' : 'badge-clear';
+        const statusText = d > 30 ? '⛔ IMPASSABLE' : d > 10 ? '⚠️ CAUTION' : '✅ CLEAR';
+        roadsBody.innerHTML += `<tr>
+            <td class="road-name">${rd.name}</td>
+            <td>${rd.mean_elev} m</td>
+            <td>${rd.peak_depth_cm.toFixed(1)} cm</td>
+            <td class="${statusClass}">${statusText}</td>
+        </tr>`;
+    });
+
+    // ─── Road Hydrograph (Canvas) ───
+    function drawHydrograph() {
+        const cvs = document.getElementById('canvasHydro');
+        const ctx = cvs.getContext('2d');
+        const rect = cvs.parentElement.getBoundingClientRect();
+        cvs.width = rect.width * 2;
+        cvs.height = 240 * 2;
+        ctx.scale(2, 2);
+        const W = rect.width, H = 240;
+        const pad = { t: 20, r: 20, b: 36, l: 50 };
+        const pw = W - pad.l - pad.r, ph = H - pad.t - pad.b;
+
+        // Determine Y max
+        let yMax = 40;
+        D.roads.forEach(rd => { const m = Math.max(...rd.history); if (m > yMax) yMax = m * 1.1; });
+
+        // Grid
+        ctx.strokeStyle = 'rgba(139,148,158,0.15)';
+        ctx.lineWidth = 0.5;
+        for (let v = 0; v <= yMax; v += 10) {
+            const y = pad.t + ph - (v / yMax) * ph;
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+            ctx.fillStyle = '#5a6a85';
+            ctx.font = '10px "JetBrains Mono"';
+            ctx.textAlign = 'right';
+            ctx.fillText(v + ' cm', pad.l - 6, y + 3);
+        }
+
+        // Threshold lines
+        [{ v: 10, c: '#facc15', l: 'Caution' }, { v: 30, c: '#ef4444', l: 'Impassable' }].forEach(th => {
+            const y = pad.t + ph - (th.v / yMax) * ph;
+            ctx.strokeStyle = th.c;
+            ctx.lineWidth = 1;
+            ctx.setLineDash([6, 4]);
+            ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(pad.l + pw, y); ctx.stroke();
+            ctx.setLineDash([]);
+            ctx.fillStyle = th.c;
+            ctx.font = '9px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(th.l, pad.l + pw + 3, y + 3);
+        });
+
+        // Lines
+        const colors = ['#38bdf8', '#ef4444', '#22c55e', '#facc15', '#a855f7', '#f97316'];
+        D.roads.forEach((rd, ri) => {
+            ctx.strokeStyle = colors[ri % colors.length];
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            rd.history.forEach((v, i) => {
+                const x = pad.l + (i / (horizons.length - 1)) * pw;
+                const y = pad.t + ph - (v / yMax) * ph;
+                i === 0 ? ctx.moveTo(x, y) : ctx.lineTo(x, y);
+            });
+            ctx.stroke();
+
+            // Dots
+            ctx.fillStyle = colors[ri % colors.length];
+            rd.history.forEach((v, i) => {
+                const x = pad.l + (i / (horizons.length - 1)) * pw;
+                const y = pad.t + ph - (v / yMax) * ph;
+                ctx.beginPath();
+                ctx.arc(x, y, 3, 0, Math.PI*2);
+                ctx.fill();
+            });
+
+            // Label at end
+            const lastY = pad.t + ph - (rd.history[rd.history.length-1] / yMax) * ph;
+            ctx.fillStyle = colors[ri % colors.length];
+            ctx.font = '9px Inter';
+            ctx.textAlign = 'left';
+            ctx.fillText(rd.name.substring(0, 20), pad.l + pw + 4, lastY + 3);
+        });
+
+        // X labels
+        horizons.forEach((h, i) => {
+            const x = pad.l + (i / (horizons.length - 1)) * pw;
+            ctx.fillStyle = '#5a6a85';
+            ctx.font = '10px "JetBrains Mono"';
+            ctx.textAlign = 'center';
+            ctx.fillText('T+' + h, x, H - 8);
+        });
+    }
+
+    // ─── Water Budget ───
+    function drawBudget() {
+        const b = D.budget;
+        const items = [
+            { label: 'Rain', val: b.rain, color: '#38bdf8' },
+            { label: 'Infiltration', val: b.infiltration, color: '#22c55e' },
+            { label: 'Inlet Abs.', val: b.inlet_absorption, color: '#22c55e' },
+            { label: 'Pumps', val: b.pumped, color: '#22c55e' },
+            { label: 'Pond Ret.', val: b.pond_stored, color: '#22c55e' },
+            { label: 'Sewer Ovf.', val: b.sewer_overflow, color: '#ef4444' },
+            { label: 'River Exit', val: b.river_exit, color: '#22c55e' },
+            { label: 'Land Flood', val: b.land_flood, color: '#facc15' },
+        ];
+        const maxVal = Math.max(...items.map(i => i.val));
+        const container = document.getElementById('budgetChart');
+        container.innerHTML = '';
+        items.forEach(item => {
+            const pct = Math.max((item.val / maxVal) * 100, 1);
+            const div = document.createElement('div');
+            div.className = 'budget-bar-wrap';
+            div.innerHTML = `
+                <div class="budget-bar-val">${(item.val/1000).toFixed(1)}k</div>
+                <div class="budget-bar" style="height:${pct}%;background:${item.color}"></div>
+                <div class="budget-bar-label">${item.label}</div>
+            `;
+            container.appendChild(div);
+        });
+    }
+
+    // ─── Horizon Stats Table ───
+    const hsBody = document.getElementById('horizonStatsBody');
+    D.horizon_stats.forEach(s => {
+        hsBody.innerHTML += `<tr>
+            <td>T+${s.t} min</td>
+            <td>${s.max_depth.toFixed(2)} m</td>
+            <td>${s.mean_depth_cm.toFixed(2)}</td>
+            <td>${s.cells_gt_10cm.toLocaleString()}</td>
+            <td>${s.cells_gt_30cm.toLocaleString()}</td>
+            <td>${s.volume_m3.toLocaleString()}</td>
+        </tr>`;
+    });
+
+    // ─── Timeline Controls ───
+    const slider = document.getElementById('timeSlider');
+    const marks = document.querySelectorAll('#sliderMarks span');
+
+    function updateHorizon(idx) {
+        currentH = horizons[idx];
+        document.getElementById('timeDisplay').textContent = `T+${currentH} min`;
+        document.getElementById('mapLabel').textContent = `T+${currentH} min`;
+
+        const st = D.horizon_stats.find(s => s.t === currentH);
+        if (st) {
+            document.getElementById('tsMax').textContent = st.max_depth.toFixed(2) + ' m';
+            document.getElementById('tsVol').textContent = (st.volume_m3/1000).toFixed(1) + 'k m³';
+            document.getElementById('tsCells').textContent = st.cells_gt_10cm;
+
+            document.getElementById('kpiMaxDepth').innerHTML = st.max_depth.toFixed(2) + '<span class="kpi-unit"> m</span>';
+            document.getElementById('kpiVolume').innerHTML = (st.volume_m3/1000).toFixed(1) + '<span class="kpi-unit"> ×10³ m³</span>';
+            document.getElementById('kpiCells30').textContent = st.cells_gt_30cm.toLocaleString();
+        }
+
+        marks.forEach((m, i) => m.classList.toggle('active', i === idx));
+        drawFloodMap(currentH);
+    }
+
+    slider.addEventListener('input', () => updateHorizon(parseInt(slider.value)));
+    marks.forEach(m => m.addEventListener('click', () => {
+        const idx = parseInt(m.dataset.idx);
+        slider.value = idx;
+        updateHorizon(idx);
+    }));
+
+    // Play animation
+    let playing = false;
+    let playInterval;
+    document.getElementById('playBtn').addEventListener('click', () => {
+        if (playing) {
+            clearInterval(playInterval);
+            document.getElementById('playBtn').textContent = '▶';
+            playing = false;
+        } else {
+            playing = true;
+            document.getElementById('playBtn').textContent = '⏸';
+            let idx = 0;
+            playInterval = setInterval(() => {
+                slider.value = idx;
+                updateHorizon(idx);
+                idx++;
+                if (idx >= horizons.length) {
+                    idx = 0;
+                }
+            }, 1200);
+        }
+    });
+
+    // Layer toggles
+    document.querySelectorAll('.layer-toggle').forEach(btn => {
+        btn.addEventListener('click', () => {
+            btn.classList.toggle('active');
+            const layer = btn.dataset.layer;
+            if (layer in layers) {
+                layers[layer] = btn.classList.contains('active');
+                drawFloodMap(currentH);
+            }
+        });
+    });
+
+    // ─── Initial Render ───
+    drawFloodMap(180);
+    drawHazardMap();
+    drawHydrograph();
+    drawBudget();
+
+    // Resize handler
+    window.addEventListener('resize', () => {
+        drawHydrograph();
+    });
+}
+</script>
+
+</body>
+</html>

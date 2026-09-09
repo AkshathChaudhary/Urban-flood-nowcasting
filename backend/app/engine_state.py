@@ -2,6 +2,7 @@
 Shared state and helpers for FloodEngine API endpoints.
 """
 
+import threading
 from typing import Dict, Optional, Tuple
 import numpy as np
 
@@ -16,6 +17,7 @@ from backend.app.config import (
 from backend.app.engine.flood_engine import FloodEngine
 from backend.app.models.flood import FloodSummary
 
+_engine_lock = threading.Lock()
 _engine_instance: Optional[FloodEngine] = None
 _current_scenario: str = "moderate"
 
@@ -23,23 +25,26 @@ _current_scenario: str = "moderate"
 def get_engine() -> FloodEngine:
     """Returns the singleton FloodEngine instance, initializing default if needed."""
     global _engine_instance
-    if _engine_instance is None:
-        _engine_instance = FloodEngine.from_default_data()
-        # Warm up default forecast
-        _engine_instance.run_forecast(scenario=_current_scenario, horizon_minutes=180)
-    return _engine_instance
+    with _engine_lock:
+        if _engine_instance is None:
+            _engine_instance = FloodEngine.from_default_data()
+            # Warm up default forecast
+            _engine_instance.run_forecast(scenario=_current_scenario, horizon_minutes=180)
+        return _engine_instance
 
 
 def set_engine(engine: FloodEngine, scenario: str = "moderate") -> None:
     """Sets the active FloodEngine instance and scenario tag."""
     global _engine_instance, _current_scenario
-    _engine_instance = engine
-    _current_scenario = scenario
+    with _engine_lock:
+        _engine_instance = engine
+        _current_scenario = scenario
 
 
 def get_current_scenario() -> str:
     global _current_scenario
-    return _current_scenario
+    with _engine_lock:
+        return _current_scenario
 
 
 def compute_summary(depth_grid: np.ndarray, horizon: int) -> FloodSummary:
@@ -81,3 +86,19 @@ def lat_lon_to_grid(lat: float, lon: float) -> Tuple[int, int]:
     row = max(0, min(row, GRID_ROWS - 1))
     col = max(0, min(col, GRID_COLS - 1))
     return row, col
+
+
+def grid_to_lat_lon(row: int, col: int) -> Tuple[float, float]:
+    """
+    Converts grid (row, col) indices to center latitude/longitude coordinates.
+    """
+    meters_per_deg_lat = 111320.0
+    meters_per_deg_lon = 111320.0 * np.cos(np.radians(ORIGIN_LAT))
+
+    total_height_m = GRID_ROWS * CELL_SIZE_M
+    d_north_m = total_height_m - (row + 0.5) * CELL_SIZE_M
+    d_east_m = (col + 0.5) * CELL_SIZE_M
+
+    lat = ORIGIN_LAT + (d_north_m / meters_per_deg_lat)
+    lon = ORIGIN_LON + (d_east_m / meters_per_deg_lon)
+    return round(float(lat), 6), round(float(lon), 6)

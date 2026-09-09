@@ -12,7 +12,7 @@ Implements:
 """
 
 from pathlib import Path
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Dict, List, Optional, Protocol, Tuple, Union, runtime_checkable
 import numpy as np
 
 from backend.app.config import (
@@ -35,6 +35,12 @@ from backend.app.engine.surface_flow import (
     route_surface_water,
 )
 from backend.data.rainfall.provider import DemoRainfallProvider, RainfallProvider
+
+@runtime_checkable
+class DrainageInterface(Protocol):
+    """Formal interface protocol for Pair A (Drainage) integration."""
+    def absorb_surface_water(self, depth_grid: np.ndarray, dt: float) -> np.ndarray: ...
+    def compute_overflow(self) -> Dict[str, float]: ...
 
 
 class FloodEngine:
@@ -190,6 +196,8 @@ class FloodEngine:
 
         # Output snapshots {minutes: depth_grid}
         self.forecast_grids: Dict[int, np.ndarray] = {}
+        # Rainfall nowcast grids {minutes: rain_rate_grid (mm/hr)}
+        self.rain_nowcast: Dict[int, np.ndarray] = {}
 
         # Precompute static terrain properties
         self.initialize()
@@ -211,6 +219,12 @@ class FloodEngine:
         self.river_bankfull_capacity_m3 = max(
             n_water_cells * self.cell_area * BANKFULL_DEPTH_M, 1.0
         )
+
+        # Cache static river bed mean elevation (P3)
+        if np.any(self.water_body_mask):
+            self._river_bed_elev = float(np.mean(self.dem[self.water_body_mask]))
+        else:
+            self._river_bed_elev = float(np.min(self.dem))
 
         self.reset_state()
 
@@ -264,7 +278,9 @@ class FloodEngine:
             rain_rate_grid: Rainfall intensity grid in mm/hr
 
         Returns:
-            np.ndarray: Net water depth added across grid (meters)
+            np.ndarray: Net effective precipitation grid in meters (gross rain minus infiltration).
+                        Land cells are added to self.water_depth; open water body cells
+                        are routed directly to self.river_storage_m3.
         """
         dt_hr = dt / 3600.0
 
@@ -286,19 +302,25 @@ class FloodEngine:
         # Net effective precipitation reaching surface
         net_addition_m = np.maximum(gross_rain_m - actual_infil_m, 0.0)
 
-        # Update grid state
-        self.water_depth += net_addition_m
+        # Track direct rain on open water -> river storage (B1/R1)
+        if np.any(self.water_body_mask):
+            direct_rain_on_river = float(
+                np.sum(net_addition_m[self.water_body_mask]) * self.cell_area
+            )
+            self.river_storage_m3 += direct_rain_on_river
+
+        # Zero out water body contribution from grid (channel stage set by drain_water_bodies)
+        net_addition_m_land = net_addition_m.copy()
+        net_addition_m_land[self.water_body_mask] = 0.0
+
+        # Update grid state (land cells only)
+        self.water_depth += net_addition_m_land
         self.cumulative_rain_m += gross_rain_m
         self.cumulative_infiltrated_m += actual_infil_m
 
         # Update mass balance totals (entire domain)
         self.total_rain_volume_m3 += float(np.sum(gross_rain_m) * self.cell_area)
         self.total_infiltrated_volume_m3 += float(np.sum(actual_infil_m) * self.cell_area)
-
-        # Track direct precipitation on water body cells into river storage
-        if np.any(self.water_body_mask):
-            direct_rain_on_river = float(np.sum(net_addition_m[self.water_body_mask]) * self.cell_area)
-            self.river_storage_m3 += direct_rain_on_river
 
         return net_addition_m
 
@@ -452,11 +474,8 @@ class FloodEngine:
             return
 
         n_water = max(int(self.water_body_mask.sum()), 1)
-        # Channel water surface elevation prior to spill: bed elevation + stage
-        if np.any(self.water_body_mask):
-            river_bed_elev = float(np.mean(self.dem[self.water_body_mask]))
-        else:
-            river_bed_elev = float(np.min(self.dem))
+        # Channel water surface elevation prior to spill: bed elevation + stage (P3 cached)
+        river_bed_elev = self._river_bed_elev
 
         # Peak stage depth in channel driving the overtopping
         peak_stage_m = (self.river_bankfull_capacity_m3 + overflow_vol_m3) / (n_water * self.cell_area)
@@ -473,12 +492,20 @@ class FloodEngine:
             norm_weights = (weir_weights / sum_w).astype(np.float64)
         else:
             # Fallback if channel stage is lower than bank crests (overflow triggered by volume):
-            # Spill breaches through the lowest 20% elevation bank cells
+            # Spill breaches through the lowest 20% elevation bank cells (B3 fix)
             p20 = float(np.percentile(bank_elev, 20))
             low_bank_mask = bank_elev <= p20
             min_z = float(np.min(bank_elev))
             inv_dist = np.where(low_bank_mask, 1.0 / (bank_elev - min_z + 0.1), 0.0)
-            norm_weights = (inv_dist / np.sum(inv_dist)).astype(np.float64)
+            sum_inv = float(np.sum(inv_dist))
+            if sum_inv > 1e-12:
+                norm_weights = (inv_dist / sum_inv).astype(np.float64)
+            else:
+                n_low = int(np.sum(low_bank_mask))
+                if n_low > 0:
+                    norm_weights = np.where(low_bank_mask, 1.0 / n_low, 0.0).astype(np.float64)
+                else:
+                    norm_weights = np.full_like(bank_elev, 1.0 / max(len(bank_elev), 1), dtype=np.float64)
 
         # Distribute overflow volume onto bank cells according to hydraulic weir weighting
         added_depth_m = (overflow_vol_m3 * norm_weights) / self.cell_area
@@ -788,6 +815,7 @@ class FloodEngine:
         rain_nowcast = self.rainfall_provider.generate_nowcast(
             scenario=scenario, horizon_minutes=horizon_minutes
         )
+        self.rain_nowcast = rain_nowcast
 
         self.reset_state()
 
@@ -830,12 +858,15 @@ class FloodEngine:
             # Step forward
             self.simulate_timestep(dt=dt, rain_rate_grid=rain_grid, sub_passes=sub_passes)
 
-            # Check if this step aligns with a capture horizon
-            if next_capture_idx is not None and next_capture_idx < len(capture_horizons):
+            # Check if this step aligns with a capture horizon (B5/R2 robust capture)
+            while (
+                next_capture_idx is not None
+                and next_capture_idx < len(capture_horizons)
+                and current_time_min >= capture_horizons[next_capture_idx] - 1e-6
+            ):
                 target_min = capture_horizons[next_capture_idx]
-                if abs(current_time_min - target_min) < (dt / 120.0):
-                    self.forecast_grids[target_min] = self.water_depth.copy()
-                    next_capture_idx += 1
+                self.forecast_grids[target_min] = self.water_depth.copy()
+                next_capture_idx += 1
 
         # Fill any missing horizon with latest depth
         for h in capture_horizons:

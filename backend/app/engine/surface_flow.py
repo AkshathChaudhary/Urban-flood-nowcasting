@@ -140,12 +140,17 @@ def route_surface_water(
 
     total_boundary_outflow_m3 = 0.0
 
+    # Pre-allocate reusable buffers to avoid GC churn across sub-passes (P1)
+    slopes = np.empty((8, rows, cols), dtype=np.float32)
+    outflow_grid = np.empty((8, rows, cols), dtype=np.float32)
+    inflow = np.empty((rows, cols), dtype=np.float32)
+
     for _ in range(sub_passes):
         # Total hydraulic head
         head = elevation + depth
 
         # Slopes to 8 neighbors
-        slopes = np.full((8, rows, cols), -np.inf, dtype=np.float32)
+        slopes.fill(-np.inf)
 
         for k, ((dr, dc), dist) in enumerate(zip(D8_OFFSETS, distances)):
             r_src_start = max(0, -dr)
@@ -178,8 +183,8 @@ def route_surface_water(
         if not np.any(active_mask):
             break
 
-        # Calculate outflow depth for each active cell
-        outflow_grid = np.zeros((8, rows, cols), dtype=np.float32)
+        # Reset outflow depth buffer for each active cell
+        outflow_grid.fill(0.0)
 
         # Simplified kinematic wave velocity approximation:
         # v = (1 / n) * R^(2/3) * S^(1/2), where hydraulic radius R ~ depth
@@ -207,6 +212,10 @@ def route_surface_water(
         # Cells with gentle slope where multi-directional spreading applies
         gentle_mask = active_mask & (best_slope < 0.01) & (sum_pos_slopes > 1e-6)
         steep_mask = active_mask & ~gentle_mask
+        has_gentle = np.any(gentle_mask)
+
+        if has_gentle:
+            safe_sum = np.where(sum_pos_slopes > 1e-6, sum_pos_slopes, 1.0)
 
         for k in range(8):
             # Steep cells: 100% of flux routed to steepest descent direction (D8)
@@ -214,8 +223,8 @@ def route_surface_water(
             outflow_grid[k, mask_steep_k] = flux_depth[mask_steep_k]
 
             # Gentle cells: flux proportionally distributed across all downhill neighbors
-            if np.any(gentle_mask):
-                k_fraction = pos_slopes[k, gentle_mask] / sum_pos_slopes[gentle_mask]
+            if has_gentle:
+                k_fraction = pos_slopes[k, gentle_mask] / safe_sum[gentle_mask]
                 outflow_grid[k, gentle_mask] = (flux_depth[gentle_mask] * k_fraction).astype(np.float32)
 
         # Deduct total outflow from source cells
@@ -223,7 +232,7 @@ def route_surface_water(
         depth -= total_outflow
 
         # Accumulate inflow into target cells
-        inflow = np.zeros((rows, cols), dtype=np.float32)
+        inflow.fill(0.0)
 
         for k, (dr, dc) in enumerate(D8_OFFSETS):
             flow_k = outflow_grid[k]
