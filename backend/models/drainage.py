@@ -60,6 +60,7 @@ class DrainageGraph:
         self.current_water_m3: Dict[str, float] = {}
         self.total_discharged_m3: float = 0.0
         self.elevation_sorted_nodes: List[str] = []
+        self._initial_edge_blockages: Dict[str, float] = {}
 
         # Load GeoJSON data into graph
         self._load_from_geojson(Path(nodes_path), Path(edges_path))
@@ -141,6 +142,7 @@ class DrainageGraph:
             # Add directed edge: water flows from u -> v
             self.graph.add_edge(u, v, **edge_attr)
             self.edge_data[edge_id] = edge_attr
+            self._initial_edge_blockages[edge_id] = float(props.get("blockage_pct", 0.0))
 
     def compute_pipe_capacity(self, edge_id: str) -> float:
         """
@@ -161,39 +163,44 @@ class DrainageGraph:
         Returns:
             Effective conveyance capacity in cubic meters per second (m³/s).
         """
+        if edge_id not in self.edge_data:
+            raise KeyError(f"Pipe edge {edge_id} does not exist in the network.")
+
         edge = self.edge_data[edge_id]
-        d = edge["diameter_m"]
-        n = edge["roughness_n"]
-        s = edge["slope"]
-        blockage = edge.get("blockage_pct", 0.0)
+        d = max(float(edge.get("diameter_m", 1.0)), 0.01)
+        n = max(float(edge.get("roughness_n", 0.013)), 0.005)
+        s = max(float(edge.get("slope", 0.005)), 0.0001)
+        blockage = max(0.0, min(1.0, float(edge.get("blockage_pct", 0.0))))
 
         # Cross-sectional area A (m²)
         area = math.pi * ((d / 2.0) ** 2)
-
-        # Hydraulic radius R (m)
+        # Wetted perimeter P = π * D => Hydraulic radius R = A / P = D / 4
         hydraulic_radius = d / 4.0
 
-        # Theoretical Manning's gravity capacity Q (m³/s)
+        # Manning's equation for open/closed full gravity pipe flow
         q_theoretical = (1.0 / n) * area * (hydraulic_radius ** (2.0 / 3.0)) * math.sqrt(s)
 
         # Apply blockage reduction: effective capacity
-        q_effective = q_theoretical * max(0.0, (1.0 - blockage))
+        q_effective = q_theoretical * (1.0 - blockage)
         return float(q_effective)
 
-    def absorb_surface_water(self, depth_grid: np.ndarray, dt: float) -> np.ndarray:
+    def absorb_surface_water(
+        self, depth_grid: np.ndarray, dt: float, blockage_factor: float = 1.0
+    ) -> np.ndarray:
         """
         Absorbs standing surface floodwater into the inlet nodes of the drainage network.
 
         For each inlet node at cell (row, col):
         1. Identifies standing surface flood depth (meters).
         2. Computes available surface volume: depth * cell_area (m³).
-        3. Computes max intake capacity of the inlet: capacity_m3s * dt (m³).
+        3. Computes max intake capacity of the inlet: capacity_m3s * dt * blockage_factor (m³).
         4. Absorbs min(available_volume, max_intake_volume).
         5. Updates internal node storage and populates absorption_grid.
 
         Args:
             depth_grid: 2D numpy array (e.g. 200x200) representing surface water depth in meters.
             dt: Simulation timestep in seconds (e.g., 300.0s for 5 minutes).
+            blockage_factor: External debris clogging factor in [0.0, 1.0]. Default 1.0.
 
         Returns:
             absorption_grid: 2D numpy array of same shape containing the water depth (in meters)
@@ -201,6 +208,7 @@ class DrainageGraph:
         """
         absorption_grid = np.zeros_like(depth_grid, dtype=np.float32)
         rows, cols = depth_grid.shape
+        b_factor = max(0.0, min(1.0, float(blockage_factor)))
 
         for node_id, node in self.node_data.items():
             # Only intake surface water through designated inlets
@@ -216,7 +224,7 @@ class DrainageGraph:
                 continue
 
             available_vol_m3 = surface_depth_m * self.cell_area_m2
-            max_intake_vol_m3 = node["capacity_m3s"] * dt
+            max_intake_vol_m3 = node["capacity_m3s"] * dt * b_factor
 
             # Siphon the smaller of available water or inlet conveyance capacity
             absorbed_vol_m3 = min(available_vol_m3, max_intake_vol_m3)
@@ -226,6 +234,19 @@ class DrainageGraph:
             self.current_water_m3[node_id] += absorbed_vol_m3
 
         return absorption_grid
+
+    def set_river_submergence(self, stage_m: float, depth_grid: Optional[np.ndarray] = None) -> None:
+        """
+        Submergence feedback from surface flood engine / Mithi river stage.
+        When tidal river stage exceeds outfall elevation, discharge capacity is restricted.
+        """
+        for node_id, node in self.node_data.items():
+            if node["type"] == "outfall":
+                elev = node.get("elevation_m", 0.0)
+                tailwater_head = max(0.0, float(stage_m) - elev)
+                # Tailwater obstruction: reduces discharge factor from 1.0 down to 0.0 at tailwater >= 1.5m
+                penalty = max(0.0, 1.0 - tailwater_head / 1.5)
+                node["submergence_factor"] = penalty
 
     def propagate_flow(self, dt: float) -> float:
         """
@@ -258,10 +279,11 @@ class DrainageGraph:
 
             # Case A: Outfall / Sinks (No downstream pipes)
             if not out_edges or self.node_data[node_id]["type"] == "outfall":
-                # Water safely discharges into receiving water body
-                volume_discharged_this_step += water_to_move
-                self.total_discharged_m3 += water_to_move
-                self.current_water_m3[node_id] = 0.0
+                submerge = self.node_data[node_id].get("submergence_factor", 1.0)
+                effective_discharge = water_to_move * max(0.0, min(1.0, submerge))
+                volume_discharged_this_step += effective_discharge
+                self.total_discharged_m3 += effective_discharge
+                self.current_water_m3[node_id] = max(0.0, water_to_move - effective_discharge)
                 continue
 
             # Case B: Internal Junction or Inlet with downstream pipes
@@ -419,8 +441,13 @@ class DrainageGraph:
 
     def reset_state(self) -> None:
         """
-        Resets dynamic simulation state (stored water, discharge totals) to zero.
+        Resets dynamic simulation state (stored water, discharge totals, edge blockage, submergence) to zero/defaults.
         """
         for node_id in self.current_water_m3:
             self.current_water_m3[node_id] = 0.0
+            if "submergence_factor" in self.node_data[node_id]:
+                self.node_data[node_id]["submergence_factor"] = 1.0
         self.total_discharged_m3 = 0.0
+        if hasattr(self, "_initial_edge_blockages"):
+            for edge_id, init_b in self._initial_edge_blockages.items():
+                self.set_blockage(edge_id, init_b)
