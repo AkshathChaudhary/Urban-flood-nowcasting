@@ -1,0 +1,24 @@
+# Central City Configuration
+city_name: "Mumbai - Bandra West"
+city_slug: "mumbai_bandra_west"
+
+# Bounding box (SW corner to NE corner)
+bbox:
+  min_lat: 19.06013888888332
+  max_lat: 19.07819444443888
+  min_lon: 72.84986111114458
+  max_lon: 72.86875000003347
+
+# Grid parameters
+grid:
+  rows: 200
+  cols: 200
+  cell_size_m: 10.0
+
+# Coordinate reference system
+crs: "EPSG:4326"
+
+# Simulation parameters
+simulation:
+  dt_seconds: 300
+  forecast_horizons: [0, 30, 60, 90, 120, 180]
