@@ -59,10 +59,18 @@ class DrainageGraph:
         # Dynamic simulation state
         self.current_water_m3: Dict[str, float] = {}
         self.total_discharged_m3: float = 0.0
+        self.elevation_sorted_nodes: List[str] = []
         self._initial_edge_blockages: Dict[str, float] = {}
 
         # Load GeoJSON data into graph
         self._load_from_geojson(Path(nodes_path), Path(edges_path))
+        
+        # Precompute elevation-sorted node order once (avoids re-sorting on every timestep)
+        self.elevation_sorted_nodes = sorted(
+            self.graph.nodes(),
+            key=lambda nid: self.node_data[nid]["elevation_m"],
+            reverse=True,
+        )
 
     def _load_from_geojson(self, nodes_path: Path, edges_path: Path) -> None:
         """
@@ -144,7 +152,7 @@ class DrainageGraph:
             # Add directed edge: water flows from u -> v
             self.graph.add_edge(u, v, **edge_attr)
             self.edge_data[edge_id] = edge_attr
-            self._initial_edge_blockages[edge_id] = initial_b
+            self._initial_edge_blockages[edge_id] = float(props.get("blockage_pct", 0.0))
 
     def compute_pipe_capacity(self, edge_id: str) -> float:
         """
@@ -176,11 +184,10 @@ class DrainageGraph:
 
         # Cross-sectional area A (m²)
         area = math.pi * ((d / 2.0) ** 2)
-
-        # Hydraulic radius R (m)
+        # Wetted perimeter P = π * D => Hydraulic radius R = A / P = D / 4
         hydraulic_radius = d / 4.0
 
-        # Theoretical Manning's gravity capacity Q (m³/s)
+        # Manning's equation for open/closed full gravity pipe flow
         q_theoretical = (1.0 / n) * area * (hydraulic_radius ** (2.0 / 3.0)) * math.sqrt(s)
 
         # Apply blockage reduction: effective capacity
@@ -265,11 +272,11 @@ class DrainageGraph:
         Returns:
             volume_discharged_this_step_m3: Total water volume safely discharged through outfalls.
         """
-        sorted_nodes = sorted(
-            self.graph.nodes(),
-            key=lambda nid: self.node_data[nid]["elevation_m"],
-            reverse=True,
-        )
+        # Determine processing sequence:
+        # In a standard gravity drainage network, traversing from higher elevation to lower elevation
+        # ensures upstream nodes transfer water before downstream nodes process it.
+        # Uses precomputed sorted order to guarantee O(V + E) per timestep without re-sorting overhead.
+        sorted_nodes = self.elevation_sorted_nodes
 
         pending_inflows: Dict[str, float] = {nid: 0.0 for nid in self.graph.nodes()}
         volume_discharged_this_step = 0.0
@@ -446,8 +453,13 @@ class DrainageGraph:
 
     def reset_state(self) -> None:
         """
-        Resets dynamic simulation state (stored water, discharge totals) to zero.
+        Resets dynamic simulation state (stored water, discharge totals, edge blockage, submergence) to zero/defaults.
         """
         for node_id in self.current_water_m3:
             self.current_water_m3[node_id] = 0.0
+            if "submergence_factor" in self.node_data[node_id]:
+                self.node_data[node_id]["submergence_factor"] = 1.0
         self.total_discharged_m3 = 0.0
+        if hasattr(self, "_initial_edge_blockages"):
+            for edge_id, init_b in self._initial_edge_blockages.items():
+                self.set_blockage(edge_id, init_b)
