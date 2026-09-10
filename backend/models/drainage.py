@@ -81,9 +81,17 @@ class DrainageGraph:
             edges_path: Path to drainage_edges.geojson
         """
         if not nodes_path.exists():
-            raise FileNotFoundError(f"Nodes GeoJSON file not found: {nodes_path}")
+            alt_nodes = Path(__file__).resolve().parent.parent / "data" / "drainage" / nodes_path.name
+            if alt_nodes.exists():
+                nodes_path = alt_nodes
+            else:
+                raise FileNotFoundError(f"Nodes GeoJSON file not found: {nodes_path}")
         if not edges_path.exists():
-            raise FileNotFoundError(f"Edges GeoJSON file not found: {edges_path}")
+            alt_edges = Path(__file__).resolve().parent.parent / "data" / "drainage" / edges_path.name
+            if alt_edges.exists():
+                edges_path = alt_edges
+            else:
+                raise FileNotFoundError(f"Edges GeoJSON file not found: {edges_path}")
 
         # 1. Load Nodes
         with open(nodes_path, "r", encoding="utf-8") as f:
@@ -103,6 +111,7 @@ class DrainageGraph:
                 "grid_row": int(props.get("grid_row", 0)),
                 "grid_col": int(props.get("grid_col", 0)),
                 "coordinates": coords,
+                "submergence_factor": 1.0,
             }
 
             self.graph.add_node(node_id, **node_attr)
@@ -125,16 +134,17 @@ class DrainageGraph:
 
             geom = feature.get("geometry", {})
             coords = geom.get("coordinates", [])
+            initial_b = max(0.0, min(1.0, float(props.get("blockage_pct", 0.0))))
 
             edge_attr = {
                 "id": edge_id,
                 "from_node": u,
                 "to_node": v,
-                "length_m": float(props.get("length_m", 10.0)),
-                "diameter_m": float(props.get("diameter_m", 1.0)),
+                "length_m": max(float(props.get("length_m", 10.0)), 1.0),
+                "diameter_m": max(float(props.get("diameter_m", 1.0)), 0.05),
                 "slope": max(float(props.get("slope", 0.005)), 0.0001),  # minimum gravity slope
-                "roughness_n": float(props.get("roughness_n", 0.013)),  # 0.013 concrete, 0.025 nala
-                "blockage_pct": float(props.get("blockage_pct", 0.0)),  # 0.0 (clean) to 1.0 (blocked)
+                "roughness_n": max(float(props.get("roughness_n", 0.013)), 0.005),  # 0.013 concrete, 0.025 nala
+                "blockage_pct": initial_b,  # 0.0 (clean) to 1.0 (blocked)
                 "channel_type": props.get("channel_type", "pipe"),
                 "coordinates": coords,
             }
@@ -252,9 +262,9 @@ class DrainageGraph:
         """
         Propagates accumulated water downstream through the pipe network for one timestep dt.
 
-        Water moves from upstream nodes to downstream nodes in topological/elevation order.
-        At outfalls, water leaves the model domain into creeks/sea.
-        At junctions with multiple outgoing pipes, flow is split proportionally to pipe capacity.
+        Water moves from upstream nodes to downstream nodes in elevation order.
+        To prevent instantaneous city-wide water teleportation, downstream inflows are buffered
+        and credited after all nodes evaluate their allowable outflows for this step.
 
         Args:
             dt: Simulation timestep in seconds (e.g. 300.0s).
@@ -268,6 +278,7 @@ class DrainageGraph:
         # Uses precomputed sorted order to guarantee O(V + E) per timestep without re-sorting overhead.
         sorted_nodes = self.elevation_sorted_nodes
 
+        pending_inflows: Dict[str, float] = {nid: 0.0 for nid in self.graph.nodes()}
         volume_discharged_this_step = 0.0
 
         for node_id in sorted_nodes:
@@ -287,7 +298,6 @@ class DrainageGraph:
                 continue
 
             # Case B: Internal Junction or Inlet with downstream pipes
-            # Compute total conveyance capacity of all outgoing pipes in this timestep
             outgoing_capacities: List[Tuple[str, str, float]] = []
             total_conveyance_m3 = 0.0
 
@@ -307,16 +317,18 @@ class DrainageGraph:
             for downstream_node, edge_id, pipe_max_vol in outgoing_capacities:
                 share = pipe_max_vol / total_conveyance_m3
                 allocated_water = water_to_move * share
-                # Cannot exceed individual pipe carrying capacity
                 actual_flow = min(allocated_water, pipe_max_vol)
 
-                self.current_water_m3[downstream_node] = (
-                    self.current_water_m3.get(downstream_node, 0.0) + actual_flow
-                )
+                pending_inflows[downstream_node] += actual_flow
                 transferred_total += actual_flow
 
             # Deduct the transferred volume from current node
             self.current_water_m3[node_id] = max(0.0, self.current_water_m3[node_id] - transferred_total)
+
+        # Apply pending inflows AFTER all nodes have evaluated outflows for this timestep
+        for node_id, inflow_vol in pending_inflows.items():
+            if inflow_vol > 0.0:
+                self.current_water_m3[node_id] += inflow_vol
 
         return volume_discharged_this_step
 
