@@ -4,20 +4,21 @@ from pydantic import BaseModel, Field
 
 
 class SimulateRequest(BaseModel):
+    city: Optional[str] = Field(default="mumbai", description="City to simulate: 'mumbai' or 'kolkata'")
     scenario: str = Field(
         default="moderate",
         description="Scenario: moderate, heavy, extreme, cloudburst, extreme_blocked, live, historical"
     )
     horizon_minutes: int = Field(default=180, ge=30, le=360)
     dt_seconds: float = Field(default=300.0, ge=60.0, le=600.0)
-    lat: Optional[float] = Field(default=19.07, description="Latitude for live/historical query")
-    lon: Optional[float] = Field(default=72.85, description="Longitude for live/historical query")
+    lat: Optional[float] = Field(default=None, description="Latitude for live/historical query")
+    lon: Optional[float] = Field(default=None, description="Longitude for live/historical query")
     date_str: Optional[str] = Field(
-        default="2023-07-26",
+        default=None,
         description="YYYY-MM-DD for historical query",
         pattern=r"^\d{4}-\d{2}-\d{2}$",
     )
-    start_hour: Optional[int] = Field(default=11, ge=0, le=23)
+    start_hour: Optional[int] = Field(default=None, ge=0, le=23)
 
 
 class FloodSummary(BaseModel):

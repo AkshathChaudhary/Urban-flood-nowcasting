@@ -1,0 +1,16 @@
+{
+  "city": "Kolkata - EM Bypass Corridor",
+  "bbox": [
+    88.385,
+    22.505,
+    88.438,
+    22.602
+  ],
+  "rows": 300,
+  "cols": 160,
+  "cell_size_m": 35.0,
+  "min_elevation_m": 1.8667809963226318,
+  "max_elevation_m": 8.100000381469727,
+  "mean_elevation_m": 5.910682201385498,
+  "canals_burned": 2384
+}

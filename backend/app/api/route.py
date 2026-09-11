@@ -16,6 +16,8 @@ import numpy as np
 
 from backend.app.models.routing import RoutingEngine, VEHICLE_THRESHOLDS
 from backend.app.models.location import (
+    CITY_CONFIGS,
+    KOLKATA_LANDMARKS,
     get_live_location,
     resolve_destination,
     STUDY_AREA_LANDMARKS,
@@ -28,6 +30,7 @@ from backend.app.models.location import (
 )
 from backend.app.api.roads import get_routing_engine
 from backend.app.engine_state import get_engine
+from backend.app.engine.corridor_pipeline import run_unified_corridor_pipeline
 
 router = APIRouter(prefix="/api/route", tags=["Flood-Resilient Routing"])
 
@@ -74,18 +77,109 @@ class FloodSimulationRouteRequest(RouteRequest):
     )
 
 
+KOLKATA_DESTINATIONS_CATALOG = [
+    {
+        "id": "ruby-hospital",
+        "name": "Ruby General Hospital (EM Bypass South)",
+        "category": "Emergency Medical Center",
+        "lat": 22.5135,
+        "lon": 88.4030,
+        "elevation_m": 4.8,
+        "description": "Critical tertiary trauma center at southern terminus of EM Bypass corridor.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "science-city",
+        "name": "Science City / Parama Island Flyover",
+        "category": "Major Transit Hub",
+        "lat": 22.5400,
+        "lon": 88.3960,
+        "elevation_m": 5.2,
+        "description": "Central junction connecting EM Bypass with Maa Flyover and Park Circus connector.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "salt-lake-sec-v",
+        "name": "Salt Lake Sector V (Tech Hub)",
+        "category": "Commercial Center",
+        "lat": 22.5800,
+        "lon": 88.4320,
+        "elevation_m": 4.2,
+        "description": "High-density IT sector adjacent to East Kolkata Wetlands canal systems.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "ultadanga",
+        "name": "Ultadanga Underpass / Hudco",
+        "category": "Flood Hazard Hotspot",
+        "lat": 22.5890,
+        "lon": 88.3960,
+        "elevation_m": 3.1,
+        "description": "Severe monsoon depression chokepoint prone to rapid waterlogging >50cm.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "kestopur-canal",
+        "name": "Kestopur VIP Road Junction (Northern Gateway)",
+        "category": "Entry Gateway",
+        "lat": 22.5930,
+        "lon": 88.4230,
+        "elevation_m": 3.6,
+        "description": "Northern gateway corridor parallel to Kestopur Canal heading toward Airport.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "chingrighata",
+        "name": "Chingrighata Flyover & Beleghata",
+        "category": "Arterial Highway",
+        "lat": 22.5650,
+        "lon": 88.4050,
+        "elevation_m": 3.8,
+        "description": "Critical east-west connector linking Sealdah approaches to Salt Lake.",
+        "recommended_as_destination": True,
+    },
+    {
+        "id": "acropolis-mall",
+        "name": "Acropolis Mall / Kasba Connector",
+        "category": "Civic & Commercial",
+        "lat": 22.5180,
+        "lon": 88.3920,
+        "elevation_m": 5.0,
+        "description": "Elevated western corridor linking Gariahat and South Kolkata.",
+        "recommended_as_destination": True,
+    },
+]
+
 # ---------------------------------------------------------------------------
 # API Endpoints
 # ---------------------------------------------------------------------------
 
 @router.get("/destinations")
 @router.get("/landmarks")
-def get_destinations_catalog():
+def get_destinations_catalog(city: Optional[str] = Query("mumbai")):
     """
-    Returns curated study area destinations, popular landmarks, and peripheral entry gateways.
-    Used by frontend UI to populate origin/destination dropdowns, destination cards,
-    and interactive map pins within the 2x2 km Mumbai pilot sector.
+    Returns curated study area destinations, popular landmarks, and peripheral entry gateways
+    for the specified city (Mumbai or Kolkata).
     """
+    c = (city or "mumbai").lower().strip()
+    if c == "kolkata":
+        return {
+            "city": "Kolkata",
+            "pilot_basin": "EM Bypass Corridor (Kestopur to Ruby, ~12km)",
+            "bounds": {
+                "min_lat": 22.5050,
+                "max_lat": 22.6020,
+                "min_lon": 88.3850,
+                "max_lon": 88.4380,
+            },
+            "destinations": KOLKATA_DESTINATIONS_CATALOG,
+            "entry_gateways": [
+                {"id": "gate-north-kolkata", "name": "VIP Road / Airport Northern Gateway", "lat": 22.595, "lon": 88.420, "direction": "North"},
+                {"id": "gate-south-kolkata", "name": "Garia / Southern Bypass Gateway", "lat": 22.502, "lon": 88.399, "direction": "South"},
+            ],
+            "total_destinations": len(KOLKATA_DESTINATIONS_CATALOG),
+        }
+
     return {
         "city": "Mumbai",
         "pilot_basin": "Kurla - BKC - Mithi River Floodplain (2km x 2km)",
@@ -127,7 +221,8 @@ def calculate_flood_route(req: RouteRequest):
     Dynamically routes around submerged or flooded streets based on vehicle wading limits
     and active simulation depth grid at the specified time horizon.
     """
-    engine = get_routing_engine()
+    city = "kolkata" if (req.src_lat > 21.0 or req.dst_lat > 21.0) else "mumbai"
+    engine = get_routing_engine(city)
     vtype = req.vehicle_type.lower()
     if vtype not in VEHICLE_THRESHOLDS:
         raise HTTPException(
@@ -331,3 +426,50 @@ def live_navigate(req: NavigateRequest):
         "alternatives": routes[1:] if len(routes) > 1 else [],
         "alternatives_count": len(routes) - 1,
     }
+
+
+class UnifiedCorridorRouteRequest(BaseModel):
+    src: str = Field("Kestopur", description="Origin landmark, address, or 'lat, lon'")
+    dst: str = Field("Ruby Hospital", description="Destination landmark, address, or 'lat, lon'")
+    scenario: str = Field("heavy", description="moderate, heavy, extreme, cloudburst")
+    vehicle_type: str = Field("car", description="pedestrian, car, suv, ambulance, truck")
+    horizon_minutes: int = Field(60, ge=10, le=180, description="Forecast horizon in minutes")
+
+
+@router.get("/cities")
+def get_available_cities():
+    """
+    Returns available operational cities and their landmarks.
+    Used by frontend dropdowns to switch active city views or select landmarks.
+    """
+    cities = []
+    for cid, cfg in CITY_CONFIGS.items():
+        cities.append({
+            "id": cid,
+            "name": cfg["name"],
+            "bbox": cfg["bbox"],
+            "grid": cfg["grid"],
+            "default_anchor_name": cfg["default_anchor_name"],
+            "landmarks": list(cfg["landmarks"].keys())[:15],
+            "landmarks_count": len(cfg["landmarks"]),
+        })
+    return {"cities": cities, "total": len(cities)}
+
+
+@router.post("/corridor")
+def compute_unified_corridor_route(req: UnifiedCorridorRouteRequest):
+    """
+    Executes the complete unified 3-model pipeline across any two locations:
+    1. Geocodes origin & destination
+    2. Runs Model 1 (Drainage) + Model 2 (Flood Engine) coupled simulation
+    3. Runs Model 3 (Routing Engine) with vehicle clearance constraints
+    Returns comprehensive physics stats and turn-by-turn safe navigation.
+    """
+    result = run_unified_corridor_pipeline(
+        src_input=req.src,
+        dst_input=req.dst,
+        scenario=req.scenario,
+        vehicle_type=req.vehicle_type,
+        horizon_minutes=req.horizon_minutes,
+    )
+    return result

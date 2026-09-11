@@ -1,57 +1,102 @@
 """
-Interactive Live Navigation CLI (Pair C)
-========================================
+Interactive Live Navigation CLI (Multi-City & Arbitrary Corridor Support)
+========================================================================
 
-Runs the flood-resilient routing engine in real-time:
-1. Automatically retrieves the user's current live location (with intelligent bounding box handling).
-2. Takes destination as interactive input (landmark name or coordinates).
-3. Takes vehicle type (Car, SUV, Ambulance, Truck, Pedestrian).
-4. Evaluates flood conditions (dry vs real-time flood simulation).
-5. Outputs turn-by-turn safe navigation instructions, travel time, and roads avoided.
-6. Saves `live_navigation_route.geojson`.
+Runs the flood-resilient routing engine in real-time across multiple urban environments:
+1. Supports both Mumbai BKC (2x2 km pilot) and Kolkata EM Bypass (Kestopur -> Ruby, 12 km corridor).
+2. Automatically retrieves user's live location or provides city-specific default origin anchors.
+3. Takes destination as interactive input (landmark name or coordinates).
+4. Evaluates flood conditions (dry vs real-time flood simulation) with adaptive-resolution physics.
+5. Employs vehicle-specific wading clearance thresholds (Car, SUV, Ambulance, Truck, Pedestrian).
+6. Outputs turn-by-turn safe navigation instructions, travel time, and submerged roads avoided.
+7. Exports `live_navigation_route.geojson` for instant GIS/web visualization.
 """
 
-import sys
+import argparse
 import json
+import sys
 from pathlib import Path
 
 # Fix Windows console UTF-8 output
 if sys.platform == "win32":
     try:
         sys.stdout.reconfigure(encoding="utf-8")
+        sys.stderr.reconfigure(encoding="utf-8")
     except Exception:
         pass
 
 import numpy as np
 
 from backend.models.routing import RoutingEngine, VEHICLE_THRESHOLDS
-from backend.models.location import get_live_location, resolve_destination, STUDY_AREA_LANDMARKS
+from backend.models.location import (
+    CITY_CONFIGS,
+    get_live_location,
+    resolve_destination,
+    detect_city_from_text_or_coords,
+    STUDY_AREA_LANDMARKS,
+    KOLKATA_LANDMARKS,
+)
 
 
 def run_navigation():
-    print("=" * 70)
-    print(" 🚗 URBAN FLOOD NOWCASTING — REAL-TIME RESILIENT NAVIGATION")
-    print("=" * 70)
+    parser = argparse.ArgumentParser(description="Urban Flood Resilient Navigation")
+    parser.add_argument("--city", choices=["mumbai", "kolkata"], help="Target operational city (mumbai or kolkata)")
+    parser.add_argument("--src", help="Source landmark name or 'lat, lon'")
+    parser.add_argument("--dst", help="Destination landmark name or 'lat, lon'")
+    parser.add_argument("--vehicle", choices=["car", "suv", "ambulance", "truck", "pedestrian"], help="Vehicle class")
+    parser.add_argument("--flood", choices=["dry", "moderate", "severe"], help="Flood scenario")
+    args = parser.parse_args()
 
-    # 1. Acquire Live Location
-    print("\n[1/4] Acquiring live user location...")
-    live_loc = get_live_location()
-    src_lon, src_lat = live_loc["lon"], live_loc["lat"]
-    print(f"  📍 Current Location: {live_loc['location_name']}")
-    print(f"  Coordinates: [{src_lat:.5f}° N, {src_lon:.5f}° E]")
-    if live_loc.get("is_clamped"):
-        print(f"  ℹ️  {live_loc['message']}")
+    print("=" * 75)
+    print(" 🚗 URBAN FLOOD NOWCASTING — MULTI-CITY RESILIENT NAVIGATION ENGINE")
+    print("=" * 75)
 
-    # 2. Get Destination from User
-    print("\n[2/4] Available Destination Landmarks in Study Area:")
-    sample_landmarks = list(STUDY_AREA_LANDMARKS.keys())[:8]
+    # 0. City Selection
+    selected_city = args.city
+    if not selected_city:
+        print("\n[0/4] Select Operational Study Corridor:")
+        print("  1. Mumbai — Bandra-Kurla Complex (BKC) / Mithi River Basin (2x2 km Pilot)")
+        print("  2. Kolkata — EM Bypass Corridor: Kestopur to Ruby General Hospital (12 km)")
+        c_choice = input("👉 Select City [1-2, Default: 2 (Kolkata)]: ").strip()
+        selected_city = "mumbai" if c_choice == "1" else "kolkata"
+
+    city_cfg = CITY_CONFIGS.get(selected_city, CITY_CONFIGS["kolkata"])
+    print(f"\n  🏙️ Operational City Active: {city_cfg['name']}")
+
+    # 1. Acquire Live Location / Origin
+    print(f"\n[1/4] Acquiring User Origin in {selected_city.capitalize()}...")
+    if args.src:
+        src_lon, src_lat, src_name = resolve_destination(args.src, city=selected_city)
+        print(f"  📍 Origin Specified: {src_name} [{src_lat:.5f}° N, {src_lon:.5f}° E]")
+    else:
+        live_loc = get_live_location(city=selected_city)
+        src_lon, src_lat = live_loc["lon"], live_loc["lat"]
+        print(f"  📍 Origin Anchor: {live_loc['location_name']}")
+        print(f"  Coordinates: [{src_lat:.5f}° N, {src_lon:.5f}° E]")
+        if live_loc.get("is_clamped"):
+            print(f"  ℹ️  {live_loc['message']}")
+
+        # Allow user to customize origin if desired
+        custom_src = input(f"👉 Press ENTER to use [{live_loc['location_name']}] or type origin landmark: ").strip()
+        if custom_src:
+            src_lon, src_lat, src_name = resolve_destination(custom_src, city=selected_city)
+            print(f"  📍 Origin Updated: {src_name} [{src_lat:.5f}° N, {src_lon:.5f}° E]")
+
+    # 2. Get Destination
+    print(f"\n[2/4] Available Destination Landmarks in {selected_city.capitalize()} Corridor:")
+    landmarks_dict = city_cfg["landmarks"]
+    sample_landmarks = list(landmarks_dict.keys())[:10]
     print("  Options: " + ", ".join([l.title() for l in sample_landmarks]) + ", or enter 'lat, lon'")
-    
-    dest_input = input("\n👉 Enter Destination [Default: 'Kurla Station']: ").strip()
-    if not dest_input:
-        dest_input = "Kurla Station"
 
-    dst_lon, dst_lat, dest_name = resolve_destination(dest_input)
+    default_dest = "Ruby Hospital" if selected_city == "kolkata" else "Kurla Station"
+    if args.dst:
+        dest_input = args.dst
+    else:
+        dest_input = input(f"\n👉 Enter Destination [Default: '{default_dest}']: ").strip()
+        if not dest_input:
+            dest_input = default_dest
+
+    dst_lon, dst_lat, dest_name = resolve_destination(dest_input, city=selected_city)
     print(f"  🎯 Destination Resolved: {dest_name}")
     print(f"  Coordinates: [{dst_lat:.5f}° N, {dst_lon:.5f}° E]")
 
@@ -62,10 +107,14 @@ def run_navigation():
     print("  3. Emergency Ambulance (45 cm limit + 15% arterial priority)")
     print("  4. Heavy Rescue Truck (60 cm water wading limit)")
     print("  5. Pedestrian (15 cm safe wading limit)")
-    
-    v_choice = input("👉 Select Vehicle [1-5, Default: 1 (Car)]: ").strip()
-    v_map = {"1": "car", "2": "suv", "3": "ambulance", "4": "truck", "5": "pedestrian"}
-    vehicle_type = v_map.get(v_choice, "car")
+
+    if args.vehicle:
+        vehicle_type = args.vehicle
+    else:
+        v_choice = input("👉 Select Vehicle [1-5, Default: 1 (Car)]: ").strip()
+        v_map = {"1": "car", "2": "suv", "3": "ambulance", "4": "truck", "5": "pedestrian"}
+        vehicle_type = v_map.get(v_choice, "car")
+
     clearance_cm = int(VEHICLE_THRESHOLDS[vehicle_type] * 100)
     print(f"  🚙 Selected: {vehicle_type.capitalize()} (Safe Wading Limit: {clearance_cm} cm)")
 
@@ -73,31 +122,45 @@ def run_navigation():
     print("\n[4/4] Road Weather / Flood Conditions:")
     print("  1. Dry Road Network (Baseline shortest path)")
     print("  2. Moderate Monsoon Ponding (15 cm low-point water accumulation)")
-    print("  3. Severe Flash Flood Inundation (40 cm water over low-elevation roads)")
-    
-    f_choice = input("👉 Select Flood Scenario [1-3, Default: 3 (Severe Flood)]: ").strip()
-    
+    print("  3. Severe Flash Flood Inundation (40 cm water over low-elevation corridors)")
+
+    if args.flood:
+        f_choice_map = {"dry": "1", "moderate": "2", "severe": "3"}
+        f_choice = f_choice_map.get(args.flood, "3")
+    else:
+        f_choice = input("👉 Select Flood Scenario [1-3, Default: 3 (Severe Flood)]: ").strip()
+
+    grid_rows, grid_cols, cell_size_m = city_cfg["grid"]
     mock_depth_grid = None
+
     if f_choice == "2":
-        mock_depth_grid = np.zeros((200, 200), dtype=np.float32)
-        print("  ⚠️ Applying 15 cm moderate ponding across lowlands...")
+        mock_depth_grid = np.zeros((grid_rows, grid_cols), dtype=np.float32)
+        print(f"  ⚠️ Applying 15 cm moderate ponding across {selected_city.capitalize()} lowlands...")
     elif f_choice != "1":
-        # Default severe flood (40cm on low-lying crossings)
-        mock_depth_grid = np.zeros((200, 200), dtype=np.float32)
-        print("  🌊 Simulating 40 cm severe flash flood across low-elevation corridors...")
+        mock_depth_grid = np.zeros((grid_rows, grid_cols), dtype=np.float32)
+        print(f"  🌊 Simulating 40 cm severe flash flood across low-elevation {selected_city.capitalize()} corridors...")
 
     # Initialize Engine & Calculate Route
-    print("\nCalculating flood-resilient route using A* with vehicle clearance physics...")
-    engine = RoutingEngine()
+    print(f"\nInitializing RoutingEngine for {city_cfg['name']}...")
+    engine = RoutingEngine(
+        geojson_path=city_cfg["roads_geojson"],
+        graph_path=city_cfg["roads_graph"],
+    )
 
+    # Apply flood depth to low-lying elevation segments
     if mock_depth_grid is not None:
         sim_depth = 0.15 if f_choice == "2" else 0.40
+        # Elevation threshold for low-lying water accumulation
+        elev_threshold = 3.3 if selected_city == "kolkata" else 3.8
+
         for edge in engine.edge_attributes.values():
-            if edge.get("elevation_m", 10.0) <= 3.8:
+            if edge.get("elevation_m", 10.0) <= elev_threshold:
                 r = edge.get("midpoint_grid_row", 0)
                 c = edge.get("midpoint_grid_col", 0)
-                mock_depth_grid[r, c] = sim_depth
+                if 0 <= r < grid_rows and 0 <= c < grid_cols:
+                    mock_depth_grid[r, c] = sim_depth
 
+    print("Calculating flood-resilient route using A* with vehicle clearance physics...")
     routes = engine.find_alternative_routes(
         src=(src_lon, src_lat),
         dst=(dst_lon, dst_lat),
@@ -109,13 +172,13 @@ def run_navigation():
     if not routes or not routes[0].get("route_found"):
         print("\n❌ NO SAFE ROUTE FOUND:")
         print("  All viable street corridors to destination exceed your vehicle's wading clearance.")
-        print("  Recommendation: Dispatch heavy rescue truck or wait for drainage recession.")
+        print(f"  Vehicle Limit: {clearance_cm} cm. Recommendation: Dispatch heavy rescue truck.")
         return
 
     primary = routes[0]
-    print("\n" + "=" * 70)
-    print(f" ✅ SAFE ROUTE FOUND ({dest_name.upper()})")
-    print("=" * 70)
+    print("\n" + "=" * 75)
+    print(f" ✅ SAFE ROUTE FOUND ({dest_name.upper()} IN {selected_city.upper()})")
+    print("=" * 75)
     print(f"  📏 Total Travel Distance : {primary['distance_m']:.1f} meters ({(primary['distance_m']/1000):.2f} km)")
     print(f"  ⏱️ Estimated Travel Time : {primary['travel_time_min']:.1f} minutes")
     print(f"  🌊 Maximum Water Depth   : {primary['max_flood_depth_m']*100:.1f} cm")
@@ -130,29 +193,29 @@ def run_navigation():
             name = r.get("name", "Unnamed Road")
             if not seen_names or seen_names[-1] != name:
                 seen_names.append(name)
-        for i, nm in enumerate(seen_names[:8], 1):
+        for i, nm in enumerate(seen_names[:10], 1):
             print(f"     {i}. {nm}")
-        if len(seen_names) > 8:
-            print(f"     ... and {len(seen_names) - 8} more streets")
+        if len(seen_names) > 10:
+            print(f"     ... and {len(seen_names) - 10} more street segments")
 
     roads_avoided = primary.get("roads_avoided", [])
     if roads_avoided:
         print(f"\n  🚫 Submerged Roads Safely Avoided ({len(roads_avoided)} segments):")
-        avoided_names = list(set(r.get("name", "Road") for r in roads_avoided[:5]))
+        avoided_names = list(set(r.get("name", "Road") for r in roads_avoided[:8]))
         for an in avoided_names:
             print(f"     • {an}")
 
     if len(routes) > 1:
         print("\n  🔀 Alternative Safe Detours Available:")
         for idx, alt in enumerate(routes[1:], 1):
-            print(f"     Detour {idx}: {alt['distance_m']:.0f}m | {alt['travel_time_min']:.1f} min | Risk: {alt['flood_risk']}")
+            print(f"     Detour {idx}: {alt['distance_m']/1000:.2f} km | {alt['travel_time_min']:.1f} min | Risk: {alt['flood_risk']}")
 
     # Save to GeoJSON for visualization
     out_file = Path("live_navigation_route.geojson")
     with open(out_file, "w", encoding="utf-8") as f:
         json.dump(primary["geojson"], f, indent=2)
     print(f"\n  💾 Exported route vector layer to: {out_file}")
-    print("=" * 70)
+    print("=" * 75)
 
 
 if __name__ == "__main__":

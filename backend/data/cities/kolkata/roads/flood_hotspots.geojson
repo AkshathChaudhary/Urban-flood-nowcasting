@@ -1,0 +1,81 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          88.396,
+          22.589
+        ]
+      },
+      "properties": {
+        "id": "HS-KOL-01",
+        "name": "Ultadanga Underpass / VIP Crossing",
+        "lat": 22.589,
+        "lon": 88.396,
+        "elevation_m": 2.6,
+        "typical_monsoon_depth_cm": 45,
+        "cause": "Depressed underpass bottleneck beneath eastern railway lines"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          88.396,
+          22.54
+        ]
+      },
+      "properties": {
+        "id": "HS-KOL-02",
+        "name": "Science City / Parama Island Depression",
+        "lat": 22.54,
+        "lon": 88.396,
+        "elevation_m": 3.2,
+        "typical_monsoon_depth_cm": 35,
+        "cause": "Low-lying flyover apron basin intersecting EM Bypass"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          88.405,
+          22.565
+        ]
+      },
+      "properties": {
+        "id": "HS-KOL-03",
+        "name": "Chingrighata EM Bypass Canal Crossing",
+        "lat": 22.565,
+        "lon": 88.405,
+        "elevation_m": 3.0,
+        "typical_monsoon_depth_cm": 38,
+        "cause": "Canal water backing up during severe tidal locking"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          88.401,
+          22.5135
+        ]
+      },
+      "properties": {
+        "id": "HS-KOL-04",
+        "name": "Ruby Hospital / Kasba Low Approach",
+        "lat": 22.5135,
+        "lon": 88.401,
+        "elevation_m": 3.1,
+        "typical_monsoon_depth_cm": 40,
+        "cause": "Surface ponding at south EM Bypass / Rashbehari junction"
+      }
+    }
+  ]
+}

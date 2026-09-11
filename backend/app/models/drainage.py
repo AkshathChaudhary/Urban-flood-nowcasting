@@ -124,9 +124,11 @@ class DrainageGraph:
 
         for feature in edges_geojson.get("features", []):
             props = feature.get("properties", {})
-            edge_id = props["id"]
-            u = props["from_node"]
-            v = props["to_node"]
+            edge_id = props.get("id", f"edge_{len(self.edge_data)+1}")
+            u = props.get("from_node", props.get("u"))
+            v = props.get("to_node", props.get("v"))
+            if not u or not v:
+                continue
 
             # Ensure endpoints exist in node set
             if u not in self.node_data or v not in self.node_data:

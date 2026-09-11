@@ -1,0 +1,102 @@
+# Implementation Plan: Multi-City & Arbitrary Location Support (Kestopur to Ruby & Beyond)
+
+Make the urban flood nowcasting and resilient routing engine seamlessly support **any two locations**—specifically demonstrating the **Kolkata EM Bypass corridor (Kestopur $\rightarrow$ Ruby General Hospital, ~12 km)** alongside the existing **Mumbai BKC pilot (2 km $\times$ 2 km)**, ensuring zero doubts from judges during live evaluation.
+
+## Background & Architecture Strategy
+
+The existing Mumbai pilot ran on a fixed $2\text{ km} \times 2\text{ km}$ ($200 \times 200$) grid at 10m resolution. Kestopur to Ruby Hospital in Kolkata is a **~12 km arterial corridor**. Simulating 12 km at 10m requires 700,000 cells, which would freeze Python during a live hackathon pitch. 
+
+Furthermore, downloading and processing raw satellite DEMs and 15,000 OSM roads *live* during a presentation risks WiFi lag or Overpass API rate-limiting (HTTP 429).
+
+### The Solution: Two-Tier Production Architecture
+1. **Tier 1 (Cached City Corridors for 100% Judge Reliability)**:
+   - Provide pre-processed, hydro-conditioned, high-fidelity datasets for key demonstration corridors:
+     - **Mumbai BKC / Kurla** ($2\text{ km} \times 2\text{ km}$, 10m grid, Mithi River basin).
+     - **Kolkata EM Bypass Corridor** ($12\text{ km} \times 6.7\text{ km}$, 35m adaptive grid, Kestopur Canal & Eastern Drainage Channel).
+   - Instant loading (<0.1s), guaranteed offline resilience, zero presentation risk.
+2. **Tier 2 (Dynamic Adaptive Pipeline for Arbitrary Locations)**:
+   - For any other two points anywhere in India/world:
+     - Geocodes origin & destination via Nominatim.
+     - Computes the bounding box with a 1 km buffer.
+     - Fetches drivable OSM roads.
+     - Builds an adaptive aspect-ratio grid ($\le 65,000$ cells) and derives the DEM.
+     - Runs the vectorized `FloodEngine` and `RoutingEngine`.
+
+---
+
+## User Review Required
+
+> [!IMPORTANT]
+> **Corridor Grid Resolution for Kolkata (35m vs 10m)**:
+> In Kolkata, Kestopur to Ruby spans 12.2 km $\times$ 6.7 km. Using a 35m cell size yields a $350 \times 190$ grid (66,500 cells), allowing the 2D Saint-Venant flood simulation to complete in ~1.5 seconds. At 10m, it would take ~45 seconds. 35m perfectly matches the native 30m resolution of Copernicus / SRTM satellite data.
+
+> [!NOTE]
+> No existing Mumbai code or data will be deleted or broken. Both cities will be selectable interactively in `navigate.py` or via CLI arguments, and arbitrary coordinates will be automatically detected.
+
+---
+
+## Proposed Changes
+
+### 1. Data Pipeline & City Assets
+
+#### [NEW] [build_kolkata_corridor.py](file:///c:/Users/aksha/urbanFlood/backend/data/cities/kolkata/build_kolkata_corridor.py)
+Constructs the full, verified Kolkata dataset under `backend/data/cities/kolkata/`:
+- **Bounding Box**: Lat `[22.5000, 22.6100]`, Lon `[88.3800, 88.4450]` covering Kestopur, Salt Lake, Ultadanga, Science City, Kasba, and Ruby General Hospital.
+- **Elevation Grid (`elevation_grid.npy`)**: Hydro-conditioned DEM calibrated to Kolkata's real topography (~3m–11m above MSL), enforcing natural drainage into Kestopur Canal, Beliaghata Circular Canal, and Eastern Drainage Channel.
+- **Road Network (`road_graph.json` & `road_network.geojson`)**: Extracted from OSM including EM Bypass, VIP Road, Salt Lake Broadway, Prince Anwar Shah Connector, and Rashbehari Avenue.
+- **Drainage Network (`drainage_nodes.geojson` & `drainage_edges.geojson`)**: Synthesized via Indian CPHEEO standards (roadside catchpits sloped to canal outfalls) using `agnostic.py`.
+- **Flood Hotspots**: Accurately places known historical monsoon waterlogging points (Ultadanga underpass, Science City depression, Kasba/Ruby low-lying junctions).
+
+---
+
+### 2. Location & Geocoding Resolver
+
+#### [MODIFY] [backend/app/models/location.py](file:///c:/Users/aksha/urbanFlood/backend/app/models/location.py)
+- Expand `STUDY_AREA_LANDMARKS` to include Kolkata landmarks:
+  - `kestopur`, `ruby`, `ruby hospital`, `science city`, `salt lake`, `ultadanga`, `chingrighata`, `kasba`, `acropolis`, `bkc`, `kurla`, etc.
+- Make bounding box clamping city-aware:
+  - Automatically detect whether the user is querying Mumbai, Kolkata, or general coordinates.
+  - Return the appropriate city anchor and metadata without falsely redirecting to "Kurla Station".
+- Add `get_available_cities()` and `set_active_city()`.
+
+---
+
+### 3. Navigation CLI & Engine Integration
+
+#### [MODIFY] [navigate.py](file:///c:/Users/aksha/urbanFlood/navigate.py)
+- Add interactive City Selection prompt (or auto-detect from input):
+  - `1. Mumbai — BKC / Kurla Basin (2x2 km pilot)`
+  - `2. Kolkata — EM Bypass Corridor: Kestopur to Ruby (12 km)`
+  - `3. Custom Coordinates / Arbitrary Locations`
+- Automatically load the correct `road_graph.json`, `elevation_grid.npy`, and grid dimensions (`rows`, `cols`).
+- Run `RoutingEngine` with vehicle-specific wading clearance physics (Car 30cm, SUV 45cm, Ambulance 45cm, Truck 60cm, Pedestrian 15cm).
+- Display:
+  - Total distance (e.g. ~12.5 km for Kestopur $\rightarrow$ Ruby).
+  - Travel time under dry vs flood conditions.
+  - Turn-by-turn directions along major corridors (VIP Road, EM Bypass, etc.).
+  - Submerged flooded roads safely avoided (e.g. Ultadanga underpass waterlogged at 42cm).
+  - Export `live_navigation_route.geojson`.
+
+---
+
+## Verification Plan
+
+### Automated Verification
+1. Run data builder to verify generation of Kolkata assets:
+   ```bash
+   .venv\Scripts\python backend/data/cities/kolkata/build_kolkata_corridor.py
+   ```
+2. Verify graph topology and routing test between Kestopur and Ruby:
+   ```bash
+   .venv\Scripts\python -c "from backend.app.models.routing import RoutingEngine; e = RoutingEngine(graph_path='backend/data/cities/kolkata/roads/road_graph.json'); r = e.find_safe_route((88.423, 22.593), (88.403, 22.513), 'car'); print(r['distance_m'], r['route_found'])"
+   ```
+3. Run existing pytest test suite to ensure Mumbai tests remain 100% green:
+   ```bash
+   .venv\Scripts\pytest tests/
+   ```
+
+### Manual Verification
+1. Run `navigate.py` in terminal.
+2. Select Kolkata, input **Origin: Kestopur**, **Destination: Ruby**.
+3. Select Car (30cm wading limit) and Severe Monsoon Ponding.
+4. Verify turn-by-turn navigation outputs, safe corridor detour around low-lying flooded underpasses, and valid `live_navigation_route.geojson`.
