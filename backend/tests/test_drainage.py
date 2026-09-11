@@ -223,6 +223,34 @@ class TestFastAPIDrainageEndpoints(unittest.TestCase):
         data = res.json()
         self.assertEqual(data["status"], "success")
 
+    def test_blockage_preserved_across_simulation_and_reset(self):
+        """Verifies that applied blockage is preserved during simulation runs and only cleared on explicit reset."""
+        # 1. Apply 75% blockage
+        res = self.client.post("/api/drainage/blockage", json={"blockage_pct": 0.75})
+        self.assertEqual(res.status_code, 200)
+
+        # 2. Check summary reports 75% average blockage
+        sum_res = self.client.get("/api/drainage/summary")
+        self.assertEqual(sum_res.status_code, 200)
+        self.assertAlmostEqual(sum_res.json().get("average_blockage_pct", 0.0), 0.75, places=2)
+
+        # 3. Run simulation
+        sim_res = self.client.post("/api/simulate", json={"scenario": "heavy", "horizon_minutes": 60})
+        self.assertEqual(sim_res.status_code, 200)
+
+        # 4. Check summary STILL reports 75% average blockage (does not revert!)
+        sum_res2 = self.client.get("/api/drainage/summary")
+        self.assertEqual(sum_res2.status_code, 200)
+        self.assertAlmostEqual(sum_res2.json().get("average_blockage_pct", 0.0), 0.75, places=2)
+
+        # 5. Explicit reset
+        reset_res = self.client.post("/api/drainage/reset")
+        self.assertEqual(reset_res.status_code, 200)
+
+        sum_res3 = self.client.get("/api/drainage/summary")
+        self.assertEqual(sum_res3.status_code, 200)
+        self.assertAlmostEqual(sum_res3.json().get("average_blockage_pct", 0.0), 0.0, places=2)
+
     def test_outfalls_calibration(self):
         """Verifies outfalls are calibrated to Mithi River municipal benchmarks (6-10 outfalls at low elevation)."""
         res = self.client.get("/api/drainage/nodes?node_type=outfall")

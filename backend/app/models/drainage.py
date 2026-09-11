@@ -236,10 +236,10 @@ class DrainageGraph:
                 continue
 
             available_vol_m3 = surface_depth_m * self.cell_area_m2
-            max_intake_vol_m3 = node["capacity_m3s"] * dt * b_factor
+            max_intake_vol_m3 = node["capacity_m3s"] * dt
 
-            # Siphon the smaller of available water or inlet conveyance capacity
-            absorbed_vol_m3 = min(available_vol_m3, max_intake_vol_m3)
+            # Siphon the smaller of available water or inlet conveyance capacity, scaled by blockage factor
+            absorbed_vol_m3 = min(available_vol_m3, max_intake_vol_m3) * b_factor
             absorbed_depth_m = absorbed_vol_m3 / self.cell_area_m2
 
             absorption_grid[r, c] += absorbed_depth_m
@@ -443,6 +443,12 @@ class DrainageGraph:
         outfalls_count = sum(1 for n in self.node_data.values() if n["type"] == "outfall")
         junctions_count = sum(1 for n in self.node_data.values() if n["type"] == "junction")
 
+        avg_blockage = 0.0
+        if self.edge_data:
+            blockages = [e.get("blockage_pct", 0.0) for e in self.edge_data.values()]
+            if blockages:
+                avg_blockage = float(np.mean(blockages))
+
         return {
             "total_nodes": len(self.node_data),
             "total_edges": len(self.edge_data),
@@ -451,17 +457,19 @@ class DrainageGraph:
             "junction_nodes": junctions_count,
             "current_water_stored_m3": round(total_stored_water, 2),
             "total_discharged_m3": round(self.total_discharged_m3, 2),
+            "average_blockage_pct": round(avg_blockage, 4),
         }
 
-    def reset_state(self) -> None:
+    def reset_state(self, reset_blockage: bool = False) -> None:
         """
-        Resets dynamic simulation state (stored water, discharge totals, edge blockage, submergence) to zero/defaults.
+        Resets dynamic simulation state (stored water, discharge totals, submergence) to zero/defaults.
+        Only resets edge blockage to initial defaults if reset_blockage is True.
         """
         for node_id in self.current_water_m3:
             self.current_water_m3[node_id] = 0.0
             if "submergence_factor" in self.node_data[node_id]:
                 self.node_data[node_id]["submergence_factor"] = 1.0
         self.total_discharged_m3 = 0.0
-        if hasattr(self, "_initial_edge_blockages"):
+        if reset_blockage and hasattr(self, "_initial_edge_blockages"):
             for edge_id, init_b in self._initial_edge_blockages.items():
                 self.set_blockage(edge_id, init_b)

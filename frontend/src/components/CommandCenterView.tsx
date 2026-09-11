@@ -80,6 +80,8 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [isUpdatingBlockage, setIsUpdatingBlockage] = useState<boolean>(false);
   const [surchargingCount, setSurchargingCount] = useState<number>(0);
   const [wsStatus, setWsStatus] = useState<'connected' | 'connecting' | 'disconnected'>('connecting');
+  const [drainageRefreshKey, setDrainageRefreshKey] = useState<number>(0);
+  const [simulationKey, setSimulationKey] = useState<number>(0);
 
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [selectedOriginId, setSelectedOriginId] = useState<string>('bkc-hub');
@@ -91,6 +93,49 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0);
   
   const playIntervalRef = useRef<any>(null);
+
+  // ── Resizable footer ──────────────────────────────────────────────────────
+  const [footerHeight, setFooterHeight] = useState<number>(80);
+  const footerDragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  const onFooterDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    footerDragRef.current = { startY: e.clientY, startH: footerHeight };
+    const onMove = (mv: MouseEvent) => {
+      if (!footerDragRef.current) return;
+      const delta = footerDragRef.current.startY - mv.clientY;
+      setFooterHeight(Math.min(260, Math.max(56, footerDragRef.current.startH + delta)));
+    };
+    const onUp = () => {
+      footerDragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // ── Resizable left tool panel ─────────────────────────────────────────────
+  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(320);
+  const leftDragRef = useRef<{ startX: number; startW: number } | null>(null);
+
+  const onLeftDragStart = (e: React.MouseEvent) => {
+    e.preventDefault();
+    leftDragRef.current = { startX: e.clientX, startW: leftPanelWidth };
+    const onMove = (mv: MouseEvent) => {
+      if (!leftDragRef.current) return;
+      const delta = mv.clientX - leftDragRef.current.startX;
+      setLeftPanelWidth(Math.min(540, Math.max(260, leftDragRef.current.startW + delta)));
+    };
+    const onUp = () => {
+      leftDragRef.current = null;
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+  // ─────────────────────────────────────────────────────────────────────────
 
   const forecastHorizons = [0, 30, 60, 90, 120, 180];
 
@@ -156,7 +201,10 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
       if (res) {
         setFloodOverview(res);
         clearFloodGridCache();
-        setCurrentTimeStep((prev) => prev); // trigger layer reload
+        setSimulationKey((prev) => prev + 1);
+        const dSummary = await fetchDrainageSummary(currentCity);
+        if (dSummary) setDrainageSummary(dSummary);
+        setDrainageRefreshKey((prev) => prev + 1);
       }
       setIsSimModalOpen(false);
     } catch (err: any) {
@@ -218,10 +266,11 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
           }
         }
       },
-      (status) => setWsStatus(status)
+      (status) => setWsStatus(status),
+      currentCity
     );
     return () => unsubscribe();
-  }, []);
+  }, [currentCity]);
 
   // Keyboard Navigation Shortcuts (Space = Play/Pause, Arrows = Scrub, Esc = Minimize HUD)
   useEffect(() => {
@@ -256,18 +305,30 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const handleUpdateBlockage = async (pct: number) => {
     setIsUpdatingBlockage(true);
     try {
-      await updatePipeBlockage(pct);
-      const data = await fetchDrainageSummary();
+      await updatePipeBlockage(pct, undefined, currentCity);
+      const data = await fetchDrainageSummary(currentCity);
       if (data) setDrainageSummary(data);
+      setShowDrainagePipes(true);
+      setDrainageRefreshKey((k) => k + 1);
+      // Automatically re-run simulation so flood depths reflect reduced drainage conveyance
+      await handleRunSimulation();
+      const postSimData = await fetchDrainageSummary(currentCity);
+      if (postSimData) setDrainageSummary(postSimData);
+      setDrainageRefreshKey((k) => k + 1);
     } finally {
       setIsUpdatingBlockage(false);
     }
   };
 
   const handleResetDrainage = async () => {
-    await resetDrainageNetwork();
-    const data = await fetchDrainageSummary();
+    await resetDrainageNetwork(currentCity);
+    const data = await fetchDrainageSummary(currentCity);
     if (data) setDrainageSummary(data);
+    setDrainageRefreshKey((k) => k + 1);
+    await handleRunSimulation();
+    const postSimData = await fetchDrainageSummary(currentCity);
+    if (postSimData) setDrainageSummary(postSimData);
+    setDrainageRefreshKey((k) => k + 1);
   };
 
   // Route calculation routine
@@ -444,8 +505,11 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
       {/* Main Workspace Grid */}
       <div className="relative flex-1 flex overflow-hidden">
         
-        {/* Left Floating Tool Palette */}
-        <aside className="w-80 border-r border-slate-800/80 bg-slate-950/85 backdrop-blur-xl p-4 flex flex-col justify-between overflow-y-auto z-10">
+        {/* Left Floating Tool Palette (Resizable) */}
+        <aside
+          style={{ width: `${leftPanelWidth}px` }}
+          className="relative shrink-0 border-r border-slate-800/80 bg-slate-950/85 backdrop-blur-xl p-4 flex flex-col justify-between overflow-y-auto z-10"
+        >
           <div className="space-y-5">
             
             {/* City Selector Box */}
@@ -724,6 +788,15 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
           <div className="pt-4 border-t border-slate-800 text-[11px] font-mono-num text-slate-500">
             Phase 5: Subterranean Drainage Diagnostics & Live WebSockets
           </div>
+
+          {/* Vertical Resize Drag Handle */}
+          <div
+            onMouseDown={onLeftDragStart}
+            title="Drag to resize panel width"
+            className="absolute top-0 right-0 w-2.5 h-full cursor-col-resize hover:bg-cyan-500/40 active:bg-cyan-400 transition-colors z-20 group flex items-center justify-center select-none"
+          >
+            <div className="w-0.5 h-10 rounded-full bg-slate-700/80 group-hover:bg-cyan-400 group-active:bg-cyan-300 transition-colors" />
+          </div>
         </aside>
 
         {/* Center GIS Viewport: Leaflet Native Map with Flood Raster & Subterranean Network */}
@@ -745,6 +818,8 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             originName={currentOrigin?.name}
             destinationName={currentDestination?.name}
             onDrainageSummaryLoaded={(surcharges) => setSurchargingCount(surcharges)}
+            drainageRefreshKey={drainageRefreshKey}
+            simulationKey={simulationKey}
           />
 
           {/* Floating Subterranean Drainage Diagnostics HUD Panel */}
@@ -781,10 +856,22 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
 
       </div>
 
-      {/* Bottom Temporal Timeline Scrubber Bar (21st.dev style) */}
-      <footer className="h-20 border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-xl px-6 flex items-center justify-between z-20">
-        
-        {/* Playback Controls */}
+      {/* Bottom Temporal Timeline Scrubber Bar — resizable by dragging the top handle */}
+      <footer
+        style={{ height: footerHeight }}
+        className="relative border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-xl px-4 sm:px-6 flex flex-col justify-center z-20 overflow-hidden transition-none"
+      >
+        {/* ▲ Drag handle — grab and drag up/down to resize */}
+        <div
+          onMouseDown={onFooterDragStart}
+          className="absolute left-0 right-0 top-0 h-1.5 cursor-ns-resize group flex items-center justify-center"
+          title="Drag to resize"
+        >
+          <div className="w-10 h-0.5 rounded-full bg-slate-700 group-hover:bg-cyan-500 transition-colors" />
+        </div>
+
+        {/* Inner row — same layout as before */}
+        <div className="flex flex-wrap items-center justify-between gap-y-2">
         <div className="flex items-center space-x-3">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
@@ -817,45 +904,48 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
           </div>
         </div>
 
-        {/* Discrete Horizon Step Buttons & Range Slider */}
-        <div className="flex-1 max-w-2xl mx-8 flex flex-col justify-center">
-          <div className="flex justify-between text-[11px] font-mono-num text-slate-400 mb-1.5">
-            {forecastHorizons.map(h => (
-              <button
-                key={h}
-                onClick={() => {
-                  setIsPlaying(false);
-                  setCurrentTimeStep(h);
-                }}
-                className={`transition-colors cursor-pointer ${
-                  currentTimeStep === h ? 'text-cyan-400 font-bold' : 'hover:text-slate-200'
-                }`}
-              >
-                T+{h}m
-              </button>
-            ))}
+        {/* Discrete Horizon Step Buttons & Range Slider — scrollable when narrow */}
+        <div className="flex-1 min-w-0 mx-4 sm:mx-8 overflow-x-auto scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700">
+          <div className="min-w-[320px] flex flex-col justify-center">
+            <div className="flex justify-between text-[11px] font-mono-num text-slate-400 mb-1.5">
+              {forecastHorizons.map(h => (
+                <button
+                  key={h}
+                  onClick={() => {
+                    setIsPlaying(false);
+                    setCurrentTimeStep(h);
+                  }}
+                  className={`transition-colors cursor-pointer px-1 ${
+                    currentTimeStep === h ? 'text-cyan-400 font-bold' : 'hover:text-slate-200'
+                  }`}
+                >
+                  T+{h}m
+                </button>
+              ))}
+            </div>
+
+            <input
+              type="range"
+              min={0}
+              max={180}
+              step={30}
+              value={currentTimeStep}
+              onChange={(e) => {
+                setIsPlaying(false);
+                setCurrentTimeStep(Number(e.target.value));
+              }}
+              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+            />
+          </div>
+        </div>
+
+          {/* Action Info & dBZ Status */}
+          <div className="hidden lg:flex items-center space-x-3 text-xs font-mono-num text-slate-400">
+            <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
+            <span>RADAR dBZ: OPTICAL FLOW SYNC</span>
           </div>
 
-          <input
-            type="range"
-            min={0}
-            max={180}
-            step={30}
-            value={currentTimeStep}
-            onChange={(e) => {
-              setIsPlaying(false);
-              setCurrentTimeStep(Number(e.target.value));
-            }}
-            className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
-          />
-        </div>
-
-        {/* Action Info & dBZ Status */}
-        <div className="hidden lg:flex items-center space-x-3 text-xs font-mono-num text-slate-400">
-          <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-          <span>RADAR dBZ: OPTICAL FLOW SYNC</span>
-        </div>
-
+        </div>{/* end inner flex-wrap row */}
       </footer>
 
       {/* Simulation & Live / Historic Rainfall Intelligence Modal */}

@@ -385,11 +385,15 @@ class FloodEngine:
 
         # Inlets absorb overland street runoff on land
         land_depth = np.where(~self.water_body_mask, self.water_depth, 0.0)
-        absorbed_depth_grid = self.drainage_graph.absorb_surface_water(
-            land_depth, dt
-        )
-        # Apply drain blockage factor (debris/plastic clogging)
-        absorbed_depth_grid = absorbed_depth_grid * self.drain_blockage_factor
+        try:
+            absorbed_depth_grid = self.drainage_graph.absorb_surface_water(
+                land_depth, dt, blockage_factor=self.drain_blockage_factor
+            )
+        except TypeError:
+            absorbed_depth_grid = self.drainage_graph.absorb_surface_water(
+                land_depth, dt
+            )
+            absorbed_depth_grid = absorbed_depth_grid * self.drain_blockage_factor
 
         # Limit absorption to what overland water exists on the land surface
         actual_absorbed = np.minimum(absorbed_depth_grid, land_depth)
