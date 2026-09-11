@@ -558,7 +558,7 @@ def generate_visuals(engine, forecast, evaluated, drain, land_mask, wb_mask):
 
     out_paths = [
         PROJECT_ROOT / "backend/data/real_simulation_results_v2.png",
-        Path(r"C:\Users\Aniket\.gemini\antigravity-ide\brain\197042d9-fb12-44b5-8541-e645216de6b9\real_simulation_results_v2.png"),
+        PROJECT_ROOT / "outputs/real_simulation_results_v2.png",
     ]
     for p in out_paths:
         p.parent.mkdir(parents=True, exist_ok=True)

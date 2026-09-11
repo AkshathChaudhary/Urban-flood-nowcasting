@@ -27,7 +27,14 @@ def get_engine() -> FloodEngine:
     global _engine_instance
     with _engine_lock:
         if _engine_instance is None:
-            _engine_instance = FloodEngine.from_default_data()
+            drainage_graph = None
+            try:
+                from backend.app.api.drainage import get_drainage_graph
+                drainage_graph = get_drainage_graph()
+            except Exception as e:
+                print(f"[ENGINE_STATE] Notice: DrainageGraph loading deferred or optional ({e})")
+
+            _engine_instance = FloodEngine.from_default_data(drainage_graph=drainage_graph)
             # Warm up default forecast
             _engine_instance.run_forecast(scenario=_current_scenario, horizon_minutes=180)
         return _engine_instance
@@ -58,7 +65,7 @@ def compute_summary(depth_grid: np.ndarray, horizon: int) -> FloodSummary:
     return FloodSummary(
         horizon_minutes=horizon,
         max_depth_m=round(max_d, 3),
-        mean_depth_m=round(mean_d, 4),
+        mean_depth_m=round(mean_d, 3),
         flooded_cells_15cm=flooded_15,
         flooded_cells_30cm=flooded_30,
         surface_water_volume_m3=round(vol_m3, 1),
@@ -67,38 +74,28 @@ def compute_summary(depth_grid: np.ndarray, horizon: int) -> FloodSummary:
 
 def lat_lon_to_grid(lat: float, lon: float) -> Tuple[int, int]:
     """
-    Converts latitude/longitude to grid (row, col) indices.
-    Assumes 10m cells projected locally from ORIGIN_LAT, ORIGIN_LON (SW corner).
-    1 degree latitude ~ 111,000 m.
-    1 degree longitude ~ 111,000 * cos(lat) m ~ 105,000 m at Mumbai.
+    Maps (lat, lon) coordinates to 200x200 grid (row, col).
+    10m cell corresponds to approximately 0.00009 degrees latitude.
     """
-    meters_per_deg_lat = 111320.0
-    meters_per_deg_lon = 111320.0 * np.cos(np.radians(ORIGIN_LAT))
+    deg_per_cell_lat = 10.0 / 111320.0
+    deg_per_cell_lon = 10.0 / (111320.0 * np.cos(np.radians(ORIGIN_LAT)))
 
-    d_north_m = (lat - ORIGIN_LAT) * meters_per_deg_lat
-    d_east_m = (lon - ORIGIN_LON) * meters_per_deg_lon
+    # Inverted row: row 0 is top (North), row 199 is bottom (South)
+    row = int(GRID_ROWS - 1 - (lat - ORIGIN_LAT) / deg_per_cell_lat)
+    col = int((lon - ORIGIN_LON) / deg_per_cell_lon)
 
-    # Grid row 0 is top (North), row 199 is bottom (South)
-    total_height_m = GRID_ROWS * CELL_SIZE_M
-    row = int((total_height_m - d_north_m) / CELL_SIZE_M)
-    col = int(d_east_m / CELL_SIZE_M)
-
-    row = max(0, min(row, GRID_ROWS - 1))
-    col = max(0, min(col, GRID_COLS - 1))
+    row = max(0, min(GRID_ROWS - 1, row))
+    col = max(0, min(GRID_COLS - 1, col))
     return row, col
 
 
 def grid_to_lat_lon(row: int, col: int) -> Tuple[float, float]:
     """
-    Converts grid (row, col) indices to center latitude/longitude coordinates.
+    Maps 200x200 grid (row, col) back to (lat, lon).
     """
-    meters_per_deg_lat = 111320.0
-    meters_per_deg_lon = 111320.0 * np.cos(np.radians(ORIGIN_LAT))
+    deg_per_cell_lat = 10.0 / 111320.0
+    deg_per_cell_lon = 10.0 / (111320.0 * np.cos(np.radians(ORIGIN_LAT)))
 
-    total_height_m = GRID_ROWS * CELL_SIZE_M
-    d_north_m = total_height_m - (row + 0.5) * CELL_SIZE_M
-    d_east_m = (col + 0.5) * CELL_SIZE_M
-
-    lat = ORIGIN_LAT + (d_north_m / meters_per_deg_lat)
-    lon = ORIGIN_LON + (d_east_m / meters_per_deg_lon)
-    return round(float(lat), 6), round(float(lon), 6)
+    lat = ORIGIN_LAT + (GRID_ROWS - 1 - row + 0.5) * deg_per_cell_lat
+    lon = ORIGIN_LON + (col + 0.5) * deg_per_cell_lon
+    return float(lat), float(lon)

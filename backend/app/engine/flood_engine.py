@@ -193,6 +193,7 @@ class FloodEngine:
         self.total_boundary_outflow_m3 = 0.0
         self.total_river_drain_volume_m3 = 0.0   # water that exited downstream
         self.total_river_overflow_m3 = 0.0       # water spilled from river onto land
+        self.total_pipe_discharged_volume_m3 = 0.0  # water safely drained via subterranean pipes
 
         # Output snapshots {minutes: depth_grid}
         self.forecast_grids: Dict[int, np.ndarray] = {}
@@ -240,6 +241,7 @@ class FloodEngine:
         self.total_boundary_outflow_m3 = 0.0
         self.total_river_drain_volume_m3 = 0.0
         self.total_river_overflow_m3 = 0.0
+        self.total_pipe_discharged_volume_m3 = 0.0
         self.total_upstream_inflow_m3 = 0.0
         self.total_surge_intrusion_m3 = 0.0
         self.total_pumped_volume_m3 = 0.0
@@ -747,6 +749,12 @@ class FloodEngine:
         # 3. Drainage Absorption
         absorbed_m3 = self.calculate_drainage_absorption(dt)
 
+        # 3b. Subterranean Pipe Flow Propagation (Pair A pipe conveyance to outfalls)
+        discharged_pipe_m3 = 0.0
+        if self.drainage_graph is not None and hasattr(self.drainage_graph, "propagate_flow"):
+            discharged_pipe_m3 = float(self.drainage_graph.propagate_flow(dt))
+            self.total_pipe_discharged_volume_m3 += discharged_pipe_m3
+
         # 4. Municipal Pump Stations
         pumped_m3 = self.apply_pump_stations(dt)
 
@@ -779,6 +787,7 @@ class FloodEngine:
             "retention_pond_storage_volume_m3": self.retention_pond_storage_m3,
             "flooded_cells_count": flooded_cells,
             "absorbed_volume_m3": absorbed_m3,
+            "pipe_discharged_volume_m3": discharged_pipe_m3,
             "overflow_volume_m3": overflow_m3,
             "pumped_volume_m3": pumped_m3,
             "storm_surge_volume_m3": surge_m3,
@@ -903,6 +912,41 @@ class FloodEngine:
         Returns {minutes: depth_grid} for all forecast horizons.
         """
         return self.forecast_grids
+
+    def get_street_depth_grid(self, horizon_minutes: int = 0) -> np.ndarray:
+        """
+        Interface for Pair C (Roads & Routing).
+        Returns physical street water depth in meters, applying urban building porosity displacement:
+            d_street = d_grid / porosity
+        Buildings occupy 40-65% of city blocks in dense urban areas (Kurla/BKC), squeezing overland flow into streets.
+        """
+        if horizon_minutes in self.forecast_grids:
+            grid = self.forecast_grids[horizon_minutes]
+        else:
+            grid = self.water_depth
+
+        porosity = np.maximum(self.surface_porosity, 0.1)
+        street_depth = grid / porosity
+        street_depth[self.water_body_mask] = grid[self.water_body_mask]
+        return street_depth.astype(np.float32)
+
+    def get_street_depth(
+        self,
+        row: Optional[int] = None,
+        col: Optional[int] = None,
+        horizon_minutes: int = 0,
+    ) -> Union[float, np.ndarray]:
+        """
+        Interface for road midpoint query or full street depth grid.
+        - If row and col are provided, returns float depth at (row, col) in meters.
+        - If row and col are None, returns the entire 2D street depth array (shape: rows, cols).
+        """
+        street_grid = self.get_street_depth_grid(horizon_minutes)
+        if row is not None and col is not None:
+            if 0 <= row < self.rows and 0 <= col < self.cols:
+                return float(street_grid[row, col])
+            return 0.0
+        return street_grid
 
     # =========================================================================
     # Factory Helper

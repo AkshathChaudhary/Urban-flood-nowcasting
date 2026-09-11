@@ -1,7 +1,7 @@
 """
 API Router: /api/rainfall endpoints for Doppler radar and rainfall nowcasts.
 """
-from typing import Dict, List, Optional
+from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 import numpy as np
 
@@ -50,6 +50,21 @@ def _compute_rainfall_summary(rain_grid: np.ndarray, horizon: int) -> RainfallSu
     )
 
 
+def _parse_radar_frame(f: Dict[str, Any]) -> RadarFrameInfo:
+    """Safely extracts RadarFrameInfo handling both RainViewer and synthetic key variants."""
+    t = f.get("time") or f.get("timestamp") or 0
+    rel = f.get("relative_time") or f.get("time_iso") or ""
+    rate = f.get("rain_rate_mmh") if f.get("rain_rate_mmh") is not None else f.get("estimated_rain_rate_mmh", 0.0)
+    dbz = f.get("reflectivity_dbz") if f.get("reflectivity_dbz") is not None else f.get("estimated_peak_dbz", 0.0)
+    return RadarFrameInfo(
+        time=int(t),
+        tile_url=str(f.get("tile_url", "")),
+        relative_time=str(rel),
+        rain_rate_mmh=round(float(rate), 2),
+        reflectivity_dbz=round(float(dbz), 1),
+    )
+
+
 @router.get("/overview", response_model=RainfallOverviewResponse)
 @router.get("/nowcast", response_model=RainfallOverviewResponse)
 def get_rainfall_overview():
@@ -61,8 +76,8 @@ def get_rainfall_overview():
     scenario = get_current_scenario()
     provider = engine.rainfall_provider
 
-    # If rain_nowcast not populated yet, populate from provider
-    if not engine.rain_nowcast:
+    # If rain_nowcast not populated or incomplete, populate full 180 min from provider
+    if not engine.rain_nowcast or max(engine.rain_nowcast.keys()) < 180:
         engine.rain_nowcast = provider.generate_nowcast(scenario=scenario, horizon_minutes=180)
 
     horizons = sorted(engine.rain_nowcast.keys())
@@ -75,16 +90,7 @@ def get_rainfall_overview():
 
     # Fetch live Doppler radar frames if supported
     raw_frames = provider.get_radar_frames(limit=6)
-    radar_frames = [
-        RadarFrameInfo(
-            time=f.get("time", 0),
-            tile_url=f.get("tile_url", ""),
-            relative_time=f.get("relative_time", ""),
-            rain_rate_mmh=round(float(f.get("rain_rate_mmh", 0.0)), 2),
-            reflectivity_dbz=round(float(f.get("reflectivity_dbz", 0.0)), 1),
-        )
-        for f in raw_frames
-    ]
+    radar_frames = [_parse_radar_frame(f) for f in raw_frames]
 
     return RainfallOverviewResponse(
         scenario=scenario,
@@ -205,14 +211,4 @@ def get_radar_frames(limit: int = Query(10, ge=1, le=24)):
     engine = get_engine()
     provider = engine.rainfall_provider
     raw_frames = provider.get_radar_frames(limit=limit)
-
-    return [
-        RadarFrameInfo(
-            time=f.get("time", 0),
-            tile_url=f.get("tile_url", ""),
-            relative_time=f.get("relative_time", ""),
-            rain_rate_mmh=round(float(f.get("rain_rate_mmh", 0.0)), 2),
-            reflectivity_dbz=round(float(f.get("reflectivity_dbz", 0.0)), 1),
-        )
-        for f in raw_frames
-    ]
+    return [_parse_radar_frame(f) for f in raw_frames]

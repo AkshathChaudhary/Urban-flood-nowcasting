@@ -18,6 +18,71 @@ router = APIRouter(prefix="/api", tags=["simulation"])
 logger = logging.getLogger(__name__)
 
 
+SUPPORTED_SCENARIOS = {
+    "moderate": {
+        "title": "Moderate Rainfall (10 mm/hr)",
+        "description": "Baseline 10 mm/hr uniform rainfall over 2 hours with linear ramp-up and ramp-down.",
+        "peak_intensity_mmh": 10.0,
+        "mode": "demo",
+    },
+    "heavy": {
+        "title": "Heavy Convective Storm (30 mm/hr)",
+        "description": "30 mm/hr peak Gaussian rainstorm focused on low-elevation southeast Kurla sector.",
+        "peak_intensity_mmh": 30.0,
+        "mode": "demo",
+    },
+    "extreme": {
+        "title": "Extreme Moving Storm Cell (60 mm/hr)",
+        "description": "60 mm/hr intense storm cell traveling NW to SE across Mumbai at 20 km/h.",
+        "peak_intensity_mmh": 60.0,
+        "mode": "demo",
+    },
+    "cloudburst": {
+        "title": "Severe Cloudburst (120 mm/hr)",
+        "description": "120 mm/hr ultra-localized 500m-radius cloudburst event lasting 30 minutes.",
+        "peak_intensity_mmh": 120.0,
+        "mode": "demo",
+    },
+    "extreme_blocked": {
+        "title": "Extreme Storm + 40% Drainage Blockage",
+        "description": "60 mm/hr moving storm cell combined with severe debris clogging in subterranean stormwater pipes.",
+        "peak_intensity_mmh": 60.0,
+        "mode": "demo",
+    },
+    "blocked_drainage": {
+        "title": "Extreme Storm + 40% Drainage Blockage (Alias)",
+        "description": "60 mm/hr moving storm cell combined with severe debris clogging in subterranean stormwater pipes.",
+        "peak_intensity_mmh": 60.0,
+        "mode": "demo",
+    },
+    "live": {
+        "title": "Live Radar Nowcast (OpenWeather + RainViewer)",
+        "description": "Real-time minute-by-minute Doppler radar observations and nowcasts.",
+        "peak_intensity_mmh": None,
+        "mode": "live",
+    },
+    "historical": {
+        "title": "Historical Reanalysis (July 26, 2023 Mumbai)",
+        "description": "Replay of the verified July 26, 2023 Mumbai flooding event using ERA5 reanalysis data.",
+        "peak_intensity_mmh": 50.9,
+        "mode": "historical",
+    },
+}
+
+
+@router.get("/scenarios")
+@router.get("/simulate/scenarios")
+def get_supported_scenarios():
+    """
+    Returns available simulation scenarios with descriptions, metadata, and peak intensities.
+    Used by frontend UI dropdown selector.
+    """
+    return {
+        "scenarios": list(SUPPORTED_SCENARIOS.keys()),
+        "details": SUPPORTED_SCENARIOS,
+    }
+
+
 @router.post("/simulate", response_model=FloodForecastOverview)
 def run_simulation(req: SimulateRequest):
     """
@@ -25,6 +90,12 @@ def run_simulation(req: SimulateRequest):
     Recomputes water accumulation, overland flow routing, and nowcast snapshots.
     Updates the active server state with the new forecast.
     """
+    if req.scenario not in SUPPORTED_SCENARIOS:
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid scenario '{req.scenario}'. Supported scenarios: {sorted(SUPPORTED_SCENARIOS.keys())}",
+        )
+
     try:
         # Resolve provider based on mode
         if req.scenario == "live":
@@ -47,7 +118,17 @@ def run_simulation(req: SimulateRequest):
         current_engine = get_engine()
         drainage_graph = getattr(current_engine, "drainage_graph", None)
 
-        drain_blockage = 0.5 if req.scenario == "extreme_blocked" else 1.0
+        # Reset and configure drainage graph for clean simulation isolation
+        if drainage_graph is not None:
+            if hasattr(drainage_graph, "reset_state"):
+                drainage_graph.reset_state()
+            if hasattr(drainage_graph, "set_global_blockage"):
+                if req.scenario in ("extreme_blocked", "blocked_drainage"):
+                    drainage_graph.set_global_blockage(0.40)  # Scenario 5: 40% pipe capacity reduction
+                else:
+                    drainage_graph.set_global_blockage(0.0)
+
+        drain_blockage = 0.50 if req.scenario in ("extreme_blocked", "blocked_drainage") else 1.0
         engine = FloodEngine.from_default_data(
             rainfall_provider=provider,
             drainage_graph=drainage_graph,

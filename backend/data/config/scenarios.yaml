@@ -1,0 +1,46 @@
+# Urban Flood Nowcasting - Rainfall Scenario Definitions
+# ========================================================
+# Calibrated for 200x200 grid domain (2 km x 2 km, 10 m resolution)
+
+scenarios:
+  moderate:
+    name: "Moderate Monsoon Rain"
+    description: "Uniform 10 mm/hr precipitation across city with linear ramp-up and ramp-down."
+    peak_intensity_mm_hr: 10.0
+    duration_minutes: 120
+    drain_blockage_pct: 0.0
+
+  heavy:
+    name: "Heavy Spatial Rain"
+    description: "30 mm/hr peak intensity centered over low-elevation valley zone."
+    peak_intensity_mm_hr: 30.0
+    duration_minutes: 90
+    spatial_pattern: "gaussian_center"
+    drain_blockage_pct: 0.0
+
+  extreme:
+    name: "Extreme Convective Storm"
+    description: "60 mm/hr moving convective storm cell tracking NW to SE across the study area."
+    peak_intensity_mm_hr: 60.0
+    duration_minutes: 60
+    spatial_pattern: "moving_cell"
+    cell_speed_kmh: 20.0
+    cell_direction: "NW_to_SE"
+    drain_blockage_pct: 0.0
+
+  cloudburst:
+    name: "Localized Cloudburst"
+    description: "Catastrophic 120 mm/hr cloudburst burst focused on a 500m radius for 30 minutes."
+    peak_intensity_mm_hr: 120.0
+    duration_minutes: 30
+    spatial_pattern: "localized_cloudburst"
+    radius_m: 500.0
+    drain_blockage_pct: 0.0
+
+  blocked_drainage:
+    name: "Extreme Rain + 40% Debris Blockage"
+    description: "60 mm/hr convective storm coupled with severe municipal drain inlet clogging."
+    peak_intensity_mm_hr: 60.0
+    duration_minutes: 60
+    spatial_pattern: "moving_cell"
+    drain_blockage_pct: 0.40

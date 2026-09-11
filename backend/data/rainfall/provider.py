@@ -137,6 +137,34 @@ class DemoRainfallProvider(RainfallProvider):
 
         return forecast
 
+    def get_radar_frames(self, limit: int = 10) -> List[Dict[str, Any]]:
+        """Returns synthetic Doppler radar frames matching the demo simulation timeline."""
+        now = int(time.time())
+        frames = []
+        offsets = [-30, -15, 0, 15, 30, 45, 60, 90]
+        y, x = np.ogrid[:self.rows, :self.cols]
+        center_r, center_c = self.rows // 2, self.cols // 2
+
+        for dt_min in offsets[:limit]:
+            t_stamp = now + dt_min * 60
+            rel_str = "now" if dt_min == 0 else (f"+{dt_min} min" if dt_min > 0 else f"{dt_min} min")
+            grid = self._compute_demo_grid("moderate", max(0.0, float(dt_min + 60)), y, x, center_r, center_c)
+            peak_rate = float(np.max(grid)) if grid is not None and grid.size > 0 else 0.0
+            dbz = float(self.rain_rate_to_dbz(peak_rate))
+            frames.append({
+                "time": t_stamp,
+                "timestamp": t_stamp,
+                "time_iso": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(t_stamp)),
+                "relative_time": rel_str,
+                "path": f"/synthetic/radar/{dt_min}",
+                "tile_url": f"local://radar/synthetic/{dt_min}",
+                "rain_rate_mmh": round(peak_rate, 2),
+                "estimated_rain_rate_mmh": round(peak_rate, 2),
+                "reflectivity_dbz": round(dbz, 1),
+                "estimated_peak_dbz": round(dbz, 1),
+            })
+        return frames
+
 
 class OneWeatherRadarNowcastProvider(RainfallProvider):
     """
@@ -370,13 +398,20 @@ class OneWeatherRadarNowcastProvider(RainfallProvider):
                     est_rate = self.get_nowcast_series().get(0, 0.0)
                     est_dbz = self.rain_rate_to_dbz(est_rate)
 
+                    rel_min = int(round((t_stamp - now) / 60.0))
+                    rel_str = "now" if abs(rel_min) < 2 else (f"+{rel_min} min" if rel_min > 0 else f"{rel_min} min")
+
                     frames.append({
+                        "time": t_stamp,
                         "timestamp": t_stamp,
                         "time_iso": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(t_stamp)),
+                        "relative_time": rel_str,
                         "path": path,
                         "tile_url": tile_url,
-                        "estimated_peak_dbz": round(est_dbz, 1),
+                        "rain_rate_mmh": round(est_rate, 2),
                         "estimated_rain_rate_mmh": round(est_rate, 2),
+                        "reflectivity_dbz": round(est_dbz, 1),
+                        "estimated_peak_dbz": round(est_dbz, 1),
                     })
 
                 self._cached_radar_frames = frames
@@ -389,12 +424,16 @@ class OneWeatherRadarNowcastProvider(RainfallProvider):
         cur_rate = self.get_nowcast_series().get(0, 0.0)
         est_dbz = self.rain_rate_to_dbz(cur_rate)
         synthetic_frame = [{
+            "time": int(now),
             "timestamp": int(now),
             "time_iso": time.strftime("%Y-%m-%d %H:%M:%S UTC", time.gmtime(now)),
+            "relative_time": "now",
             "path": "/synthetic/radar",
             "tile_url": "local://radar/synthetic_cell",
-            "estimated_peak_dbz": round(est_dbz, 1),
+            "rain_rate_mmh": round(cur_rate, 2),
             "estimated_rain_rate_mmh": round(cur_rate, 2),
+            "reflectivity_dbz": round(est_dbz, 1),
+            "estimated_peak_dbz": round(est_dbz, 1),
         }]
         self._cached_radar_frames = synthetic_frame
         self._cached_radar_time = now

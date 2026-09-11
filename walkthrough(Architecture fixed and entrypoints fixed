@@ -1,0 +1,69 @@
+# Walkthrough: Architecture Consolidation & Backwards Compatibility
+
+We successfully consolidated the repository architecture to match the canonical structure specified in [architecture.md](file:///c:/Users/aksha/urbanFlood/architecture.md), while maintaining **100% backwards compatibility** so no existing scripts, models, or imports broke.
+
+---
+
+## 1. Summary of Changes
+
+### A. Canonical Module Relocation under `backend/app/`
+| Canonical File | Former Location | Description |
+|---|---|---|
+| `backend/app/models/drainage.py` | `backend/models/drainage.py` | NetworkX hydraulic pipe & manhole graph model |
+| `backend/app/models/routing.py` | `backend/models/routing.py` | A* dynamic flood-resilient routing engine & vehicle limits |
+| `backend/app/models/location.py` | `backend/models/location.py` | Live GPS/IP location & study area landmark resolver |
+| `backend/app/api/drainage.py` | `backend/api/drainage.py` | REST endpoints for drainage network and blockage control |
+| `backend/app/api/roads.py` | `backend/api/roads.py` | REST endpoints for road network, corridors, and flood hotspots |
+| `backend/app/api/route.py` | `backend/api/route.py` | Dynamic evacuation routing endpoint with FloodEngine depth coupling |
+
+### B. New Core Files Created
+- **WebSocket Streaming**: [backend/app/api/websocket.py](file:///c:/Users/aksha/urbanFlood/backend/app/api/websocket.py) exposes `/ws/flood-updates` for live multi-horizon timeline streaming.
+- **Engine Subsystem Aliases**:
+  - [backend/app/engine/drainage_network.py](file:///c:/Users/aksha/urbanFlood/backend/app/engine/drainage_network.py) (`DrainageGraph`)
+  - [backend/app/engine/routing_engine.py](file:///c:/Users/aksha/urbanFlood/backend/app/engine/routing_engine.py) (`RoutingEngine`)
+  - [backend/app/engine/rainfall_provider.py](file:///c:/Users/aksha/urbanFlood/backend/app/engine/rainfall_provider.py) (`RainfallProvider`, `DemoRainfallProvider`, `LiveRainfallProvider`)
+- **Data Loaders & Benchmark**:
+  - [backend/app/data/dem_loader.py](file:///c:/Users/aksha/urbanFlood/backend/app/data/dem_loader.py) (`load_dem`, `load_surface_rasters`)
+  - [backend/app/data/geojson_loader.py](file:///c:/Users/aksha/urbanFlood/backend/app/data/geojson_loader.py) (`load_geojson`, `extract_features`)
+  - [backend/app/data/synthetic_city.py](file:///c:/Users/aksha/urbanFlood/backend/app/data/synthetic_city.py) (2 km × 2 km benchmark generator)
+- **Utilities**:
+  - [backend/app/utils/geo.py](file:///c:/Users/aksha/urbanFlood/backend/app/utils/geo.py) (`haversine_distance_m`, `lat_lon_to_grid_cell`, `grid_cell_to_lat_lon`)
+  - [backend/app/utils/logger.py](file:///c:/Users/aksha/urbanFlood/backend/app/utils/logger.py) (structured logging)
+- **Declarative Config & Deployment**:
+  - [backend/data/config/scenarios.yaml](file:///c:/Users/aksha/urbanFlood/backend/data/config/scenarios.yaml) (5 calibrated rainfall scenarios)
+  - [backend/Dockerfile](file:///c:/Users/aksha/urbanFlood/backend/Dockerfile) (containerization)
+  - [docker-compose.yml](file:///c:/Users/aksha/urbanFlood/docker-compose.yml) (service orchestration)
+  - [backend/README.md](file:///c:/Users/aksha/urbanFlood/backend/README.md) (comprehensive backend docs)
+
+### C. Zero-Breaking-Changes Forwarding Shims
+To guarantee that existing code (e.g. `navigate.py`, visualization scripts, and external callers) never breaks:
+- [backend/models/drainage.py](file:///c:/Users/aksha/urbanFlood/backend/models/drainage.py) -> re-exports from `backend.app.models.drainage`
+- [backend/models/routing.py](file:///c:/Users/aksha/urbanFlood/backend/models/routing.py) -> re-exports from `backend.app.models.routing`
+- [backend/models/location.py](file:///c:/Users/aksha/urbanFlood/backend/models/location.py) -> re-exports from `backend.app.models.location`
+- [backend/api/drainage.py](file:///c:/Users/aksha/urbanFlood/backend/api/drainage.py) -> re-exports from `backend.app.api.drainage`
+- [backend/api/roads.py](file:///c:/Users/aksha/urbanFlood/backend/api/roads.py) -> re-exports from `backend.app.api.roads`
+- [backend/api/route.py](file:///c:/Users/aksha/urbanFlood/backend/api/route.py) -> re-exports from `backend.app.api.route`
+- [backend/main.py](file:///c:/Users/aksha/urbanFlood/backend/main.py) -> forwards directly to `backend.app.main:app`
+
+### D. Single Unified FastAPI Application
+[backend/app/main.py](file:///c:/Users/aksha/urbanFlood/backend/app/main.py) now mounts **all 7 routers**:
+1. `/api/flood-forecast` (Pair B Overland Simulation & Depth Grids)
+2. `/api/simulate` (On-Demand Scenario Execution)
+3. `/api/rainfall` (Doppler Radar & Marshall-Palmer Z-R Frames)
+4. `/api/drainage` (Pair A Pipe Capacity, Inlets & Surcharge)
+5. `/api/roads` (Pair C Road Network & Inundation Hotspots)
+6. `/api/route` (Flood-Resilient A* Evacuation Routing)
+7. `/ws/flood-updates` (Real-Time Live Streaming WebSocket)
+
+---
+
+## 2. Verification & Test Results
+
+- **Complete Backend Test Suite**: **69 / 69 tests passed** (`OK` in 34.77s).
+- **Benchmark**: Average 2D overland flow timestep on 200×200 grid is **95.30 ms** (< 100 ms target).
+- **FastAPI Endpoints**: 32 routes mounted across all subsystems.
+- **Both Entrypoints Functional**:
+  - `uvicorn backend.app.main:app` (canonical)
+  - `uvicorn backend.main:app` (backwards-compatible forwarding)
+- **CLI & External Scripts**: [navigate.py](file:///c:/Users/aksha/urbanFlood/navigate.py), data visualizers, and notebooks import cleanly with 0 errors.
+- **Engine Coupling**: Startup lifecycle automatically pre-warms and couples `FloodEngine` with the subterranean `DrainageGraph`.

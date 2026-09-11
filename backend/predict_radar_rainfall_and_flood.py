@@ -490,7 +490,8 @@ def generate_radar_visuals(
 
 if __name__ == "__main__":
     stress_test = ("--stress-test" in sys.argv or "--cloudburst" in sys.argv or "--demo" in sys.argv)
-    artifact_dir = Path(r"C:\Users\Aniket\.gemini\antigravity-ide\brain\197042d9-fb12-44b5-8541-e645216de6b9")
+    output_dir = PROJECT_ROOT / "outputs"
+    output_dir.mkdir(parents=True, exist_ok=True)
     filename = "radar_flood_prediction_stress_test.png" if stress_test else "radar_flood_prediction_3h.png"
-    artifact_png = artifact_dir / filename
+    artifact_png = output_dir / filename
     run_radar_flood_prediction(demo_fallback=stress_test, output_png_path=artifact_png)
