@@ -50,19 +50,6 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
       {/* Main Hero Header */}
       <div className="mx-auto max-w-5xl w-full flex flex-col items-center text-center pt-8 sm:pt-14 pb-12">
-        
-        {/* Category Pill Badge */}
-        <motion.div
-          initial={{ opacity: 0, y: 15 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.5 }}
-          className="inline-flex items-center space-x-2 rounded-full border border-cyan-400/30 bg-cyan-950/40 px-4 py-1.5 backdrop-blur-md mb-6 shadow-md shadow-cyan-500/15"
-        >
-          <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_10px_#22d3ee]" />
-          <span className="text-[11px] font-mono tracking-widest text-cyan-300 uppercase font-semibold">
-            REAL-TIME FLOOD INTELLIGENCE
-          </span>
-        </motion.div>
 
         {/* Huge Brand Typography */}
         <motion.h1
