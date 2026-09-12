@@ -6,35 +6,24 @@ import {
   Layers, 
   Eye, 
   EyeOff, 
-  AlertTriangle, 
-  Activity, 
-  Car, 
-  Truck,
   Mountain,
   CloudRain,
   Radio,
   Calendar,
   Zap,
-  Sliders,
-  X,
-  CheckCircle2,
-  Loader2,
+  Sliders, 
+  X, 
+  CheckCircle2, 
+  Loader2, 
   ChevronRight,
-  User,
-  Bike
+  ChevronDown,
+  ChevronLeft,
+  Clock,
+  Waves
 } from 'lucide-react';
 import { GisMap } from './GisMap';
-import { RoutePanel, type TransportMode } from './RoutePanel';
+import { RoutePanel } from './RoutePanel';
 import { DrainagePanel } from './DrainagePanel';
-import { NavigationHud } from './NavigationHud';
-import {
-  generateTurnByTurnSteps,
-  calculateBearing,
-  calculateDistanceMeters,
-  getMinDistanceToRouteMeters,
-  navigationVoice,
-  type NavigationStep,
-} from '../services/navigation';
 import { 
   fetchRoadsSummary, 
   fetchFloodOverview, 
@@ -46,18 +35,16 @@ import {
   createFloodWebSocket,
   runSimulation,
   fetchSupportedScenarios,
-  clearFloodGridCache,
-  fetchTrafficConfig,
+  clearFloodGridCache
 } from '../services/api';
 import type { 
   RoadSummary, 
   FloodForecastOverview, 
   HorizonSummary, 
   Landmark, 
-  RouteResult,
-  DrainageSummary,
+  RouteResult, 
   ScenariosResponse,
-  TrafficConfig,
+  DrainageSummary 
 } from '../services/api';
 
 interface CommandCenterViewProps {
@@ -73,11 +60,14 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [showRoadGrid, setShowRoadGrid] = useState<boolean>(true);
   const [showHotspots, setShowHotspots] = useState<boolean>(true);
   const [showDemTerrain, setShowDemTerrain] = useState<boolean>(false);
-  const [showTrafficLayer, setShowTrafficLayer] = useState<boolean>(true);
-  const [trafficConfig, setTrafficConfig] = useState<TrafficConfig | null>(null);
-  const [trafficMode, setTrafficMode] = useState<'peak_monsoon' | 'live'>('peak_monsoon');
-  const [selectedVehicle, setSelectedVehicle] = useState<TransportMode>('ambulance');
+  const [selectedVehicle, setSelectedVehicle] = useState<'car' | 'ambulance' | 'rescue'>('ambulance');
   
+  // Navigation & Drawer State
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
+  const [isAdvancedConfigOpen, setIsAdvancedConfigOpen] = useState<boolean>(false);
+  const [isTelemetryOpen, setIsTelemetryOpen] = useState<boolean>(false);
+  const [showTimelineBar, setShowTimelineBar] = useState<boolean>(true);
+
   // Simulation Intelligence State
   const [isSimModalOpen, setIsSimModalOpen] = useState<boolean>(false);
   const [simMode, setSimMode] = useState<'live' | 'historical' | 'demo'>('historical');
@@ -102,91 +92,54 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [landmarks, setLandmarks] = useState<Landmark[]>([]);
   const [selectedOriginId, setSelectedOriginId] = useState<string>('bkc-hub');
   const [selectedDestinationId, setSelectedDestinationId] = useState<string>('kurla-station');
-  const [isRoutePanelOpen, setIsRoutePanelOpen] = useState<boolean>(true);
+  const [isRoutePanelOpen, setIsRoutePanelOpen] = useState<boolean>(false);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeAlternatives, setRouteAlternatives] = useState<RouteResult[]>([]);
   const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0);
 
-  // ── Turn-by-Turn Navigation HUD & Simulator State ──────────────────────────
-  const [isNavigating, setIsNavigating] = useState<boolean>(false);
-  const [navSteps, setNavSteps] = useState<NavigationStep[]>([]);
-  const [navActiveStepIndex, setNavActiveStepIndex] = useState<number>(0);
-  const [navLocation, setNavLocation] = useState<[number, number] | null>(null);
-  const [navBearing, setNavBearing] = useState<number>(0);
-  const [navTraversedCoords, setNavTraversedCoords] = useState<[number, number][]>([]);
-  const [navRemainingCoords, setNavRemainingCoords] = useState<[number, number][]>([]);
-  const [isFollowMode, setIsFollowMode] = useState<boolean>(true);
-  const [isLiveGps, setIsLiveGps] = useState<boolean>(false);
-  const [hasGpsLock, setHasGpsLock] = useState<boolean>(false);
-  const [isSimPlaying, setIsSimPlaying] = useState<boolean>(false);
-  const [simProgressPct, setSimProgressPct] = useState<number>(0);
-  const [simSpeedMultiplier, setSimSpeedMultiplier] = useState<number>(2);
-  const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
-  const [distanceToNextTurn, setDistanceToNextTurn] = useState<number>(0);
-  const [totalRemainingDistance, setTotalRemainingDistance] = useState<number>(0);
-  const [totalRemainingDuration, setTotalRemainingDuration] = useState<number>(0);
-  const lastAnnouncedStepRef = useRef<number>(-1);
-  const navWatchIdRef = useRef<number | null>(null);
+  // ── Live GPS Location ─────────────────────────────────────────────────────
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const geoWatchRef = useRef<number | null>(null);
+  // ─────────────────────────────────────────────────────────────────────────
   
   const playIntervalRef = useRef<any>(null);
 
-  // ── Resizable footer ──────────────────────────────────────────────────────
-  const [footerHeight, setFooterHeight] = useState<number>(80);
-  const footerDragRef = useRef<{ startY: number; startH: number } | null>(null);
 
-  const onFooterDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    footerDragRef.current = { startY: e.clientY, startH: footerHeight };
-    const onMove = (mv: MouseEvent) => {
-      if (!footerDragRef.current) return;
-      const delta = footerDragRef.current.startY - mv.clientY;
-      setFooterHeight(Math.min(260, Math.max(56, footerDragRef.current.startH + delta)));
+  // ── Live GPS Geolocation ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by this browser.');
+      return;
+    }
+    geoWatchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+        setGeoError(null);
+      },
+      (err) => {
+        console.warn('Geolocation error:', err.message);
+        setGeoError(err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+    );
+    return () => {
+      if (geoWatchRef.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+      }
     };
-    const onUp = () => {
-      footerDragRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
-
-  // ── Resizable left tool panel ─────────────────────────────────────────────
-  const [leftPanelWidth, setLeftPanelWidth] = useState<number>(320);
-  const leftDragRef = useRef<{ startX: number; startW: number } | null>(null);
-
-  const onLeftDragStart = (e: React.MouseEvent) => {
-    e.preventDefault();
-    leftDragRef.current = { startX: e.clientX, startW: leftPanelWidth };
-    const onMove = (mv: MouseEvent) => {
-      if (!leftDragRef.current) return;
-      const delta = mv.clientX - leftDragRef.current.startX;
-      setLeftPanelWidth(Math.min(540, Math.max(260, leftDragRef.current.startW + delta)));
-    };
-    const onUp = () => {
-      leftDragRef.current = null;
-      window.removeEventListener('mousemove', onMove);
-      window.removeEventListener('mouseup', onUp);
-    };
-    window.addEventListener('mousemove', onMove);
-    window.addEventListener('mouseup', onUp);
-  };
+  }, []);
   // ─────────────────────────────────────────────────────────────────────────
+
 
   const forecastHorizons = [0, 30, 60, 90, 120, 180];
 
-  // Fetch scenarios metadata and traffic configuration on initial mount
+  // Fetch scenarios metadata on initial mount
   useEffect(() => {
     fetchSupportedScenarios().then(data => {
       if (data) {
         setScenariosMeta(data);
-      }
-    });
-
-    fetchTrafficConfig().then(cfg => {
-      if (cfg) {
-        setTrafficConfig(cfg);
       }
     });
   }, []);
@@ -374,17 +327,36 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     setDrainageRefreshKey((k) => k + 1);
   };
 
+  const handleMapClick = (_lat: number, _lng: number) => {
+    // Interactive map click for depth inspection
+  };
+
   // Route calculation routine
   const triggerRouteCalculation = async (
     origId = selectedOriginId,
     destId = selectedDestinationId,
     veh = selectedVehicle,
-    horizon = currentTimeStep,
-    tMode = trafficMode
+    horizon = currentTimeStep
   ) => {
-    if (landmarks.length === 0) return;
-    const orig = landmarks.find(l => l.id === origId);
-    const dest = landmarks.find(l => l.id === destId);
+    // Standard landmark & live GPS mode
+    const allLandmarks: Landmark[] = userLocation
+      ? [
+          {
+            id: 'my-location',
+            name: '📍 My Current Location (GPS)',
+            category: 'live',
+            lat: userLocation[0],
+            lon: userLocation[1],
+            elevation_m: 0,
+            description: 'Your live GPS position',
+          },
+          ...landmarks,
+        ]
+      : landmarks;
+
+    if (allLandmarks.length === 0) return;
+    const orig = allLandmarks.find(l => l.id === origId);
+    const dest = allLandmarks.find(l => l.id === destId);
     if (!orig || !dest) return;
 
     setIsCalculatingRoute(true);
@@ -397,7 +369,6 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
         vehicle_type: veh,
         time_horizon_min: horizon,
         include_alternatives: true,
-        traffic_mode: tMode,
       });
       if (res) {
         if (res.primary_route) {
@@ -411,13 +382,20 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     }
   };
 
-  // Reset route whenever city changes so route only appears on explicit calculation
+  // Trigger route recalculation when waypoints, vehicle, or forecast horizon change
   useEffect(() => {
-    setRouteResult(null);
-    setRouteAlternatives([]);
-    setActiveRouteIndex(0);
-    setIsNavigating(false);
-  }, [currentCity]);
+    if (landmarks.length > 0 && selectedOriginId && selectedDestinationId) {
+      triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep);
+    }
+  }, [
+    landmarks,
+    userLocation,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedVehicle,
+    currentTimeStep,
+    selectedScenario,
+  ]);
 
   // Handle Play/Pause Auto-Advance Scrubber Loop
   useEffect(() => {
@@ -443,743 +421,430 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const currentSummary: HorizonSummary | undefined = 
     floodOverview?.summaries ? floodOverview.summaries[String(currentTimeStep)] : undefined;
 
-  // ── NAVIGATION ENGINE LOGIC & TELEMETRY ─────────────────────────────────────
-  const activeNavRoute: RouteResult | null =
-    activeRouteIndex === 0 ? routeResult : routeAlternatives[activeRouteIndex - 1] || routeResult;
-
-  const activeRouteCoords: [number, number][] =
-    (activeNavRoute?.geojson?.geometry?.coordinates as [number, number][]) || [];
-
-  const updateNavTelemetryFromProgress = (
-    pct: number,
-    coords: [number, number][],
-    steps: NavigationStep[],
-    speedMultiplier: number = simSpeedMultiplier
-  ) => {
-    if (coords.length < 2) return;
-
-    const segDistances: number[] = [];
-    let totalD = 0;
-    for (let i = 0; i < coords.length - 1; i++) {
-      const d = calculateDistanceMeters(coords[i], coords[i + 1]);
-      segDistances.push(d);
-      totalD += d;
-    }
-
-    const targetDistance = (pct / 100) * totalD;
-    let accumulated = 0;
-    let currentSegmentIndex = 0;
-    let segFraction = 0;
-
-    for (let i = 0; i < segDistances.length; i++) {
-      if (accumulated + segDistances[i] >= targetDistance) {
-        currentSegmentIndex = i;
-        segFraction = segDistances[i] > 0 ? (targetDistance - accumulated) / segDistances[i] : 0;
-        break;
-      }
-      accumulated += segDistances[i];
-      if (i === segDistances.length - 1) {
-        currentSegmentIndex = i;
-        segFraction = 1;
-      }
-    }
-
-    const pA = coords[currentSegmentIndex];
-    const pB = coords[Math.min(currentSegmentIndex + 1, coords.length - 1)];
-
-    const currLng = pA[0] + segFraction * (pB[0] - pA[0]);
-    const currLat = pA[1] + segFraction * (pB[1] - pA[1]);
-    const currPos: [number, number] = [currLng, currLat];
-    const heading = calculateBearing(pA, pB);
-
-    setNavLocation(currPos);
-    setNavBearing(heading);
-
-    const traversed: [number, number][] = coords.slice(0, currentSegmentIndex + 1);
-    traversed.push(currPos);
-    const remaining: [number, number][] = [currPos, ...coords.slice(currentSegmentIndex + 1)];
-
-    setNavTraversedCoords(traversed);
-    setNavRemainingCoords(remaining);
-
-    const remDist = Math.max(0, totalD - targetDistance);
-    setTotalRemainingDistance(remDist);
-    const totalDuration = activeNavRoute?.travel_time_s || (totalD / 8.33);
-    setTotalRemainingDuration(Math.max(0, (remDist / totalD) * totalDuration));
-
-    if (steps.length > 0) {
-      let activeIdx = 0;
-      for (let s = 0; s < steps.length; s++) {
-        const stepDistFromStart = calculateDistanceMeters(coords[0], steps[s].startCoord);
-        if (targetDistance >= stepDistFromStart) {
-          activeIdx = s;
-        } else {
-          break;
-        }
-      }
-      setNavActiveStepIndex(activeIdx);
-
-      const nextTurnCoord = steps[activeIdx + 1]?.startCoord || steps[steps.length - 1].startCoord;
-      const distToTurn = calculateDistanceMeters(currPos, nextTurnCoord);
-      setDistanceToNextTurn(distToTurn);
-
-      if (activeIdx !== lastAnnouncedStepRef.current && activeIdx < steps.length) {
-        lastAnnouncedStepRef.current = activeIdx;
-        const prompt = steps[activeIdx].instruction;
-        if (prompt) {
-          navigationVoice.speak(prompt, false, speedMultiplier);
-        }
-      }
-    }
-  };
-
-  const handleStartNavigation = () => {
-    if (!activeNavRoute || activeRouteCoords.length < 2) return;
-
-    const steps = generateTurnByTurnSteps(activeNavRoute);
-    setNavSteps(steps);
-    setNavActiveStepIndex(0);
-    setNavLocation(activeRouteCoords[0]);
-    setNavBearing(steps[0]?.bearing || 0);
-    setNavTraversedCoords([activeRouteCoords[0]]);
-    setNavRemainingCoords(activeRouteCoords);
-    setSimProgressPct(0);
-    setTotalRemainingDistance(activeNavRoute.distance_m);
-    setTotalRemainingDuration(activeNavRoute.travel_time_s);
-    setIsNavigating(true);
-    setIsSimPlaying(true);
-    setIsRoutePanelOpen(false);
-    setIsDrainagePanelOpen(false);
-    setIsFollowMode(true);
-    lastAnnouncedStepRef.current = -1;
-
-    const vehicleName = selectedVehicle.toUpperCase();
-    navigationVoice.speak(
-      `Starting flood-resilient navigation for ${vehicleName}. Clearance calibrated. ${steps[0]?.instruction || 'Proceed on route.'}`,
-      true
-    );
-  };
-
-  const handleExitNavigation = () => {
-    setIsNavigating(false);
-    setIsSimPlaying(false);
-    navigationVoice.stop();
-    setIsRoutePanelOpen(true);
-    if (navWatchIdRef.current !== null && 'geolocation' in navigator) {
-      navigator.geolocation.clearWatch(navWatchIdRef.current);
-      navWatchIdRef.current = null;
-    }
-  };
-
-  const handleToggleVoice = () => {
-    const nextMuted = !isVoiceMuted;
-    setIsVoiceMuted(nextMuted);
-    navigationVoice.setMuted(nextMuted);
-  };
-
-  const handleSeekProgress = (pct: number) => {
-    setSimProgressPct(pct);
-    updateNavTelemetryFromProgress(pct, activeRouteCoords, navSteps);
-  };
-
-  const handleToggleLiveGps = () => {
-    const nextGps = !isLiveGps;
-    setIsLiveGps(nextGps);
-    if (nextGps) {
-      setIsSimPlaying(false);
-      if ('geolocation' in navigator) {
-        navigationVoice.speak('Switching to live device GPS tracking.');
-        const wid = navigator.geolocation.watchPosition(
-          (pos) => {
-            setHasGpsLock(true);
-            const userPt: [number, number] = [pos.coords.longitude, pos.coords.latitude];
-            setNavLocation(userPt);
-            if (pos.coords.heading !== null && !isNaN(pos.coords.heading)) {
-              setNavBearing(pos.coords.heading);
-            }
-            if (activeRouteCoords.length >= 2) {
-              const { minDistance_m } = getMinDistanceToRouteMeters(userPt, activeRouteCoords);
-              if (minDistance_m > 40) {
-                navigationVoice.speak('Off route detected. Recalculating route around submerged roads.', true);
-              }
-            }
-          },
-          (err) => {
-            console.warn('GPS watch error:', err);
-            setHasGpsLock(false);
-          },
-          { enableHighAccuracy: true, maximumAge: 1000 }
-        );
-        navWatchIdRef.current = wid;
-      } else {
-        alert('Geolocation is not supported by your browser.');
-        setIsLiveGps(false);
-      }
-    } else {
-      if (navWatchIdRef.current !== null && 'geolocation' in navigator) {
-        navigator.geolocation.clearWatch(navWatchIdRef.current);
-        navWatchIdRef.current = null;
-      }
-      setHasGpsLock(false);
-      navigationVoice.speak('Switching to demo route simulation.');
-    }
-  };
-
-  const handleTriggerOffRouteSim = () => {
-    if (!navLocation || !currentDestination) return;
-    const offLat = navLocation[1] + 0.0035;
-    const offLon = navLocation[0] + 0.0035;
-    setNavLocation([offLon, offLat]);
-    navigationVoice.speak('Off route detected. Recalculating path around flooded corridors.', true);
-
-    calculateFloodRoute({
-      src_lat: offLat,
-      src_lon: offLon,
-      dst_lat: currentDestination.lat,
-      dst_lon: currentDestination.lon,
-      vehicle_type: selectedVehicle,
-      time_horizon_min: currentTimeStep,
-      include_alternatives: true,
-    }).then((res) => {
-      if (res && res.primary_route) {
-        setRouteResult(res.primary_route);
-        const newSteps = generateTurnByTurnSteps(res.primary_route);
-        setNavSteps(newSteps);
-        setNavActiveStepIndex(0);
-        const newCoords = (res.primary_route.geojson?.geometry?.coordinates as [number, number][]) || [];
-        setNavRemainingCoords(newCoords);
-        setNavTraversedCoords([[offLon, offLat]]);
-        setSimProgressPct(0);
-        setTotalRemainingDistance(res.primary_route.distance_m);
-        setTotalRemainingDuration(res.primary_route.travel_time_s);
-        navigationVoice.speak(`New route calculated. In 100 meters, ${newSteps[0]?.instruction || 'proceed'}`);
-      }
-    });
-  };
-
-  useEffect(() => {
-    if (!isNavigating || !isSimPlaying || isLiveGps) return;
-
-    const intervalMs = 60;
-    const stepDuration = Math.max(20, (activeNavRoute?.travel_time_s || 120) / 10);
-    const pctIncrement = (100 / (stepDuration * (1000 / intervalMs))) * simSpeedMultiplier;
-
-    const simTimer = setInterval(() => {
-      setSimProgressPct((prevPct) => {
-        const nextPct = prevPct + pctIncrement;
-        if (nextPct >= 100) {
-          clearInterval(simTimer);
-          setIsSimPlaying(false);
-          updateNavTelemetryFromProgress(100, activeRouteCoords, navSteps, simSpeedMultiplier);
-          navigationVoice.speak('You have safely arrived at your destination.', true, simSpeedMultiplier);
-          return 100;
-        }
-        updateNavTelemetryFromProgress(nextPct, activeRouteCoords, navSteps, simSpeedMultiplier);
-        return nextPct;
-      });
-    }, intervalMs);
-
-    return () => clearInterval(simTimer);
-  }, [isNavigating, isSimPlaying, isLiveGps, simSpeedMultiplier, activeRouteCoords, navSteps, activeNavRoute]);
-
   // Selected Origin and Destination Waypoint Lookups
-  const currentOrigin = landmarks.find(l => l.id === selectedOriginId);
-  const currentDestination = landmarks.find(l => l.id === selectedDestinationId);
+  // Inject "My Location" as a virtual landmark when GPS is active
+  const landmarksWithMyLocation: Landmark[] = userLocation
+    ? [
+        {
+          id: 'my-location',
+          name: '📍 My Current Location (GPS)',
+          category: 'live',
+          lat: userLocation[0],
+          lon: userLocation[1],
+          elevation_m: 0,
+          description: 'Your live GPS position',
+        },
+        ...landmarks,
+      ]
+    : landmarks;
+
+  const currentOrigin = landmarksWithMyLocation.find(l => l.id === selectedOriginId);
+  const currentDestination = landmarksWithMyLocation.find(l => l.id === selectedDestinationId);
   const originCoords: [number, number] | null = currentOrigin ? [currentOrigin.lat, currentOrigin.lon] : null;
   const destinationCoords: [number, number] | null = currentDestination ? [currentDestination.lat, currentDestination.lon] : null;
+  const displayedOriginName = currentOrigin?.name;
+  const displayedDestinationName = currentDestination?.name;
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 overflow-hidden">
       
-      {/* Top HUD Telemetry Bar (21st.dev style) */}
-      <div className="h-12 border-b border-slate-800/80 bg-slate-900/70 backdrop-blur-md px-4 flex items-center justify-between z-20">
-        <div className="flex items-center space-x-6">
-          <div className="flex items-center space-x-2">
-            <span className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]" />
-            <span className="text-xs font-mono-num font-bold text-slate-200">
-              HYDRODYNAMIC ENGINE: T+{currentTimeStep}m
-            </span>
-          </div>
-
-          <div className="hidden sm:flex items-center space-x-2 text-xs font-mono-num text-slate-400">
-            <span>PEAK INUNDATION:</span>
-            <span className={`font-bold ${
-              (currentSummary?.max_depth_m || 0) > 0.3 ? 'text-red-400' : 'text-cyan-400'
-            }`}>
-              {currentSummary ? `${currentSummary.max_depth_m.toFixed(2)}m` : '0.23m'}
-            </span>
-          </div>
-
-          <div className="hidden md:flex items-center space-x-2 text-xs font-mono-num text-slate-400">
-            <span>SURFACE WATER VOLUME:</span>
-            <span className="text-slate-200">
-              {currentSummary ? `${Math.round(currentSummary.surface_water_volume_m3).toLocaleString()} m³` : '12,055 m³'}
-            </span>
-          </div>
-        </div>
-
+      {/* Top HUD Mission Bar */}
+      <div className="h-11 shrink-0 border-b border-slate-800/80 bg-slate-950/90 backdrop-blur-md px-4 flex items-center justify-between z-20">
         <div className="flex items-center space-x-3">
-          {/* Simulation & Live Radar Trigger Button */}
-          <button
-            onClick={() => setIsSimModalOpen(true)}
-            className="flex items-center space-x-2 px-3 py-1.5 rounded-xl border border-cyan-500/40 bg-gradient-to-r from-cyan-950/90 to-blue-950/90 hover:from-cyan-900/90 hover:to-blue-900/90 text-cyan-300 text-xs font-semibold shadow-sm shadow-cyan-950/60 cursor-pointer transition-all active:scale-95 group"
-          >
-            <Radio className="h-3.5 w-3.5 text-cyan-400 group-hover:animate-pulse" />
-            <span className="font-mono-num font-bold">SIMULATION / LIVE</span>
-            <span className="px-1.5 py-0.5 rounded bg-cyan-500/20 text-[10px] text-cyan-300 border border-cyan-500/30 uppercase">
-              {floodOverview?.scenario || 'HEAVY'}
-            </span>
-            <Sliders className="h-3 w-3 text-slate-400 group-hover:text-cyan-300 ml-0.5" />
-          </button>
-
-          {/* Traffic Mode Quick Toggle in HUD */}
-          <button
-            onClick={() => {
-              const nextMode = trafficMode === 'peak_monsoon' ? 'live' : 'peak_monsoon';
-              setTrafficMode(nextMode);
-              if (routeResult) {
-                triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, nextMode);
-              }
-            }}
-            className={`hidden lg:flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs font-semibold cursor-pointer transition-all active:scale-95 ${
-              trafficMode === 'peak_monsoon'
-                ? 'border-amber-500/50 bg-gradient-to-r from-amber-950/80 to-slate-900/90 text-amber-300 shadow-sm shadow-amber-950/50'
-                : 'border-cyan-500/40 bg-gradient-to-r from-cyan-950/80 to-slate-900/90 text-cyan-300 shadow-sm shadow-cyan-950/50'
-            }`}
-            title="Toggle between Busy Day (Monsoon Rush Hour) bottlenecks and Real-Time TomTom satellite traffic"
-          >
-            <span className={`h-2 w-2 rounded-full ${trafficMode === 'peak_monsoon' ? 'bg-amber-400 animate-pulse' : 'bg-cyan-400'}`} />
-            <span className="font-mono-num font-bold">
-              {trafficMode === 'peak_monsoon' ? 'BUSY DAY TRAFFIC' : 'TOMTOM LIVE'}
-            </span>
-            <span className={`px-1.5 py-0.5 rounded text-[9px] font-mono uppercase ${
-              trafficMode === 'peak_monsoon' ? 'bg-amber-500/20 text-amber-300 border border-amber-500/30' : 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/30'
-            }`}>
-              {trafficMode === 'peak_monsoon' ? 'MONSOON PEAK' : 'LIVE FEED'}
-            </span>
-          </button>
-
-          {/* Direct City Context Switcher in HUD */}
+          {/* City Context Switcher */}
           {onCityChange && (
-            <div className="flex items-center bg-slate-950/80 p-0.5 rounded-lg border border-slate-800 shadow-inner">
+            <div className="flex items-center bg-slate-900/90 p-0.5 rounded-lg border border-slate-800">
               <button
                 onClick={() => onCityChange('mumbai')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center space-x-1.5 ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   currentCity.toLowerCase() === 'mumbai'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm shadow-cyan-500/30'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${currentCity.toLowerCase() === 'mumbai' ? 'bg-white' : 'bg-slate-500'}`} />
-                <span>Mumbai (BKC)</span>
+                Mumbai (BKC)
               </button>
               <button
                 onClick={() => onCityChange('kolkata')}
-                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer flex items-center space-x-1.5 ${
+                className={`px-2.5 py-1 text-xs font-semibold rounded-md transition-all cursor-pointer ${
                   currentCity.toLowerCase() === 'kolkata'
-                    ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-sm shadow-cyan-500/30'
+                    ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm'
                     : 'text-slate-400 hover:text-slate-200'
                 }`}
               >
-                <span className={`h-1.5 w-1.5 rounded-full ${currentCity.toLowerCase() === 'kolkata' ? 'bg-white' : 'bg-slate-500'}`} />
-                <span>Kolkata (Bypass)</span>
+                Kolkata (Bypass)
               </button>
             </div>
           )}
 
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full border text-xs font-mono-num bg-slate-900/80 border-slate-700">
+          {/* Simulation / Live Mode Button */}
+          <button
+            onClick={() => setIsSimModalOpen(true)}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-slate-300 text-xs font-mono transition-all cursor-pointer"
+          >
+            <Radio className="h-3 w-3 text-cyan-400" />
+            <span className="capitalize">{floodOverview?.scenario || 'Simulation'}</span>
+            <Sliders className="h-3 w-3 text-slate-500" />
+          </button>
+
+          {/* Forecast Horizon Badge & Toggle */}
+          <button
+            onClick={() => setShowTimelineBar(!showTimelineBar)}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              showTimelineBar
+                ? 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-cyan-400'
+                : 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/40 text-cyan-300'
+            }`}
+            title={showTimelineBar ? "Hide timeline bar" : "Show timeline bar"}
+          >
+            {showTimelineBar ? <Clock className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            <span>T+{currentTimeStep}m</span>
+          </button>
+        </div>
+
+        {/* Right: Consolidated System Status Indicator with Popover */}
+        <div className="relative">
+          <button
+            onClick={() => setIsTelemetryOpen(!isTelemetryOpen)}
+            className="flex items-center space-x-2 px-3 py-1 rounded-full border border-slate-800 bg-slate-900/80 hover:bg-slate-800 text-xs transition-all cursor-pointer"
+          >
             <span className={`h-2 w-2 rounded-full ${
-              wsStatus === 'connected' 
-                ? 'bg-emerald-400 animate-pulse shadow-[0_0_8px_#34d399]' 
-                : wsStatus === 'connecting' 
-                ? 'bg-amber-400 animate-ping' 
-                : 'bg-slate-500'
+              (currentSummary?.flooded_cells_30cm || 0) > 0
+                ? 'bg-rose-500 animate-pulse'
+                : (currentSummary?.flooded_cells_15cm || 0) > 0
+                ? 'bg-amber-400'
+                : 'bg-emerald-400'
             }`} />
-            <span className="text-slate-200 font-semibold">
-              {wsStatus === 'connected' ? 'LIVE WS: STREAMING' : wsStatus === 'connecting' ? 'WS: CONNECTING...' : 'OFFLINE'}
+            <span className="font-mono text-slate-300">
+              {(currentSummary?.flooded_cells_30cm || 0) > 0
+                ? `${currentSummary?.flooded_cells_30cm} Severe Cells`
+                : (currentSummary?.flooded_cells_15cm || 0) > 0
+                ? `${currentSummary?.flooded_cells_15cm} Caution Cells`
+                : 'System Normal'}
             </span>
-          </div>
+            <ChevronDown className="h-3 w-3 text-slate-500" />
+          </button>
 
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-red-500/10 border border-red-500/30 text-red-400 text-xs font-mono-num">
-            <AlertTriangle className="h-3.5 w-3.5" />
-            <span>
-              {currentSummary ? `${currentSummary.flooded_cells_30cm} SEVERE CELLS (>0.3m)` : '0 SEVERE'}
-            </span>
-          </div>
-
-          <div className="hidden lg:flex items-center space-x-1.5 px-2.5 py-1 rounded-full bg-cyan-500/10 border border-cyan-500/30 text-cyan-400 text-xs font-mono-num">
-            <Activity className="h-3.5 w-3.5" />
-            <span>CAUTION CELLS (&gt;0.15m): {currentSummary?.flooded_cells_15cm || 30}</span>
-          </div>
+          {/* Popover for Full System Telemetry */}
+          {isTelemetryOpen && (
+            <div className="absolute right-0 top-9 w-72 rounded-2xl bg-slate-950/95 border border-slate-800 shadow-2xl p-4 text-xs font-mono z-50 space-y-2.5 backdrop-blur-xl animate-in fade-in duration-150">
+              <div className="flex items-center justify-between pb-2 border-b border-slate-800 text-slate-300 font-bold">
+                <span>SYSTEM STATUS</span>
+                <span className={`text-[10px] px-2 py-0.5 rounded-full ${wsStatus === 'connected' ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}`}>
+                  {wsStatus === 'connected' ? 'WS STREAMING' : 'CONNECTING'}
+                </span>
+              </div>
+              <div className="space-y-1.5 text-slate-400 text-[11px]">
+                <div className="flex justify-between">
+                  <span>Peak Inundation:</span>
+                  <span className="font-bold text-slate-200">{currentSummary ? `${currentSummary.max_depth_m.toFixed(2)}m` : '0.23m'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Surface Volume:</span>
+                  <span className="font-bold text-slate-200">{currentSummary ? `${Math.round(currentSummary.surface_water_volume_m3).toLocaleString()} m³` : '12,055 m³'}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Caution Cells (&gt;0.15m):</span>
+                  <span className="font-bold text-amber-400">{currentSummary?.flooded_cells_15cm || 30}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Severe Cells (&gt;0.30m):</span>
+                  <span className="font-bold text-rose-400">{currentSummary?.flooded_cells_30cm || 0}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span>Total Rain Volume:</span>
+                  <span className="font-bold text-slate-200">{floodOverview ? `${Math.round(floodOverview.total_rain_volume_m3).toLocaleString()} m³` : '—'}</span>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       </div>
 
       {/* Main Workspace Grid */}
       <div className="relative flex-1 flex overflow-hidden">
         
-        {/* Left Floating Tool Palette (Resizable) */}
+        {/* Left Floating Tool Palette (Collapsible & Narrow) */}
         <aside
-          style={{ width: `${leftPanelWidth}px` }}
-          className="relative shrink-0 border-r border-slate-800/80 bg-slate-950/85 backdrop-blur-xl p-4 flex flex-col justify-between overflow-y-auto z-10"
+          className={`relative shrink-0 border-r border-slate-800/80 bg-slate-950/90 backdrop-blur-xl flex flex-col justify-between overflow-y-auto z-10 transition-all duration-200 ${
+            isSidebarCollapsed ? 'w-12 p-2 items-center' : 'w-64 p-3.5'
+          }`}
         >
-          <div className="space-y-5">
-            
-            {/* City Selector Box */}
-            {onCityChange && (
-              <div className="p-3 rounded-2xl bg-slate-900/70 border border-slate-800 space-y-2">
-                <div className="flex items-center justify-between text-xs font-mono-num font-bold text-slate-400">
-                  <span className="text-cyan-400 font-bold tracking-wider">ACTIVE CITY SECTOR</span>
-                  <span className="text-[10px] text-emerald-400 uppercase font-bold">READY</span>
-                </div>
-                <div className="grid grid-cols-2 gap-1.5">
-                  <button
-                    onClick={() => onCityChange('mumbai')}
-                    className={`p-2 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
-                      currentCity.toLowerCase() === 'mumbai'
-                        ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 ring-1 ring-cyan-500/40 shadow-sm shadow-cyan-950'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Mumbai (BKC)
-                  </button>
-                  <button
-                    onClick={() => onCityChange('kolkata')}
-                    className={`p-2 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
-                      currentCity.toLowerCase() === 'kolkata'
-                        ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 ring-1 ring-cyan-500/40 shadow-sm shadow-cyan-950'
-                        : 'bg-slate-900/50 border-slate-800 text-slate-400 hover:text-slate-200'
-                    }`}
-                  >
-                    Kolkata (Bypass)
-                  </button>
-                </div>
-              </div>
-            )}
-
-            {/* Rainfall & Simulation Engine Card */}
-            <div className="p-3.5 rounded-2xl bg-gradient-to-b from-slate-900/90 to-slate-950/90 border border-slate-800 space-y-3 shadow-sm">
-              <div className="flex items-center justify-between text-xs font-mono-num font-bold">
-                <span className="flex items-center text-cyan-400">
-                  <CloudRain className="h-3.5 w-3.5 mr-1.5" />
-                  RAINFALL SOURCE
-                </span>
-                <span className={`text-[10px] px-2 py-0.5 rounded-full border font-bold uppercase ${
-                  floodOverview?.scenario === 'live'
-                    ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-300 animate-pulse'
-                    : floodOverview?.scenario === 'historical'
-                    ? 'bg-blue-500/20 border-blue-500/40 text-blue-300'
-                    : 'bg-purple-500/20 border-purple-500/40 text-purple-300'
-                }`}>
-                  {floodOverview?.scenario === 'live' ? '⚡ LIVE NOWCAST' : floodOverview?.scenario === 'historical' ? '📅 HISTORICAL' : '🌊 STRESS TEST'}
-                </span>
-              </div>
-
-              <div className="text-[11px] text-slate-300 bg-slate-950/60 p-2.5 rounded-xl border border-slate-800/80 font-mono-num space-y-1">
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Sector:</span>
-                  <span className="font-bold text-slate-200 capitalize">{currentCity}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Active Scenario:</span>
-                  <span className="font-bold text-cyan-300 uppercase">{floodOverview?.scenario || 'HEAVY'}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-slate-400">Total Rain Vol:</span>
-                  <span className="font-bold text-slate-200">
-                    {floodOverview ? `${Math.round(floodOverview.total_rain_volume_m3).toLocaleString()} m³` : '—'}
-                  </span>
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-1.5">
-                <button
-                  disabled={isSimulating}
-                  onClick={() => handleRunSimulation('live')}
-                  className="p-2 rounded-xl border border-emerald-500/40 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-                >
-                  <Radio className="h-3 w-3 text-emerald-400" />
-                  <span>Live Doppler</span>
-                </button>
-                <button
-                  disabled={isSimulating}
-                  onClick={() => handleRunSimulation('historical')}
-                  className="p-2 rounded-xl border border-blue-500/40 bg-blue-950/30 hover:bg-blue-900/40 text-blue-300 text-xs font-semibold flex items-center justify-center space-x-1.5 cursor-pointer transition-all active:scale-95 disabled:opacity-50 shadow-sm"
-                >
-                  <Calendar className="h-3 w-3 text-blue-400" />
-                  <span>Historic Storm</span>
-                </button>
-              </div>
-
+          {isSidebarCollapsed ? (
+            /* Collapsed Sidebar Rail */
+            <div className="flex flex-col items-center space-y-4 pt-2">
+              <button
+                onClick={() => setIsSidebarCollapsed(false)}
+                title="Expand Controls"
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-300 hover:text-cyan-400 hover:bg-slate-800 transition-colors cursor-pointer"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowFloodHeatmap(!showFloodHeatmap)}
+                title="Toggle Flood Depth"
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  showFloodHeatmap ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+              >
+                <Waves className="h-4 w-4" />
+              </button>
+              <button
+                onClick={() => setShowRoadGrid(!showRoadGrid)}
+                title="Toggle Road Grid"
+                className={`p-2 rounded-xl border transition-colors cursor-pointer ${
+                  showRoadGrid ? 'bg-cyan-500/20 border-cyan-500/40 text-cyan-300' : 'bg-slate-900 border-slate-800 text-slate-500'
+                }`}
+              >
+                <Layers className="h-4 w-4" />
+              </button>
               <button
                 onClick={() => setIsSimModalOpen(true)}
-                className="w-full py-2 px-3 rounded-xl border border-slate-700/80 bg-slate-800/50 hover:bg-slate-800 text-slate-200 text-xs font-medium flex items-center justify-between cursor-pointer transition-all group"
+                title="Configure Simulation"
+                className="p-2 rounded-xl bg-slate-900 border border-slate-800 text-slate-400 hover:text-cyan-300 transition-colors cursor-pointer"
               >
-                <span className="flex items-center space-x-1.5">
-                  <Sliders className="h-3.5 w-3.5 text-cyan-400 group-hover:rotate-45 transition-transform" />
-                  <span>Configure Simulation...</span>
-                </span>
-                <ChevronRight className="h-3.5 w-3.5 text-slate-400 group-hover:translate-x-0.5 transition-transform" />
+                <Sliders className="h-4 w-4" />
               </button>
             </div>
-
-            {/* GIS Layers Switcher */}
-            <div>
-              <div className="flex items-center justify-between mb-2.5 text-xs font-mono-num font-bold text-slate-400 tracking-wider">
-                <span className="flex items-center">
-                  <Layers className="h-3.5 w-3.5 mr-1.5 text-cyan-400" />
-                  GIS SPATIAL LAYERS
-                </span>
+          ) : (
+            /* Expanded Sidebar Content */
+            <div className="space-y-4">
+              
+              {/* Header with collapse button */}
+              <div className="flex items-center justify-between pb-1 border-b border-slate-800/80">
+                <span className="text-xs font-mono font-bold text-slate-400 tracking-wider">CONTROLS</span>
+                <button
+                  onClick={() => setIsSidebarCollapsed(true)}
+                  title="Collapse sidebar"
+                  className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-900 transition-colors cursor-pointer"
+                >
+                  <ChevronLeft className="h-3.5 w-3.5" />
+                </button>
               </div>
 
-              <div className="space-y-2">
-                <button
-                  onClick={() => setShowFloodHeatmap(!showFloodHeatmap)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showFloodHeatmap
-                      ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-950'
-                      : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center space-x-2">
-                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                    <span>2D Flood Depth Raster</span>
-                  </span>
-                  {showFloodHeatmap ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
-                <button
-                  onClick={() => setShowRoadGrid(!showRoadGrid)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showRoadGrid
-                      ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-sm shadow-cyan-950'
-                      : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center space-x-2">
-                    <span className="h-2 w-2 rounded-full bg-cyan-400" />
-                    <span>OSM Roads ({roadSummary ? `${roadSummary.total_length_km.toFixed(0)}km` : '102km'})</span>
-                  </span>
-                  {showRoadGrid ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
-                <button
-                  onClick={() => setShowHotspots(!showHotspots)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showHotspots
-                      ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-950'
-                      : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center space-x-2">
-                    <span className="h-2 w-2 rounded-full bg-amber-400 animate-pulse" />
-                    <span>Flood Elevation Hotspots</span>
-                  </span>
-                  {showHotspots ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
-                <button
-                  onClick={() => setShowDrainagePipes(!showDrainagePipes)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showDrainagePipes
-                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
-                      : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center space-x-2">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span>Subterranean Drainage Pipes</span>
-                  </span>
-                  {showDrainagePipes ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
-                <button
-                  onClick={() => setShowDemTerrain(!showDemTerrain)}
-                  className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                    showDemTerrain
-                      ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 shadow-sm shadow-emerald-950'
-                      : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                  }`}
-                >
-                  <span className="flex items-center space-x-2">
-                    <Mountain className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>DEM Terrain Elevation (3D Relief)</span>
-                  </span>
-                  {showDemTerrain ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                </button>
-
+              {/* Active Sector */}
+              {onCityChange && (
                 <div className="space-y-1.5">
-                  <button
-                    onClick={() => setShowTrafficLayer(!showTrafficLayer)}
-                    className={`w-full flex items-center justify-between p-2.5 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
-                      showTrafficLayer
-                        ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 shadow-sm shadow-amber-950'
-                        : 'bg-slate-900/40 border-slate-800 text-slate-500'
-                    }`}
-                  >
-                    <span className="flex items-center space-x-2">
-                      <span className={`h-2 w-2 rounded-full ${showTrafficLayer ? 'bg-amber-400 animate-pulse' : 'bg-slate-500'}`} />
-                      <span>Traffic Flow ({trafficMode === 'peak_monsoon' ? 'Busy Day Simulation' : 'TomTom Live'})</span>
-                    </span>
-                    {showTrafficLayer ? <Eye className="h-3.5 w-3.5" /> : <EyeOff className="h-3.5 w-3.5" />}
-                  </button>
-
-                  {showTrafficLayer && (
-                    <div className="grid grid-cols-2 gap-1 p-1 bg-slate-950/90 rounded-xl border border-slate-800 text-[10px] font-mono-num">
-                      <button
-                        onClick={() => {
-                          setTrafficMode('peak_monsoon');
-                          if (routeResult) triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, 'peak_monsoon');
-                        }}
-                        className={`py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer ${
-                          trafficMode === 'peak_monsoon'
-                            ? 'bg-amber-500/20 text-amber-300 font-bold border border-amber-500/40 shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        🚗 Busy Monsoon
-                      </button>
-                      <button
-                        onClick={() => {
-                          setTrafficMode('live');
-                          if (routeResult) triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, 'live');
-                        }}
-                        className={`py-1 px-1.5 rounded-lg text-center transition-all cursor-pointer ${
-                          trafficMode === 'live'
-                            ? 'bg-cyan-500/20 text-cyan-300 font-bold border border-cyan-500/40 shadow-sm'
-                            : 'text-slate-400 hover:text-slate-200'
-                        }`}
-                      >
-                        📡 TomTom Live
-                      </button>
-                    </div>
-                  )}
-                </div>
-              </div>
-            </div>
-
-            {/* Depth & DEM Legend */}
-            <div className="p-3.5 rounded-2xl bg-slate-900/60 border border-slate-800/80 space-y-3">
-              <div>
-                <span className="text-[11px] font-mono-num font-bold text-slate-400 block mb-1.5">
-                  HYDRODYNAMIC DEPTH ({currentCity.toLowerCase() === 'kolkata' ? '0–9cm Delta Scale' : '0–70cm Urban Scale'})
-                </span>
-                <div className="h-2.5 w-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 via-indigo-500 via-amber-400 to-rose-600 mb-1.5 shadow-inner" />
-                <div className="flex justify-between text-[10px] font-mono-num text-slate-400">
-                  {currentCity.toLowerCase() === 'kolkata' ? (
-                    <>
-                      <span>0cm (Dry)</span>
-                      <span className="text-cyan-300">1.5cm</span>
-                      <span className="text-indigo-400">3.5cm</span>
-                      <span className="text-amber-400">6cm</span>
-                      <span className="text-rose-400">&gt;8cm</span>
-                    </>
-                  ) : (
-                    <>
-                      <span>0.00m</span>
-                      <span className="text-cyan-300">0.08m</span>
-                      <span className="text-indigo-400">0.20m</span>
-                      <span className="text-amber-400">0.35m</span>
-                      <span className="text-rose-400">&gt;0.50m</span>
-                    </>
-                  )}
-                </div>
-              </div>
-
-              {showDemTerrain && (
-                <div className="pt-2 border-t border-slate-800/60">
-                  <span className="text-[11px] font-mono-num font-bold text-emerald-400 flex items-center space-x-1 mb-1.5">
-                    <Mountain className="h-3 w-3" />
-                    <span>DEM HYPSOMETRIC TOPOGRAPHY</span>
-                  </span>
-                  <div className="h-2.5 w-full rounded-full bg-gradient-to-r from-emerald-600 via-lime-500 via-amber-500 via-orange-800 to-slate-100 mb-1.5 shadow-inner" />
-                  <div className="flex justify-between text-[10px] font-mono-num text-slate-400">
-                    <span className="text-emerald-400">Low Basin (&lt;3m)</span>
-                    <span className="text-amber-400">Terrace (5-10m)</span>
-                    <span className="text-slate-200">Ridge (&gt;15m)</span>
+                  <span className="text-[11px] font-mono font-bold text-slate-400 block">ACTIVE SECTOR</span>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    <button
+                      onClick={() => onCityChange('mumbai')}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
+                        currentCity.toLowerCase() === 'mumbai'
+                          ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 ring-1 ring-cyan-500/30'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Mumbai (BKC)
+                    </button>
+                    <button
+                      onClick={() => onCityChange('kolkata')}
+                      className={`py-1.5 px-2 rounded-xl border text-xs font-semibold transition-all text-center cursor-pointer ${
+                        currentCity.toLowerCase() === 'kolkata'
+                          ? 'bg-cyan-500/20 border-cyan-400/60 text-cyan-300 ring-1 ring-cyan-500/30'
+                          : 'bg-slate-900/60 border-slate-800 text-slate-400 hover:text-slate-200'
+                      }`}
+                    >
+                      Kolkata (Bypass)
+                    </button>
                   </div>
                 </div>
               )}
-            </div>
 
-            {/* Transit / Evacuation Profile Selector */}
-            <div>
-              <span className="text-xs font-mono-num font-bold text-slate-400 tracking-wider block mb-2 flex items-center justify-between">
-                <span>TRANSIT CLEARANCE</span>
-                <span className="text-cyan-400 font-normal">Calibrated</span>
-              </span>
-              <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+              {/* Rainfall Source */}
+              <div className="space-y-1.5">
+                <div className="flex items-center justify-between text-[11px] font-mono font-bold text-slate-400">
+                  <span className="flex items-center">
+                    <CloudRain className="h-3.5 w-3.5 mr-1 text-cyan-400" />
+                    RAINFALL
+                  </span>
+                  <span className="text-[10px] text-cyan-400 uppercase font-mono">
+                    {floodOverview?.scenario || 'HEAVY'}
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 gap-1.5">
+                  <button
+                    disabled={isSimulating}
+                    onClick={() => handleRunSimulation('live')}
+                    className="py-1.5 px-2 rounded-xl border border-emerald-500/30 bg-emerald-950/30 hover:bg-emerald-900/40 text-emerald-300 text-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <Radio className="h-3 w-3 text-emerald-400" />
+                    <span>Live Doppler</span>
+                  </button>
+                  <button
+                    disabled={isSimulating}
+                    onClick={() => handleRunSimulation('historical')}
+                    className="py-1.5 px-2 rounded-xl border border-blue-500/30 bg-blue-950/30 hover:bg-blue-900/40 text-blue-300 text-xs font-medium flex items-center justify-center space-x-1 cursor-pointer transition-all active:scale-95 disabled:opacity-50"
+                  >
+                    <Calendar className="h-3 w-3 text-blue-400" />
+                    <span>Historical</span>
+                  </button>
+                </div>
                 <button
-                  onClick={() => setSelectedVehicle('pedestrian')}
-                  className={`py-1.5 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
-                    selectedVehicle === 'pedestrian'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
+                  onClick={() => setIsSimModalOpen(true)}
+                  className="w-full py-1.5 px-2.5 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 text-[11px] font-mono flex items-center justify-between cursor-pointer transition-all group"
                 >
-                  <User className="h-3.5 w-3.5 mx-auto mb-0.5" />
-                  <span>Foot (12cm)</span>
-                </button>
-                <button
-                  onClick={() => setSelectedVehicle('bike')}
-                  className={`py-1.5 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
-                    selectedVehicle === 'bike'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Bike className="h-3.5 w-3.5 mx-auto mb-0.5" />
-                  <span>Bike (18cm)</span>
-                </button>
-                <button
-                  onClick={() => setSelectedVehicle('car')}
-                  className={`py-1.5 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
-                    selectedVehicle === 'car'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Car className="h-3.5 w-3.5 mx-auto mb-0.5" />
-                  <span>Car (30cm)</span>
-                </button>
-                <button
-                  onClick={() => setSelectedVehicle('ambulance')}
-                  className={`py-1.5 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
-                    selectedVehicle === 'ambulance'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Activity className="h-3.5 w-3.5 mx-auto mb-0.5" />
-                  <span>Ambulance</span>
-                </button>
-                <button
-                  onClick={() => setSelectedVehicle('rescue')}
-                  className={`py-1.5 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
-                    selectedVehicle === 'rescue'
-                      ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <Truck className="h-3.5 w-3.5 mx-auto mb-0.5" />
-                  <span>Truck (60cm)</span>
+                  <span className="flex items-center space-x-1.5">
+                    <Sliders className="h-3 w-3 text-cyan-400 group-hover:rotate-45 transition-transform" />
+                    <span>Configure Scenario...</span>
+                  </span>
+                  <ChevronRight className="h-3 w-3 text-slate-500 group-hover:translate-x-0.5 transition-transform" />
                 </button>
               </div>
+
+              {/* Map Layers */}
+              <div className="space-y-1.5">
+                <span className="text-[11px] font-mono font-bold text-slate-400 tracking-wider block">
+                  MAP LAYERS
+                </span>
+
+                <div className="space-y-1">
+                  <button
+                    onClick={() => setShowFloodHeatmap(!showFloodHeatmap)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showFloodHeatmap
+                        ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${showFloodHeatmap ? 'bg-cyan-400' : 'bg-slate-600'}`} />
+                      <span>Flood Depth</span>
+                    </span>
+                    {showFloodHeatmap ? <Eye className="h-3.5 w-3.5 text-cyan-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => setShowRoadGrid(!showRoadGrid)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showRoadGrid
+                        ? 'bg-cyan-950/40 border-cyan-500/40 text-cyan-300 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${showRoadGrid ? 'bg-cyan-400' : 'bg-slate-600'}`} />
+                      <span>Roads ({roadSummary ? `${roadSummary.total_length_km.toFixed(0)}km` : '102km'})</span>
+                    </span>
+                    {showRoadGrid ? <Eye className="h-3.5 w-3.5 text-cyan-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => setShowHotspots(!showHotspots)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showHotspots
+                        ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${showHotspots ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
+                      <span>Hotspots (Clustered)</span>
+                    </span>
+                    {showHotspots ? <Eye className="h-3.5 w-3.5 text-amber-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => setShowDrainagePipes(!showDrainagePipes)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showDrainagePipes
+                        ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${showDrainagePipes ? 'bg-emerald-400' : 'bg-slate-600'}`} />
+                      <span>Drainage Network</span>
+                    </span>
+                    {showDrainagePipes ? <Eye className="h-3.5 w-3.5 text-emerald-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
+                    onClick={() => setShowDemTerrain(!showDemTerrain)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showDemTerrain
+                        ? 'bg-emerald-950/40 border-emerald-500/40 text-emerald-300 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <Mountain className={`h-3 w-3 ${showDemTerrain ? 'text-emerald-400' : 'text-slate-600'}`} />
+                      <span>3D DEM Relief</span>
+                    </span>
+                    {showDemTerrain ? <Eye className="h-3.5 w-3.5 text-emerald-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+                </div>
+              </div>
+
+              {/* Advanced Configuration Accordion */}
+              <div className="pt-2 border-t border-slate-800/80">
+                <button
+                  onClick={() => setIsAdvancedConfigOpen(!isAdvancedConfigOpen)}
+                  className="w-full flex items-center justify-between text-[11px] font-mono text-slate-400 hover:text-slate-200 py-1 transition-colors cursor-pointer"
+                >
+                  <span className="font-bold">ADVANCED SETTINGS</span>
+                  {isAdvancedConfigOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+                </button>
+
+                {isAdvancedConfigOpen && (
+                  <div className="mt-2 space-y-3 animate-in fade-in duration-150">
+                    <div>
+                      <span className="text-[10px] font-mono text-slate-400 block mb-1">
+                        VEHICLE WADING PROFILE
+                      </span>
+                      <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+                        <button
+                          onClick={() => setSelectedVehicle('car')}
+                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'car'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Car
+                        </button>
+                        <button
+                          onClick={() => setSelectedVehicle('ambulance')}
+                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'ambulance'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Amb
+                        </button>
+                        <button
+                          onClick={() => setSelectedVehicle('rescue')}
+                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'rescue'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Rescue
+                        </button>
+                      </div>
+                    </div>
+
+                    {showDemTerrain && (
+                      <div className="p-2 rounded-xl bg-slate-900/50 border border-slate-800/80 space-y-1">
+                        <span className="text-[10px] font-mono text-emerald-400 flex items-center space-x-1">
+                          <Mountain className="h-3 w-3" />
+                          <span>HYPSOMETRIC RELIEF</span>
+                        </span>
+                        <div className="h-1.5 w-full rounded-full bg-gradient-to-r from-emerald-600 via-lime-500 via-amber-500 to-slate-100" />
+                        <div className="flex justify-between text-[9px] font-mono text-slate-400">
+                          <span>Low (&lt;3m)</span>
+                          <span>High (&gt;15m)</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+              </div>
+
             </div>
-
-          </div>
-
-          <div className="pt-4 border-t border-slate-800 text-[11px] font-mono-num text-slate-500">
-            Phase 5: Subterranean Drainage Diagnostics & Live WebSockets
-          </div>
-
-          {/* Vertical Resize Drag Handle */}
-          <div
-            onMouseDown={onLeftDragStart}
-            title="Drag to resize panel width"
-            className="absolute top-0 right-0 w-2.5 h-full cursor-col-resize hover:bg-cyan-500/40 active:bg-cyan-400 transition-colors z-20 group flex items-center justify-center select-none"
-          >
-            <div className="w-0.5 h-10 rounded-full bg-slate-700/80 group-hover:bg-cyan-400 group-active:bg-cyan-300 transition-colors" />
-          </div>
+          )}
         </aside>
 
         {/* Center GIS Viewport: Leaflet Native Map with Flood Raster & Subterranean Network */}
@@ -1198,121 +863,71 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
             originCoords={originCoords}
             destinationCoords={destinationCoords}
-            originName={currentOrigin?.name}
-            destinationName={currentDestination?.name}
+            originName={displayedOriginName}
+            destinationName={displayedDestinationName}
             onDrainageSummaryLoaded={(surcharges) => setSurchargingCount(surcharges)}
             drainageRefreshKey={drainageRefreshKey}
             simulationKey={simulationKey}
-            isNavigating={isNavigating}
-            navLocation={navLocation}
-            navBearing={navBearing}
-            navTraversedCoords={navTraversedCoords}
-            navRemainingCoords={navRemainingCoords}
-            isFollowMode={isFollowMode}
-            onMapUserDrag={() => setIsFollowMode(false)}
-            showTrafficLayer={showTrafficLayer}
-            trafficTileUrl={trafficConfig?.traffic_tile_url}
-            trafficMode={trafficMode}
+            userLocation={userLocation}
+            onMapClick={handleMapClick}
           />
 
-          {/* Active Turn-by-Turn Navigation HUD Overlay */}
-          {isNavigating && (
-            <NavigationHud
-              currentStep={navSteps[navActiveStepIndex] || null}
-              nextStep={navSteps[navActiveStepIndex + 1] || null}
-              distanceToNextTurn_m={distanceToNextTurn}
-              totalRemainingDistance_m={totalRemainingDistance}
-              totalRemainingDuration_s={totalRemainingDuration}
-              isSimulating={isSimPlaying}
-              simProgressPct={simProgressPct}
-              simSpeedMultiplier={simSpeedMultiplier}
-              isVoiceMuted={isVoiceMuted}
-              vehicleType={selectedVehicle}
-              isLiveGps={isLiveGps}
-              hasGpsLock={hasGpsLock}
-              onTogglePlayPause={() => setIsSimPlaying(!isSimPlaying)}
-              onChangeSpeed={(mult) => setSimSpeedMultiplier(mult)}
-              onSeekProgress={(pct) => handleSeekProgress(pct)}
-              onToggleVoice={handleToggleVoice}
-              onRecenterCamera={() => setIsFollowMode(true)}
-              onToggleLiveGps={handleToggleLiveGps}
-              onTriggerOffRouteSim={handleTriggerOffRouteSim}
-              onExitNavigation={handleExitNavigation}
-            />
-          )}
+          {/* Floating Subterranean Drainage Diagnostics HUD Panel */}
+          <DrainagePanel
+            summary={drainageSummary}
+            onUpdateBlockage={handleUpdateBlockage}
+            onResetDrainage={handleResetDrainage}
+            isUpdating={isUpdatingBlockage}
+            isOpen={isDrainagePanelOpen}
+            onToggleOpen={() => setIsDrainagePanelOpen(!isDrainagePanelOpen)}
+            surchargingCount={surchargingCount}
+          />
 
-          {/* Floating Subterranean Drainage Diagnostics HUD Panel (Hidden during navigation) */}
-          {!isNavigating && (
-            <DrainagePanel
-              summary={drainageSummary}
-              onUpdateBlockage={handleUpdateBlockage}
-              onResetDrainage={handleResetDrainage}
-              isUpdating={isUpdatingBlockage}
-              isOpen={isDrainagePanelOpen}
-              onToggleOpen={() => setIsDrainagePanelOpen(!isDrainagePanelOpen)}
-              surchargingCount={surchargingCount}
-            />
-          )}
-
-          {/* Floating Resilient Evacuation Route HUD Panel (Hidden during navigation) */}
-          {!isNavigating && (
-            <RoutePanel
-              landmarks={landmarks}
-              selectedOriginId={selectedOriginId}
-              selectedDestinationId={selectedDestinationId}
-              onSelectOriginId={(id) => { setSelectedOriginId(id); setRouteResult(null); setRouteAlternatives([]); }}
-              onSelectDestinationId={(id) => { setSelectedDestinationId(id); setRouteResult(null); setRouteAlternatives([]); }}
-              selectedVehicle={selectedVehicle}
-              onSelectVehicle={(v) => { setSelectedVehicle(v); setRouteResult(null); setRouteAlternatives([]); }}
-              onCalculateRoute={() => triggerRouteCalculation()}
-              isCalculating={isCalculatingRoute}
-              routeResult={routeResult}
-              alternatives={routeAlternatives}
-              activeRouteIndex={activeRouteIndex}
-              onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
-              isOpen={isRoutePanelOpen}
-              onToggleOpen={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
-              timeHorizon={currentTimeStep}
-              onStartNavigation={handleStartNavigation}
-              trafficMode={trafficMode}
-              onSelectTrafficMode={(mode) => {
-                setTrafficMode(mode);
-                if (routeResult) {
-                  triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, mode);
-                }
-              }}
-            />
+          {/* Floating Resilient Evacuation Route HUD Panel */}
+          <RoutePanel
+            landmarks={landmarksWithMyLocation}
+            selectedOriginId={selectedOriginId}
+            selectedDestinationId={selectedDestinationId}
+            onSelectOriginId={(id) => setSelectedOriginId(id)}
+            onSelectDestinationId={(id) => setSelectedDestinationId(id)}
+            selectedVehicle={selectedVehicle}
+            onSelectVehicle={(v) => setSelectedVehicle(v)}
+            onCalculateRoute={() => triggerRouteCalculation()}
+            isCalculating={isCalculatingRoute}
+            routeResult={routeResult}
+            alternatives={routeAlternatives}
+            activeRouteIndex={activeRouteIndex}
+            onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
+            isOpen={isRoutePanelOpen}
+            onToggleOpen={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
+            timeHorizon={currentTimeStep}
+          />
+          {/* GPS Error / Permission nudge */}
+          {geoError && !userLocation && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-950/90 border border-amber-500/40 text-amber-300 text-xs font-mono-num shadow-xl backdrop-blur-md">
+              <span>⚠️</span>
+              <span>GPS: {geoError} — allow location access for live tracking</span>
+            </div>
           )}
         </main>
 
       </div>
 
-      {/* Bottom Temporal Timeline Scrubber Bar — resizable by dragging the top handle */}
-      <footer
-        style={{ height: footerHeight }}
-        className="relative border-t border-slate-800/80 bg-slate-950/90 backdrop-blur-xl px-4 sm:px-6 flex flex-col justify-center z-20 overflow-hidden transition-none"
+      {/* Bottom Temporal Timeline Bar */}
+      {showTimelineBar ? (
+        <footer
+        className="relative h-[54px] shrink-0 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-xl px-4 flex items-center justify-between z-20 overflow-hidden"
       >
-        {/* ▲ Drag handle — grab and drag up/down to resize */}
-        <div
-          onMouseDown={onFooterDragStart}
-          className="absolute left-0 right-0 top-0 h-1.5 cursor-ns-resize group flex items-center justify-center"
-          title="Drag to resize"
-        >
-          <div className="w-10 h-0.5 rounded-full bg-slate-700 group-hover:bg-cyan-500 transition-colors" />
-        </div>
-
-        {/* Inner row — same layout as before */}
-        <div className="flex flex-wrap items-center justify-between gap-y-2">
-        <div className="flex items-center space-x-3">
+        <div className="flex items-center space-x-2.5">
           <button
             onClick={() => setIsPlaying(!isPlaying)}
-            className={`flex h-10 w-10 items-center justify-center rounded-xl font-bold shadow-lg active:scale-95 transition-all cursor-pointer ${
+            className={`flex h-8 w-8 items-center justify-center rounded-lg font-bold shadow-md active:scale-95 transition-all cursor-pointer ${
               isPlaying 
                 ? 'bg-amber-400 text-slate-950 shadow-amber-400/25 hover:bg-amber-300' 
                 : 'bg-cyan-500 text-slate-950 shadow-cyan-500/25 hover:bg-cyan-400'
             }`}
           >
-            {isPlaying ? <Pause className="h-5 w-5" /> : <Play className="h-5 w-5 ml-0.5" />}
+            {isPlaying ? <Pause className="h-4 w-4" /> : <Play className="h-4 w-4 ml-0.5" />}
           </button>
 
           <button
@@ -1320,25 +935,22 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
               setIsPlaying(false);
               setCurrentTimeStep(0);
             }}
-            className="flex h-10 w-10 items-center justify-center rounded-xl border border-slate-800 bg-slate-900 text-slate-300 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
+            title="Reset to T+0"
+            className="flex h-8 w-8 items-center justify-center rounded-lg border border-slate-800 bg-slate-900 text-slate-400 hover:text-slate-200 hover:bg-slate-800 active:scale-95 transition-all cursor-pointer"
           >
-            <RotateCcw className="h-4 w-4" />
+            <RotateCcw className="h-3.5 w-3.5" />
           </button>
 
-          <div className="flex flex-col ml-2">
-            <span className="text-[10px] font-mono-num text-slate-400 uppercase tracking-wider">
-              FORECAST HORIZON
-            </span>
-            <span className="text-sm font-bold font-mono-num text-white">
-              T+{currentTimeStep}m <span className="text-xs font-normal text-cyan-400">({currentTimeStep * 60}s)</span>
-            </span>
+          <div className="flex items-center space-x-1.5 pl-1 text-xs font-mono">
+            <span className="text-slate-400">Horizon:</span>
+            <span className="font-bold text-cyan-400">T+{currentTimeStep}m</span>
           </div>
         </div>
 
-        {/* Discrete Horizon Step Buttons & Range Slider — scrollable when narrow */}
-        <div className="flex-1 min-w-0 mx-4 sm:mx-8 overflow-x-auto scrollbar-thin scrollbar-track-slate-900 scrollbar-thumb-slate-700">
-          <div className="min-w-[320px] flex flex-col justify-center">
-            <div className="flex justify-between text-[11px] font-mono-num text-slate-400 mb-1.5">
+        {/* Horizon Step Slider & Buttons */}
+        <div className="flex-1 max-w-xl mx-4 sm:mx-8 flex items-center space-x-4">
+          <div className="flex-1 flex flex-col justify-center">
+            <div className="flex justify-between text-[11px] font-mono text-slate-400 mb-1">
               {forecastHorizons.map(h => (
                 <button
                   key={h}
@@ -1350,7 +962,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                     currentTimeStep === h ? 'text-cyan-400 font-bold' : 'hover:text-slate-200'
                   }`}
                 >
-                  T+{h}m
+                  T+{h}
                 </button>
               ))}
             </div>
@@ -1365,19 +977,48 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                 setIsPlaying(false);
                 setCurrentTimeStep(Number(e.target.value));
               }}
-              className="w-full h-2 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+              className="w-full h-1.5 bg-slate-800 rounded-lg appearance-none cursor-pointer accent-cyan-400"
             />
           </div>
         </div>
 
-          {/* Action Info & dBZ Status */}
-          <div className="hidden lg:flex items-center space-x-3 text-xs font-mono-num text-slate-400">
-            <span className="flex h-2 w-2 rounded-full bg-cyan-400 animate-ping" />
-            <span>RADAR dBZ: OPTICAL FLOW SYNC</span>
+        {/* Compact Critical Alerts Area & Hide Button */}
+        <div className="flex items-center space-x-3 text-xs font-mono">
+          <div className="flex items-center space-x-2">
+            <span className="flex items-center space-x-1 text-amber-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span>{currentSummary?.flooded_cells_15cm || 30} caution</span>
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="flex items-center space-x-1 text-rose-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+              <span>{currentSummary?.flooded_cells_30cm || 0} severe</span>
+            </span>
           </div>
 
-        </div>{/* end inner flex-wrap row */}
+          <button
+            onClick={() => setShowTimelineBar(false)}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 text-xs text-cyan-300 hover:text-white transition-all cursor-pointer shadow-sm"
+            title="Hide horizon timeline bar"
+          >
+            <EyeOff className="h-3.5 w-3.5 text-cyan-400" />
+            <span className="font-semibold">Hide Bar</span>
+          </button>
+        </div>
       </footer>
+    ) : (
+      /* Floating restore button when timeline bar is hidden */
+      <div className="fixed bottom-3 right-4 z-30 pointer-events-none">
+        <button
+          onClick={() => setShowTimelineBar(true)}
+          className="pointer-events-auto flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-cyan-500/50 text-xs font-mono text-cyan-300 hover:text-white shadow-2xl backdrop-blur-md transition-all cursor-pointer group"
+          title="Show horizon timeline bar"
+        >
+          <Eye className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+          <span className="font-semibold">Show Horizon Bar (T+{currentTimeStep}m)</span>
+        </button>
+      </div>
+    )}
 
       {/* Simulation & Live / Historic Rainfall Intelligence Modal */}
       {isSimModalOpen && (

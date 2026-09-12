@@ -264,17 +264,13 @@ def get_flood_forecast_grid(minutes: int, city: Optional[str] = Query("mumbai"))
     c = (city or "mumbai").lower().strip()
     if c == "kolkata":
         k_engine, k_grids = get_kolkata_forecast()
-        if minutes not in k_grids:
-            available = sorted(k_grids.keys())
-            raise HTTPException(
-                status_code=404,
-                detail=f"Horizon {minutes} min not found for Kolkata. Available horizons: {available}",
-            )
-        grid = k_grids[minutes]
-        summary = compute_summary(grid, minutes)
+        available = sorted(k_grids.keys())
+        nearest_horizon = min(available, key=lambda h: abs(h - minutes))
+        grid = k_grids[nearest_horizon]
+        summary = compute_summary(grid, nearest_horizon)
         return FloodGridResponse(
             scenario=get_kolkata_scenario(),
-            horizon_minutes=minutes,
+            horizon_minutes=nearest_horizon,
             rows=int(grid.shape[0]),
             cols=int(grid.shape[1]),
             cell_size_m=35.0,
@@ -287,10 +283,10 @@ def get_flood_forecast_grid(minutes: int, city: Optional[str] = Query("mumbai"))
     engine = get_engine()
     if minutes not in engine.forecast_grids:
         available = sorted(engine.forecast_grids.keys())
-        raise HTTPException(
-            status_code=404,
-            detail=f"Horizon {minutes} min not found. Available horizons: {available}",
-        )
+        if minutes < 0 or minutes > max(available):
+            raise HTTPException(status_code=404, detail=f"Forecast horizon {minutes} min not found. Available: {available}")
+        nearest_horizon = min(available, key=lambda h: abs(h - minutes))
+        minutes = nearest_horizon
 
     grid = engine.forecast_grids[minutes]
     summary = compute_summary(grid, minutes)
