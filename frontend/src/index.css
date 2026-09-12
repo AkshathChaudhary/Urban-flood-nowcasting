@@ -25,6 +25,10 @@
   --color-cyan: #06B6D4;
 }
 
+html {
+  scroll-behavior: smooth;
+}
+
 body {
   margin: 0;
   background-color: var(--color-background);

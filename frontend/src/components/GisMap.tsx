@@ -10,7 +10,7 @@ import {
   fetchDrainageEdges
 } from '../services/api';
 import type { RouteResult } from '../services/api';
-import { ZoomIn, ZoomOut, Compass, Layers, Waves, GitBranch, Info, ChevronDown, ChevronUp, Mountain } from 'lucide-react';
+import { ZoomIn, ZoomOut, Compass, Info, Mountain, X } from 'lucide-react';
 
 interface GisMapProps {
   currentCity: string;
@@ -62,6 +62,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   const mapInstanceRef = useRef<L.Map | null>(null);
   const roadsLayerRef = useRef<L.GeoJSON | null>(null);
   const hotspotsLayerRef = useRef<L.LayerGroup | null>(null);
+  const rawHotspotsRef = useRef<Array<{ lat: number; lng: number; z: string; name: string }>>([]);
   const floodRasterLayerRef = useRef<L.ImageOverlay | null>(null);
   const demRasterLayerRef = useRef<L.ImageOverlay | null>(null);
   const boundsRectangleRef = useRef<L.Rectangle | null>(null);
@@ -78,7 +79,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   const [drainagePipeCount, setDrainagePipeCount] = useState<number>(0);
   const [activePeakDepth, setActivePeakDepth] = useState<number>(0);
   const [demMeta, setDemMeta] = useState<{ min: number; max: number; mean: number } | null>(null);
-  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(true);
+  const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false);
 
   const isKolkata = currentCity.toLowerCase() === 'kolkata';
   const centerLat = isKolkata ? 22.5535 : 19.069;
@@ -271,6 +272,117 @@ export const GisMap: React.FC<GisMapProps> = ({
 
     mapInstanceRef.current = map;
 
+    // Clustering handler for hotspots
+    const renderHotspotsClustered = () => {
+      const map = mapInstanceRef.current;
+      if (!map || !hotspotsLayerRef.current) return;
+      hotspotsLayerRef.current.clearLayers();
+      if (!showHotspots || rawHotspotsRef.current.length === 0) return;
+
+      const currentZoom = map.getZoom();
+      // If zoomed in (zoom >= 14), render individual subtle markers
+      if (currentZoom >= 14) {
+        rawHotspotsRef.current.forEach(spot => {
+          const circle = L.circleMarker([spot.lat, spot.lng], {
+            pane: 'hotspotsPane',
+            radius: 5,
+            fillColor: '#F59E0B',
+            color: '#D97706',
+            weight: 1.5,
+            opacity: 0.9,
+            fillOpacity: 0.75,
+          }).bindTooltip(`⚠️ ${spot.name}: ${spot.z}m hotspot`, {
+            direction: 'top',
+            className: 'custom-leaflet-tooltip',
+          });
+          hotspotsLayerRef.current?.addLayer(circle);
+        });
+      } else {
+        // Grid clustering based on zoom level
+        const gridSize = currentZoom <= 12 ? 0.007 : 0.0035;
+        const clusters: Record<string, { latSum: number; lngSum: number; count: number; spots: typeof rawHotspotsRef.current }> = {};
+
+        rawHotspotsRef.current.forEach(spot => {
+          const cellX = Math.floor(spot.lng / gridSize);
+          const cellY = Math.floor(spot.lat / gridSize);
+          const key = `${cellX}_${cellY}`;
+          if (!clusters[key]) {
+            clusters[key] = { latSum: 0, lngSum: 0, count: 0, spots: [] };
+          }
+          clusters[key].latSum += spot.lat;
+          clusters[key].lngSum += spot.lng;
+          clusters[key].count += 1;
+          clusters[key].spots.push(spot);
+        });
+
+        Object.values(clusters).forEach(c => {
+          const avgLat = c.latSum / c.count;
+          const avgLng = c.lngSum / c.count;
+
+          if (c.count === 1) {
+            const spot = c.spots[0];
+            const marker = L.circleMarker([avgLat, avgLng], {
+              pane: 'hotspotsPane',
+              radius: 4,
+              fillColor: '#F59E0B',
+              color: '#D97706',
+              weight: 1.5,
+              opacity: 0.85,
+              fillOpacity: 0.7,
+            }).bindTooltip(`⚠️ ${spot.name}: ${spot.z}m`, {
+              direction: 'top',
+              className: 'custom-leaflet-tooltip',
+            });
+            hotspotsLayerRef.current?.addLayer(marker);
+          } else {
+            const clusterHtml = `
+              <div style="
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                width: 26px;
+                height: 26px;
+                border-radius: 9999px;
+                background: rgba(245, 158, 11, 0.25);
+                border: 1.5px solid #F59E0B;
+                color: #FDE68A;
+                font-family: monospace;
+                font-size: 10px;
+                font-weight: 700;
+                box-shadow: 0 0 8px rgba(245, 158, 11, 0.35);
+                cursor: pointer;
+                backdrop-filter: blur(4px);
+              ">
+                ${c.count}
+              </div>
+            `;
+            const icon = L.divIcon({
+              html: clusterHtml,
+              className: 'custom-hotspot-cluster',
+              iconSize: [26, 26],
+              iconAnchor: [13, 13],
+            });
+
+            const clusterMarker = L.marker([avgLat, avgLng], {
+              icon,
+              pane: 'hotspotsPane',
+            }).bindTooltip(`${c.count} Hotspots (Click to zoom)`, {
+              direction: 'top',
+              className: 'custom-leaflet-tooltip',
+            });
+
+            clusterMarker.on('click', () => {
+              map.setView([avgLat, avgLng], Math.min(16, map.getZoom() + 2), { animate: true });
+            });
+
+            hotspotsLayerRef.current?.addLayer(clusterMarker);
+          }
+        });
+      }
+    };
+
+    map.on('zoomend', renderHotspotsClustered);
+
     // Load vector layers for the active city
     const loadVectors = async () => {
       setIsLoading(true);
@@ -284,13 +396,13 @@ export const GisMap: React.FC<GisMapProps> = ({
             style: (feature: any) => {
               const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
               if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
-                return { color: '#F1F5F9', weight: 3.2, opacity: 0.95 }; // Crisp platinum white
+                return { color: '#94A3B8', weight: 2.2, opacity: 0.65 }; // Subtle crisp highway
               } else if (ht.includes('secondary')) {
-                return { color: '#CBD5E1', weight: 2.2, opacity: 0.85 }; // Bright silver-slate
+                return { color: '#64748B', weight: 1.6, opacity: 0.45 }; // Secondary road
               } else if (ht.includes('tertiary')) {
-                return { color: '#94A3B8', weight: 1.6, opacity: 0.75 }; // Cool gray
+                return { color: '#475569', weight: 1.2, opacity: 0.35 }; // Tertiary road
               }
-              return { color: '#64748B', weight: 1.1, opacity: 0.5 }; // Subtle residential
+              return { color: '#334155', weight: 0.8, opacity: 0.25 }; // Local street
             },
             onEachFeature: (feature: any, layer: any) => {
               const p = feature.properties || {};
@@ -310,7 +422,7 @@ export const GisMap: React.FC<GisMapProps> = ({
 
               layer.on({
                 mouseover: (e: any) => {
-                  e.target.setStyle({ weight: 4.5, opacity: 1.0, color: '#F59E0B' });
+                  e.target.setStyle({ weight: 3.5, opacity: 0.9, color: '#06B6D4' });
                 },
                 mouseout: (e: any) => {
                   roadLayer.resetStyle(e.target);
@@ -324,33 +436,21 @@ export const GisMap: React.FC<GisMapProps> = ({
 
         const hotspotData = await fetchFloodHotspots(currentCity);
         if (hotspotData && mapInstanceRef.current && hotspotsLayerRef.current) {
-          hotspotsLayerRef.current.clearLayers();
-          setHotspotCount(hotspotData.features.length);
+          const items: Array<{ lat: number; lng: number; z: string; name: string }> = [];
           hotspotData.features.forEach((feat) => {
             const coords = feat.geometry?.coordinates;
             if (coords && coords.length >= 2) {
-              const lat = coords[1];
-              const lng = coords[0];
-              const z = feat.properties?.elevation_m?.toFixed(1) || '3.2';
-              const name = feat.properties?.name || 'Depression';
-
-              const circle = L.circleMarker([lat, lng], {
-                pane: 'hotspotsPane',
-                renderer: canvasRenderer,
-                radius: 6,
-                fillColor: '#F59E0B',
-                color: '#EF4444',
-                weight: 2,
-                opacity: 0.9,
-                fillOpacity: 0.65,
-              }).bindTooltip(`⚠️ ${name}: ${z}m elevation hotspot`, {
-                direction: 'top',
-                className: 'custom-leaflet-tooltip',
+              items.push({
+                lat: coords[1],
+                lng: coords[0],
+                z: feat.properties?.elevation_m?.toFixed(1) || '3.2',
+                name: feat.properties?.name || 'Depression',
               });
-
-              hotspotsLayerRef.current?.addLayer(circle);
             }
           });
+          rawHotspotsRef.current = items;
+          setHotspotCount(items.length);
+          renderHotspotsClustered();
         }
 
         // Subterranean Drainage Network (Conduits & Key Hydraulic Nodes)
@@ -1340,76 +1440,108 @@ export const GisMap: React.FC<GisMapProps> = ({
         </div>
       )}
 
-      {/* HUD GIS Status Overlay (Top Left) */}
+      {/* Consolidated Mission-Control Status Card (Top Left) */}
       {!isLoading && (
-        <div className="absolute top-4 left-4 z-20 flex flex-col space-y-2 pointer-events-none">
-          <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-slate-800 text-xs font-mono-num text-slate-200 backdrop-blur-md shadow-lg pointer-events-auto">
-            <Layers className="h-3.5 w-3.5 text-cyan-400" />
-            <span className="font-bold text-cyan-300">{currentCity.toUpperCase()}:</span>
-            <span>{roadCount > 0 ? `${roadCount} ROADS` : '102.2 km'}</span>
-            <span className="text-slate-500">|</span>
-            <span className="text-amber-400 font-bold">{hotspotCount} HOTSPOTS</span>
+        <div className="absolute top-4 left-4 z-20 pointer-events-auto">
+          <div className="rounded-2xl bg-slate-950/85 border border-slate-800/90 shadow-xl backdrop-blur-md px-3.5 py-2.5 flex items-center space-x-3 text-xs">
+            <span className="h-2 w-2 rounded-full bg-cyan-400 animate-pulse shadow-[0_0_6px_#22d3ee]" />
+            <div className="flex flex-col">
+              <div className="flex items-center space-x-1.5 font-bold tracking-wide text-slate-200">
+                <span className="uppercase text-cyan-400 font-semibold">{currentCity}</span>
+                <span className="text-slate-600">·</span>
+                <span className="font-mono text-slate-300">{roadCount} roads</span>
+                <span className="text-slate-600">·</span>
+                <span className="font-mono text-amber-400">{hotspotCount} hotspots</span>
+              </div>
+              <div className="flex items-center space-x-1.5 text-[11px] text-slate-400 font-mono mt-0.5">
+                <span>Forecast +{currentTimeStep}m</span>
+                <span className="text-slate-600">·</span>
+                <span>Peak depth <strong className={activePeakDepth > 0.3 ? 'text-rose-400' : activePeakDepth > 0.15 ? 'text-amber-400' : 'text-cyan-300'}>{activePeakDepth.toFixed(2)}m</strong></span>
+                {showDrainagePipes && (
+                  <>
+                    <span className="text-slate-600">·</span>
+                    <span className="text-emerald-400">{drainagePipeCount} pipes</span>
+                  </>
+                )}
+              </div>
+            </div>
           </div>
-
-          {showDrainagePipes && (
-            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-emerald-500/40 text-xs font-mono-num text-slate-200 backdrop-blur-md shadow-lg pointer-events-auto">
-              <GitBranch className="h-3.5 w-3.5 text-emerald-400" />
-              <span>DRAINAGE:</span>
-              <span className="text-emerald-300 font-bold">{drainagePipeCount > 0 ? `${drainagePipeCount} PIPES` : '1,316 CONDUITS'}</span>
-              <span className="text-slate-500">|</span>
-              <span className="text-cyan-300">MANNING NETWORK</span>
-            </div>
-          )}
-
-          {showFloodHeatmap && (
-            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-slate-950/85 border border-cyan-500/40 text-xs font-mono-num text-slate-200 backdrop-blur-md shadow-lg pointer-events-auto">
-              <Waves className="h-3.5 w-3.5 text-cyan-400" />
-              <span>FORECAST HORIZON:</span>
-              <span className="text-cyan-300 font-bold">T+{currentTimeStep}m</span>
-              <span className="text-slate-500">|</span>
-              <span>PEAK DEPTH:</span>
-              <span className={`font-bold ${activePeakDepth > 0.3 ? 'text-red-400' : activePeakDepth > 0.15 ? 'text-amber-400' : 'text-cyan-300'}`}>
-                {activePeakDepth.toFixed(2)}m
-              </span>
-            </div>
-          )}
         </div>
       )}
 
-      {/* Floating MAP LEGEND & GUIDE Card (Bottom Left) */}
-      <div className="absolute bottom-6 left-4 z-20 max-w-xs transition-all">
-        <div className="rounded-2xl bg-slate-950/90 border border-slate-800 shadow-2xl backdrop-blur-xl overflow-hidden">
-          <button 
-            onClick={() => setIsLegendOpen(!isLegendOpen)}
-            className="w-full px-3.5 py-2 flex items-center justify-between text-xs font-mono-num font-bold text-slate-300 hover:text-white bg-slate-900/60 transition-colors cursor-pointer"
-          >
-            <div className="flex items-center space-x-2">
-              <Info className="h-3.5 w-3.5 text-cyan-400" />
-              <span>MAP LEGEND & GUIDE</span>
+      {/* Floating MAP LEGEND Button & Popover (Bottom Left) */}
+      <div className="absolute bottom-6 left-4 z-20 transition-all">
+        {isLegendOpen && (
+          <div className="mb-2 rounded-2xl bg-slate-950/92 border border-slate-800 shadow-2xl backdrop-blur-xl p-3.5 space-y-2.5 text-[11px] font-mono-num text-slate-300 w-72 max-h-80 overflow-y-auto animate-in fade-in slide-in-from-bottom-2 duration-150">
+            <div className="flex items-center justify-between pb-2 border-b border-slate-800/80 text-xs font-bold text-white">
+              <span className="flex items-center space-x-1.5 text-cyan-400">
+                <Info className="h-3.5 w-3.5" />
+                <span>MAP SYMBOLOGY</span>
+              </span>
+              <button
+                onClick={() => setIsLegendOpen(false)}
+                className="text-slate-400 hover:text-white p-0.5 cursor-pointer"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
             </div>
-            {isLegendOpen ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronUp className="h-3.5 w-3.5" />}
-          </button>
 
-          {isLegendOpen && (
-            <div className="p-3.5 space-y-2.5 text-[11px] font-mono-num text-slate-300 border-t border-slate-800/80 max-h-64 overflow-y-auto">
-              {/* Waypoints */}
-              <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <span className="h-3.5 w-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-[8px] font-bold text-black">A</span>
-                  <span>Origin Waypoint</span>
-                </span>
-                <span className="text-emerald-400 font-bold">Point A</span>
+            {/* Waypoints */}
+            <div className="flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <span className="h-3.5 w-3.5 rounded-full bg-emerald-500 border border-white flex items-center justify-center text-[8px] font-bold text-black">A</span>
+                <span>Origin Waypoint</span>
+              </span>
+              <span className="text-emerald-400 font-bold">Point A</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <span className="h-3.5 w-3.5 rounded-full bg-red-500 border border-white flex items-center justify-center text-[8px] font-bold text-white">B</span>
+                <span>Destination Waypoint</span>
+              </span>
+              <span className="text-red-400 font-bold">Point B</span>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* Routes */}
+            <div className="flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <span className="h-1.5 w-5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
+                <span>★ Safest Route</span>
+              </span>
+              <span className="text-emerald-300 font-semibold">Emerald</span>
+            </div>
+
+            <div className="flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <span className="h-1 w-5 border-b-2 border-dashed border-amber-400" />
+                <span>Alternative Detour</span>
+              </span>
+              <span className="text-amber-400 font-semibold text-[10px]">Ghost line</span>
+            </div>
+
+            <div className="h-px bg-slate-800" />
+
+            {/* Hydrodynamic Flood Depth Continuous Scale */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between text-[10px] text-slate-400">
+                <span className="uppercase tracking-wider font-bold text-cyan-400">Hydrodynamic Depth (m)</span>
+                <span className="text-slate-500 font-mono">Bilinear Raster</span>
               </div>
-
-              <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <span className="h-3.5 w-3.5 rounded-full bg-red-500 border border-white flex items-center justify-center text-[8px] font-bold text-white">B</span>
-                  <span>Destination Waypoint</span>
-                </span>
-                <span className="text-red-400 font-bold">Point B</span>
+              <div className="h-2 w-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 via-amber-400 via-red-500 to-fuchsia-600 shadow-inner" />
+              <div className="flex items-center justify-between text-[9px] font-mono-num text-slate-400">
+                <span>&lt;8cm (Shallow)</span>
+                <span className="text-amber-400">15-30cm (Caution)</span>
+                <span className="text-red-400">&gt;30cm (Severe)</span>
+                <span className="text-fuchsia-400">&gt;50cm</span>
               </div>
+            </div>
 
-              {userLocation && (
+            {userLocation && (
+              <>
+                <div className="h-px bg-slate-800" />
                 <div className="flex items-center justify-between">
                   <span className="flex items-center space-x-2">
                     <span className="h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-white shadow-[0_0_6px_#3B82F6]" />
@@ -1417,89 +1549,67 @@ export const GisMap: React.FC<GisMapProps> = ({
                   </span>
                   <span className="text-blue-400 font-bold animate-pulse">GPS LIVE</span>
                 </div>
-              )}
+              </>
+            )}
 
-              <div className="h-px bg-slate-800" />
-
-              {/* Routes */}
-              <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <span className="h-1.5 w-5 rounded-full bg-emerald-400 shadow-[0_0_6px_#34d399]" />
-                  <span>★ Safest Route (Recommended)</span>
-                </span>
-                <span className="text-emerald-300 font-semibold">Emerald Solid</span>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <span className="h-1 w-5 border-b-2 border-dashed border-amber-400" />
-                  <span>Alternative Detour</span>
-                </span>
-                <span className="text-amber-400 font-semibold text-[10px]">Active Click Highlight / Subtle Ghost</span>
-              </div>
-
-              <div className="h-px bg-slate-800" />
-
-              {/* Hydrodynamic Flood Depth Continuous Scale */}
-              <div className="space-y-1.5">
-                <div className="flex items-center justify-between text-[10px] text-slate-400">
-                  <span className="uppercase tracking-wider font-bold text-cyan-400">Hydrodynamic Depth (m)</span>
-                  <span className="text-slate-500 font-mono">Bilinear Raster</span>
-                </div>
-                <div className="h-2 w-full rounded-full bg-gradient-to-r from-cyan-400 via-sky-500 via-amber-400 via-red-500 to-fuchsia-600 shadow-inner" />
-                <div className="flex items-center justify-between text-[9px] font-mono-num text-slate-400">
-                  <span>&lt;8cm (Shallow)</span>
-                  <span className="text-amber-400">15-30cm (Caution)</span>
-                  <span className="text-red-400">&gt;30cm (Severe)</span>
-                  <span className="text-fuchsia-400">&gt;50cm</span>
-                </div>
-              </div>
-
-              {/* DEM Elevation Scale (Shown when DEM is active) */}
-              {showDemTerrain && (
-                <>
-                  <div className="h-px bg-slate-800" />
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between text-[10px] text-slate-400">
-                      <span className="uppercase tracking-wider font-bold text-emerald-400 flex items-center space-x-1">
-                        <Mountain className="h-3 w-3" />
-                        <span>DEM Elevation (ASL)</span>
-                      </span>
-                      <span className="text-emerald-400/80 font-mono text-[9px]">
-                        {demMeta ? `${demMeta.min.toFixed(1)}m – ${demMeta.max.toFixed(1)}m` : '3D Topo'}
-                      </span>
-                    </div>
-                    <div className="h-2 w-full rounded-full bg-gradient-to-r from-emerald-600 via-lime-500 via-amber-500 via-orange-800 to-slate-100 shadow-inner" />
-                    <div className="flex items-center justify-between text-[9px] font-mono-num text-slate-400">
-                      <span className="text-emerald-400">Low Basin (&lt;3m)</span>
-                      <span className="text-amber-400">Terrace (5-10m)</span>
-                      <span className="text-slate-200">Ridge (&gt;15m)</span>
-                    </div>
+            {/* DEM Elevation Scale (Shown when DEM is active) */}
+            {showDemTerrain && (
+              <>
+                <div className="h-px bg-slate-800" />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="uppercase tracking-wider font-bold text-emerald-400 flex items-center space-x-1">
+                      <Mountain className="h-3 w-3" />
+                      <span>DEM Elevation (ASL)</span>
+                    </span>
+                    <span className="text-emerald-400/80 font-mono text-[9px]">
+                      {demMeta ? `${demMeta.min.toFixed(1)}m – ${demMeta.max.toFixed(1)}m` : '3D Topo'}
+                    </span>
                   </div>
-                </>
-              )}
+                  <div className="h-2 w-full rounded-full bg-gradient-to-r from-emerald-600 via-lime-500 via-amber-500 via-orange-800 to-slate-100 shadow-inner" />
+                  <div className="flex items-center justify-between text-[9px] font-mono-num text-slate-400">
+                    <span className="text-emerald-400">Low (&lt;3m)</span>
+                    <span className="text-amber-400">Terrace (5-10m)</span>
+                    <span className="text-slate-200">Ridge (&gt;15m)</span>
+                  </div>
+                </div>
+              </>
+            )}
 
-              <div className="h-px bg-slate-800" />
+            <div className="h-px bg-slate-800" />
 
-              {/* Hotspots and Subterranean Drainage */}
-              <div className="flex items-center justify-between">
-                <span className="flex items-center space-x-2">
-                  <span className="h-2.5 w-2.5 rounded-full bg-amber-500 border border-red-500" />
-                  <span>Depression Hotspot</span>
-                </span>
-                <span className="text-amber-400">Low Terrain</span>
-              </div>
+            {/* Hotspots and Subterranean Drainage */}
+            <div className="flex items-center justify-between">
+              <span className="flex items-center space-x-2">
+                <span className="h-2.5 w-2.5 rounded-full bg-amber-500 border border-amber-600" />
+                <span>Elevation Hotspots</span>
+              </span>
+              <span className="text-amber-400 text-[10px]">Clustered</span>
+            </div>
 
+            {showDrainagePipes && (
               <div className="flex items-center justify-between">
                 <span className="flex items-center space-x-2">
                   <span className="h-1 w-5 border-b-2 border-dotted border-emerald-500" />
-                  <span>Drainage Pipes (Subterranean)</span>
+                  <span>Drainage Conduits</span>
                 </span>
-                <span className="text-emerald-400 font-mono text-[10px]">{showDrainagePipes ? 'VISIBLE' : 'HIDDEN (Toggle)'}</span>
+                <span className="text-emerald-400 font-mono text-[10px]">Active</span>
               </div>
-            </div>
-          )}
-        </div>
+            )}
+          </div>
+        )}
+
+        <button
+          onClick={() => setIsLegendOpen(!isLegendOpen)}
+          className={`flex items-center space-x-2 px-3 py-1.5 rounded-xl border text-xs font-mono font-semibold backdrop-blur-md shadow-lg transition-all cursor-pointer ${
+            isLegendOpen
+              ? 'bg-cyan-950/80 border-cyan-500/50 text-cyan-300 shadow-cyan-950/50'
+              : 'bg-slate-950/85 border-slate-800/90 text-slate-300 hover:text-white hover:border-slate-700'
+          }`}
+        >
+          <Info className="h-3.5 w-3.5 text-cyan-400" />
+          <span>Legend</span>
+        </button>
       </div>
 
 
