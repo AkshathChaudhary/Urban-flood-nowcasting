@@ -68,6 +68,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   const drainagePipesLayerRef = useRef<L.GeoJSON | null>(null);
   const drainageNodesLayerRef = useRef<L.LayerGroup | null>(null);
   const inspectMarkerRef = useRef<L.CircleMarker | null>(null);
+  const renderHotspotsClusteredRef = useRef<() => void>(() => {});
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [roadCount, setRoadCount] = useState<number>(0);
@@ -172,7 +173,8 @@ export const GisMap: React.FC<GisMapProps> = ({
     boundsRectangleRef.current = rect;
 
     // Hotspot Layer Group
-    const hotspotsGroup = L.layerGroup().addTo(map);
+    const hotspotsGroup = L.layerGroup();
+    if (showHotspots) hotspotsGroup.addTo(map);
     hotspotsLayerRef.current = hotspotsGroup;
 
     // Waypoints Layer Group (Always active on top)
@@ -371,6 +373,7 @@ export const GisMap: React.FC<GisMapProps> = ({
       }
     };
 
+    renderHotspotsClusteredRef.current = renderHotspotsClustered;
     map.on('zoomend', renderHotspotsClustered);
 
     // Load vector layers for the active city
@@ -975,6 +978,7 @@ export const GisMap: React.FC<GisMapProps> = ({
       if (!mapInstanceRef.current.hasLayer(hotspotsLayerRef.current)) {
         mapInstanceRef.current.addLayer(hotspotsLayerRef.current);
       }
+      renderHotspotsClusteredRef.current();
     } else {
       if (mapInstanceRef.current.hasLayer(hotspotsLayerRef.current)) {
         mapInstanceRef.current.removeLayer(hotspotsLayerRef.current);

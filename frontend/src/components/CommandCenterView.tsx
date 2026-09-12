@@ -55,10 +55,10 @@ interface CommandCenterViewProps {
 export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCity, onCityChange }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTimeStep, setCurrentTimeStep] = useState<number>(60); // default to T+60m
-  const [showFloodHeatmap, setShowFloodHeatmap] = useState<boolean>(true);
-  const [showDrainagePipes, setShowDrainagePipes] = useState<boolean>(false); // default OFF to avoid cluttered green lines
-  const [showRoadGrid, setShowRoadGrid] = useState<boolean>(true);
-  const [showHotspots, setShowHotspots] = useState<boolean>(true);
+  const [showFloodHeatmap, setShowFloodHeatmap] = useState<boolean>(false);
+  const [showDrainagePipes, setShowDrainagePipes] = useState<boolean>(false);
+  const [showRoadGrid, setShowRoadGrid] = useState<boolean>(false);
+  const [showHotspots, setShowHotspots] = useState<boolean>(false);
   const [showDemTerrain, setShowDemTerrain] = useState<boolean>(false);
   const [selectedVehicle, setSelectedVehicle] = useState<'car' | 'ambulance' | 'rescue'>('ambulance');
   
