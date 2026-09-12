@@ -9,8 +9,18 @@ Orchestrates all three subsystem layers:
 """
 
 from contextlib import asynccontextmanager
+import os
+from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from dotenv import load_dotenv
+
+# Load .env file from project root or backend folder
+env_path = Path(__file__).resolve().parents[2] / ".env"
+if env_path.exists():
+    load_dotenv(dotenv_path=env_path)
+else:
+    load_dotenv()
 
 from backend.app.api.flood import router as flood_router
 from backend.app.api.rainfall import router as rainfall_router

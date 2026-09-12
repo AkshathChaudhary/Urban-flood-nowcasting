@@ -10,9 +10,14 @@ import {
   ChevronDown,
   X,
   ShieldCheck,
-  GitFork
+  GitFork,
+  User,
+  Bike,
+  Info
 } from 'lucide-react';
 import type { Landmark, RouteResult } from '../services/api';
+
+export type TransportMode = 'pedestrian' | 'bike' | 'car' | 'ambulance' | 'rescue';
 
 interface RoutePanelProps {
   landmarks: Landmark[];
@@ -20,8 +25,8 @@ interface RoutePanelProps {
   selectedDestinationId: string;
   onSelectOriginId: (id: string) => void;
   onSelectDestinationId: (id: string) => void;
-  selectedVehicle: 'car' | 'ambulance' | 'rescue';
-  onSelectVehicle: (v: 'car' | 'ambulance' | 'rescue') => void;
+  selectedVehicle: TransportMode;
+  onSelectVehicle: (v: TransportMode) => void;
   onCalculateRoute: () => void;
   isCalculating: boolean;
   routeResult: RouteResult | null;
@@ -31,6 +36,9 @@ interface RoutePanelProps {
   isOpen: boolean;
   onToggleOpen: () => void;
   timeHorizon: number;
+  onStartNavigation?: () => void;
+  trafficMode?: 'peak_monsoon' | 'live';
+  onSelectTrafficMode?: (mode: 'peak_monsoon' | 'live') => void;
 }
 
 export const RoutePanel: React.FC<RoutePanelProps> = ({
@@ -50,6 +58,9 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
   isOpen,
   onToggleOpen,
   timeHorizon,
+  onStartNavigation,
+  trafficMode = 'peak_monsoon',
+  onSelectTrafficMode,
 }) => {
   if (!isOpen) {
     return (
@@ -147,15 +158,40 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
         </div>
       </div>
 
-      {/* Vehicle Profile Selection */}
+      {/* Vehicle / Transit Profile Selection */}
       <div className="mb-4">
-        <span className="text-[11px] font-mono-num font-bold text-slate-400 block mb-1.5">
-          VEHICLE WADING CLEARANCE TOLERANCE
+        <span className="text-[11px] font-mono-num font-bold text-slate-400 block mb-1.5 flex items-center justify-between">
+          <span>TRANSPORT CLEARANCE TOLERANCE</span>
+          <span className="text-cyan-400 font-normal">Hydrodynamic calibrated</span>
         </span>
-        <div className="grid grid-cols-3 gap-1.5 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+        <div className="grid grid-cols-5 gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
+          <button
+            onClick={() => onSelectVehicle('pedestrian')}
+            className={`py-1.5 text-center text-[10px] rounded-lg transition-all cursor-pointer ${
+              selectedVehicle === 'pedestrian'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <User className="h-3.5 w-3.5 mx-auto mb-0.5" />
+            <span>Foot (12cm)</span>
+          </button>
+
+          <button
+            onClick={() => onSelectVehicle('bike')}
+            className={`py-1.5 text-center text-[10px] rounded-lg transition-all cursor-pointer ${
+              selectedVehicle === 'bike'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <Bike className="h-3.5 w-3.5 mx-auto mb-0.5" />
+            <span>Bike (18cm)</span>
+          </button>
+
           <button
             onClick={() => onSelectVehicle('car')}
-            className={`py-1.5 text-center text-xs rounded-lg transition-all cursor-pointer ${
+            className={`py-1.5 text-center text-[10px] rounded-lg transition-all cursor-pointer ${
               selectedVehicle === 'car'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
@@ -167,7 +203,7 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
 
           <button
             onClick={() => onSelectVehicle('ambulance')}
-            className={`py-1.5 text-center text-xs rounded-lg transition-all cursor-pointer ${
+            className={`py-1.5 text-center text-[10px] rounded-lg transition-all cursor-pointer ${
               selectedVehicle === 'ambulance'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
@@ -179,7 +215,7 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
 
           <button
             onClick={() => onSelectVehicle('rescue')}
-            className={`py-1.5 text-center text-xs rounded-lg transition-all cursor-pointer ${
+            className={`py-1.5 text-center text-[10px] rounded-lg transition-all cursor-pointer ${
               selectedVehicle === 'rescue'
                 ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                 : 'text-slate-400 hover:text-slate-200'
@@ -188,6 +224,58 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
             <Truck className="h-3.5 w-3.5 mx-auto mb-0.5" />
             <span>Truck (60cm)</span>
           </button>
+        </div>
+      </div>
+
+      {/* Traffic Congestion Condition Selector */}
+      <div className="mb-4 p-3 rounded-2xl bg-slate-900/80 border border-slate-800 space-y-2">
+        <div className="flex items-center justify-between text-[11px] font-mono-num font-bold text-slate-300">
+          <span className="flex items-center space-x-1.5">
+            <span className={`h-2 w-2 rounded-full ${trafficMode === 'peak_monsoon' ? 'bg-amber-400 animate-pulse' : 'bg-cyan-400'}`} />
+            <span>TRAFFIC CONGESTION PROFILE</span>
+          </span>
+          <span className="text-[10px] text-amber-400 font-normal">Multi-Modal</span>
+        </div>
+
+        <div className="grid grid-cols-2 gap-1.5 p-1 bg-slate-950/80 rounded-xl border border-slate-800/80 text-xs">
+          <button
+            onClick={() => onSelectTrafficMode && onSelectTrafficMode('peak_monsoon')}
+            className={`py-2 px-2 rounded-lg flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+              trafficMode === 'peak_monsoon'
+                ? 'bg-amber-500/20 text-amber-300 border border-amber-500/50 font-bold shadow-md shadow-amber-950/50'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1 mb-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-red-400" />
+              <span className="text-[11px]">Busy Day Peak</span>
+            </div>
+            <span className="text-[9px] text-amber-400/90 font-mono">Monsoon Bottlenecks</span>
+          </button>
+
+          <button
+            onClick={() => onSelectTrafficMode && onSelectTrafficMode('live')}
+            className={`py-2 px-2 rounded-lg flex flex-col items-center justify-center text-center transition-all cursor-pointer ${
+              trafficMode === 'live'
+                ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/50 font-bold shadow-md shadow-cyan-950/50'
+                : 'text-slate-400 hover:text-slate-200'
+            }`}
+          >
+            <div className="flex items-center space-x-1 mb-0.5">
+              <span className="h-1.5 w-1.5 rounded-full bg-cyan-400" />
+              <span className="text-[11px]">Live Real-Time</span>
+            </div>
+            <span className="text-[9px] text-cyan-400/90 font-mono">TomTom Live API</span>
+          </button>
+        </div>
+
+        <div className="text-[10px] text-slate-400 flex items-start space-x-1.5 pt-0.5">
+          <Info className="h-3 w-3 text-amber-400 shrink-0 mt-0.5" />
+          <span>
+            {trafficMode === 'peak_monsoon'
+              ? 'Simulating heavy monsoon gridlock on Kurla Station, LBS Marg & CST Rd to showcase dynamic flood + traffic evasion.'
+              : 'Directly querying minute-by-minute live satellite traffic flow speeds via TomTom API.'}
+          </span>
         </div>
       </div>
 
@@ -300,6 +388,11 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
               <div className="text-base font-bold text-white mt-0.5">
                 {currentDisplayedRoute.travel_time_min.toFixed(1)} <span className="text-xs font-normal text-slate-400">min</span>
               </div>
+              {currentDisplayedRoute.traffic_delay_min !== undefined && currentDisplayedRoute.traffic_delay_min > 0.1 && (
+                <div className="text-[10px] text-amber-400 font-semibold mt-0.5">
+                  +{currentDisplayedRoute.traffic_delay_min.toFixed(1)}m traffic delay
+                </div>
+              )}
             </div>
 
             <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-850">
@@ -310,6 +403,17 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
               <div className="text-base font-bold text-white mt-0.5">
                 {(currentDisplayedRoute.distance_m / 1000).toFixed(2)} <span className="text-xs font-normal text-slate-400">km</span>
               </div>
+              {currentDisplayedRoute.traffic_status && (
+                <div className={`text-[10px] font-semibold mt-0.5 ${
+                  currentDisplayedRoute.traffic_status === 'FREE_FLOW' 
+                    ? 'text-emerald-400' 
+                    : currentDisplayedRoute.traffic_status === 'MODERATE' 
+                    ? 'text-amber-400' 
+                    : 'text-rose-400'
+                }`}>
+                  {currentDisplayedRoute.traffic_status.replace('_', ' ')}
+                </div>
+              )}
             </div>
 
             <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-850">
@@ -344,6 +448,19 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
               ? 'This route is strongly suggested as it has the lowest cumulative flood depth risk across all known road links.' 
               : 'This is a secondary detour corridor. Use caution in low-elevation depressions.'}
           </div>
+
+          {/* 🚀 START TURN-BY-TURN HUD NAVIGATION BUTTON */}
+          {onStartNavigation && (
+            <div className="sticky bottom-0 pt-2 bg-gradient-to-t from-slate-950 via-slate-950/90 to-transparent">
+              <button
+                onClick={onStartNavigation}
+                className="w-full flex items-center justify-center space-x-2 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-cyan-500 to-blue-600 text-white font-black text-xs tracking-wider uppercase shadow-xl shadow-cyan-500/30 hover:brightness-110 active:scale-95 transition-all cursor-pointer ring-1 ring-white/30"
+              >
+                <Navigation className="h-4 w-4 fill-white" />
+                <span>START LIVE TURN-BY-TURN HUD</span>
+              </button>
+            </div>
+          )}
         </div>
       )}
 

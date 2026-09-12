@@ -7,7 +7,8 @@ import {
   fetchDemGrid,
   queryPointDepth,
   fetchDrainageNodes,
-  fetchDrainageEdges
+  fetchDrainageEdges,
+  fetchTrafficOverlay
 } from '../services/api';
 import type { RouteResult } from '../services/api';
 import { ZoomIn, ZoomOut, Compass, Layers, Waves, GitBranch, Info, ChevronDown, ChevronUp, Mountain } from 'lucide-react';
@@ -32,6 +33,16 @@ interface GisMapProps {
   onDrainageSummaryLoaded?: (surchargingCount: number) => void;
   drainageRefreshKey?: number;
   simulationKey?: number;
+  isNavigating?: boolean;
+  navLocation?: [number, number] | null;
+  navBearing?: number;
+  navTraversedCoords?: [number, number][];
+  navRemainingCoords?: [number, number][];
+  isFollowMode?: boolean;
+  onMapUserDrag?: () => void;
+  showTrafficLayer?: boolean;
+  trafficTileUrl?: string | null;
+  trafficMode?: 'peak_monsoon' | 'live';
 }
 
 export const GisMap: React.FC<GisMapProps> = ({
@@ -54,6 +65,16 @@ export const GisMap: React.FC<GisMapProps> = ({
   onDrainageSummaryLoaded,
   drainageRefreshKey = 0,
   simulationKey = 0,
+  isNavigating = false,
+  navLocation,
+  navBearing = 0,
+  navTraversedCoords = [],
+  navRemainingCoords = [],
+  isFollowMode = true,
+  onMapUserDrag,
+  showTrafficLayer = false,
+  trafficTileUrl,
+  trafficMode = 'peak_monsoon',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -63,10 +84,14 @@ export const GisMap: React.FC<GisMapProps> = ({
   const demRasterLayerRef = useRef<L.ImageOverlay | null>(null);
   const boundsRectangleRef = useRef<L.Rectangle | null>(null);
   const routeLayerRef = useRef<L.LayerGroup | null>(null);
+  const navLayerRef = useRef<L.LayerGroup | null>(null);
   const waypointsLayerRef = useRef<L.LayerGroup | null>(null);
   const drainagePipesLayerRef = useRef<L.GeoJSON | null>(null);
   const drainageNodesLayerRef = useRef<L.LayerGroup | null>(null);
+  const trafficTileLayerRef = useRef<L.TileLayer | null>(null);
+  const trafficVectorLayerRef = useRef<L.GeoJSON | null>(null);
   const inspectMarkerRef = useRef<L.CircleMarker | null>(null);
+  const prevNavigatingRef = useRef<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [roadCount, setRoadCount] = useState<number>(0);
@@ -133,6 +158,10 @@ export const GisMap: React.FC<GisMapProps> = ({
     map.createPane('roadsPane');
     map.getPane('roadsPane')!.style.zIndex = '450';
 
+    // TomTom Live Traffic Raster Flow Pane: Sits directly above roads
+    map.createPane('trafficPane');
+    map.getPane('trafficPane')!.style.zIndex = '460';
+
     map.createPane('hotspotsPane');
     map.getPane('hotspotsPane')!.style.zIndex = '480';
 
@@ -141,6 +170,10 @@ export const GisMap: React.FC<GisMapProps> = ({
 
     map.createPane('waypointsPane');
     map.getPane('waypointsPane')!.style.zIndex = '550';
+
+    // Navigation pane: Sits above routes and waypoints for the vehicle blue dot & navigation path
+    map.createPane('navPane');
+    map.getPane('navPane')!.style.zIndex = '620';
 
     // Labels pane — sits above ALL data layers so place names are always visible
     map.createPane('labelsPane');
@@ -181,6 +214,15 @@ export const GisMap: React.FC<GisMapProps> = ({
     // Route Layer Group
     const routesGroup = L.layerGroup().addTo(map);
     routeLayerRef.current = routesGroup;
+
+    // Navigation Dynamic HUD Layer Group
+    const navGroup = L.layerGroup().addTo(map);
+    navLayerRef.current = navGroup;
+
+    // Notify parent if user manually pans/drags map (to unlock follow mode)
+    map.on('dragstart', () => {
+      if (onMapUserDrag) onMapUserDrag();
+    });
 
     // Interactive Click Point Depth Inspection
     map.on('click', async (e: L.LeafletMouseEvent) => {
@@ -261,11 +303,14 @@ export const GisMap: React.FC<GisMapProps> = ({
 
     mapInstanceRef.current = map;
 
+    let isCancelled = false;
+
     // Load vector layers for the active city
     const loadVectors = async () => {
       setIsLoading(true);
       try {
         const roadData = await fetchRoadNetwork(currentCity);
+        if (isCancelled || !mapInstanceRef.current) return;
         if (roadData && mapInstanceRef.current) {
           setRoadCount(roadData.features.length);
           const roadLayer = L.geoJSON(roadData as any, {
@@ -313,6 +358,7 @@ export const GisMap: React.FC<GisMapProps> = ({
         }
 
         const hotspotData = await fetchFloodHotspots(currentCity);
+        if (isCancelled || !mapInstanceRef.current) return;
         if (hotspotData && mapInstanceRef.current && hotspotsLayerRef.current) {
           hotspotsLayerRef.current.clearLayers();
           setHotspotCount(hotspotData.features.length);
@@ -348,6 +394,7 @@ export const GisMap: React.FC<GisMapProps> = ({
           fetchDrainageEdges(currentCity),
           fetchDrainageNodes(currentCity),
         ]);
+        if (isCancelled || !mapInstanceRef.current) return;
 
         if (drainageEdges && mapInstanceRef.current) {
           setDrainagePipeCount(drainageEdges.features.length);
@@ -398,8 +445,6 @@ export const GisMap: React.FC<GisMapProps> = ({
               const isOver = p.is_overflowing || (p.stress_ratio && p.stress_ratio >= 1.0);
               if (isOver) surcharges++;
 
-              // ONLY create prominent markers for Outfalls and Surcharging junctions!
-              // (Routine inlets are not rendered as solid circles to preserve crisp map visibility)
               if (isOver || nodeType === 'outfall') {
                 const marker = L.circleMarker([lat, lng], {
                   pane: 'drainagePane',
@@ -432,13 +477,16 @@ export const GisMap: React.FC<GisMapProps> = ({
       } catch (err) {
         console.error('Error loading GIS layers:', err);
       } finally {
-        setIsLoading(false);
+        if (!isCancelled) {
+          setIsLoading(false);
+        }
       }
     };
 
     loadVectors();
 
     return () => {
+      isCancelled = true;
       map.remove();
       mapInstanceRef.current = null;
       roadsLayerRef.current = null;
@@ -447,7 +495,10 @@ export const GisMap: React.FC<GisMapProps> = ({
       demRasterLayerRef.current = null;
       drainagePipesLayerRef.current = null;
       drainageNodesLayerRef.current = null;
+      trafficTileLayerRef.current = null;
+      trafficVectorLayerRef.current = null;
       routeLayerRef.current = null;
+      navLayerRef.current = null;
       waypointsLayerRef.current = null;
       inspectMarkerRef.current = null;
     };
@@ -901,6 +952,117 @@ export const GisMap: React.FC<GisMapProps> = ({
     }
   }, [showDrainagePipes]);
 
+  // Handle Traffic Layer Visibility (TomTom Live Raster Tiles or Simulated Busy Monsoon Rush Hour Overlay)
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    let isCancelled = false;
+
+    // A. Handle TomTom Live Raster Flow Tiles
+    const shouldUseTomTomTiles = showTrafficLayer && trafficMode === 'live' && Boolean(trafficTileUrl);
+    if (shouldUseTomTomTiles && trafficTileUrl) {
+      if (!trafficTileLayerRef.current) {
+        trafficTileLayerRef.current = L.tileLayer(trafficTileUrl, {
+          pane: 'trafficPane',
+          opacity: 0.85,
+          maxZoom: 22,
+        });
+      }
+      if (!mapInstanceRef.current.hasLayer(trafficTileLayerRef.current)) {
+        trafficTileLayerRef.current.addTo(mapInstanceRef.current);
+      }
+    } else {
+      if (trafficTileLayerRef.current && mapInstanceRef.current.hasLayer(trafficTileLayerRef.current)) {
+        mapInstanceRef.current.removeLayer(trafficTileLayerRef.current);
+      }
+    }
+
+    // B. Handle Vector Traffic Flow Layer (Peak Monsoon Prolonged Congestion or Fallback Live Overlay)
+    const shouldUseVectorTraffic = showTrafficLayer && (trafficMode === 'peak_monsoon' || !trafficTileUrl);
+    if (shouldUseVectorTraffic) {
+      fetchTrafficOverlay(currentCity, trafficMode).then((data) => {
+        if (isCancelled || !mapInstanceRef.current) return;
+        if (trafficVectorLayerRef.current && mapInstanceRef.current.hasLayer(trafficVectorLayerRef.current)) {
+          mapInstanceRef.current.removeLayer(trafficVectorLayerRef.current);
+          trafficVectorLayerRef.current = null;
+        }
+        if (data && data.features && data.features.length > 0) {
+          const tLayer = L.geoJSON(data as any, {
+            pane: 'trafficPane',
+            renderer: L.canvas({ pane: 'trafficPane' }),
+            style: (feature: any) => {
+              const p = feature?.properties || {};
+              const cLevel = p.traffic_congestion_level;
+              const color = p.traffic_color || (cLevel === 'HEAVY' ? '#EF4444' : cLevel === 'MODERATE' ? '#F59E0B' : '#22C55E');
+              const weight = cLevel === 'HEAVY' ? 4.2 : cLevel === 'MODERATE' ? 3.0 : 2.0;
+              const opacity = cLevel === 'HEAVY' ? 0.95 : cLevel === 'MODERATE' ? 0.85 : 0.70;
+              return { color, weight, opacity, lineCap: 'round', lineJoin: 'round' };
+            },
+            onEachFeature: (feature: any, layer: any) => {
+              const p = feature.properties || {};
+              const name = p.name || 'Arterial Corridor';
+              const cLevel = p.traffic_congestion_level || 'FREE_FLOW';
+              const spd = p.traffic_current_speed_kmh ? `${p.traffic_current_speed_kmh.toFixed(1)} km/h` : 'N/A';
+              const freeSpd = p.traffic_free_flow_speed_kmh ? `${p.traffic_free_flow_speed_kmh.toFixed(1)} km/h` : 'N/A';
+              const delay = p.traffic_delay_factor ? `${p.traffic_delay_factor.toFixed(1)}x slowdown` : '1.0x';
+              const corridor = p.traffic_corridor || 'Study Area Corridor';
+              const badgeColor = cLevel === 'HEAVY' ? '#EF4444' : cLevel === 'MODERATE' ? '#F59E0B' : '#10B981';
+              const badgeBg = cLevel === 'HEAVY' ? 'rgba(239, 68, 68, 0.2)' : cLevel === 'MODERATE' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+
+              layer.bindPopup(`
+                <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; min-width: 210px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
+                      ${cLevel.replace('_', ' ')}
+                    </span>
+                    <span style="font-size: 9px; font-family: monospace; color: #94A3B8;">${p.traffic_mode === 'peak_monsoon' ? 'MONSOON PEAK' : 'TOMTOM LIVE'}</span>
+                  </div>
+                  <div style="font-weight: 700; font-size: 13px; color: #F8FAFC; margin-bottom: 2px;">${name}</div>
+                  <div style="font-size: 10px; color: #38BDF8; margin-bottom: 6px;">${corridor}</div>
+                  <div style="background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 6px; font-size: 11px;">
+                    <div style="display: flex; justify-content: space-between; color: #CBD5E1; margin-bottom: 3px;">
+                      <span>Current Speed:</span>
+                      <strong style="color: ${badgeColor};">${spd}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #94A3B8; margin-bottom: 3px;">
+                      <span>Free-Flow Speed:</span>
+                      <span style="color: #E2E8F0;">${freeSpd}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                      <span>Traffic Delay:</span>
+                      <strong style="color: #FCD34D;">${delay}</strong>
+                    </div>
+                  </div>
+                </div>
+              `);
+
+              layer.on({
+                mouseover: (e: any) => {
+                  e.target.setStyle({ weight: 6.0, opacity: 1.0 });
+                },
+                mouseout: (e: any) => {
+                  tLayer.resetStyle(e.target);
+                },
+              });
+            },
+          } as any);
+          if (mapInstanceRef.current && showTrafficLayer) {
+            tLayer.addTo(mapInstanceRef.current);
+            trafficVectorLayerRef.current = tLayer;
+          }
+        }
+      });
+    } else {
+      if (trafficVectorLayerRef.current && mapInstanceRef.current.hasLayer(trafficVectorLayerRef.current)) {
+        mapInstanceRef.current.removeLayer(trafficVectorLayerRef.current);
+        trafficVectorLayerRef.current = null;
+      }
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [showTrafficLayer, trafficTileUrl, trafficMode, currentCity]);
+
   // Re-fetch and update drainage pipes & nodes when blockage or network state changes
   useEffect(() => {
     if (!mapInstanceRef.current || drainageRefreshKey === 0) return;
@@ -1227,6 +1389,32 @@ export const GisMap: React.FC<GisMapProps> = ({
         },
       }).addTo(routeLayerRef.current);
 
+      // Google Maps-Style Multi-Color Traffic Polyline
+      if (routeResult.traffic_segments && routeResult.traffic_segments.length > 0) {
+        routeResult.traffic_segments.forEach((tseg) => {
+          const tColor =
+            tseg.congestion_level === 'HEAVY'
+              ? '#EF4444'
+              : tseg.congestion_level === 'MODERATE'
+              ? '#F59E0B'
+              : tseg.is_flood_affected
+              ? '#06B6D4'
+              : '#22C55E';
+
+          const pts = tseg.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
+          if (pts.length >= 2) {
+            L.polyline(pts, {
+              pane: 'routesPane',
+              color: tColor,
+              weight: isSelected ? 4.5 : 2.8,
+              opacity: isSelected ? 0.95 : 0.65,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }).addTo(routeLayerRef.current!);
+          }
+        });
+      }
+
       if (isSelected) {
         coreLayer.bringToFront();
         const b = coreLayer.getBounds();
@@ -1235,6 +1423,144 @@ export const GisMap: React.FC<GisMapProps> = ({
     }
 
   }, [routeResult, alternatives, activeRouteIndex, onSelectRouteIndex]);
+
+  // 5. LIVE NAVIGATION HUD & MOVING BLUE DOT LAYER
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (!navLayerRef.current) {
+      navLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+    }
+    navLayerRef.current.clearLayers();
+
+    if (!isNavigating || !navLocation) {
+      if (prevNavigatingRef.current && mapInstanceRef.current) {
+        prevNavigatingRef.current = false;
+        mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
+      }
+      return;
+    }
+
+    const [vLng, vLat] = navLocation;
+    const justStartedNav = isNavigating && !prevNavigatingRef.current;
+    prevNavigatingRef.current = true;
+
+    // A. Render Traversed Route Path (Subtle muted slate trace behind the car)
+    if (navTraversedCoords && navTraversedCoords.length >= 2) {
+      const latLngs = navTraversedCoords.map(([lng, lat]) => [lat, lng] as [number, number]);
+      L.polyline(latLngs, {
+        pane: 'navPane',
+        color: '#475569',
+        weight: 6,
+        opacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(navLayerRef.current);
+    }
+
+    // B. Render Remaining Active Navigation Path (Google Maps Real-Time Traffic Color Coded)
+    if (navRemainingCoords && navRemainingCoords.length >= 2) {
+      const activeRoute = activeRouteIndex === 0 ? routeResult : alternatives[activeRouteIndex - 1] || routeResult;
+      const trafficSegments = activeRoute?.traffic_segments;
+
+      // Base high-contrast under-glow
+      const fullLatLngs = navRemainingCoords.map(([lng, lat]) => [lat, lng] as [number, number]);
+      L.polyline(fullLatLngs, {
+        pane: 'navPane',
+        color: '#0F172A',
+        weight: 11,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(navLayerRef.current);
+
+      if (trafficSegments && trafficSegments.length > 0) {
+        // Render each traffic segment with Google Maps colors directly on top of navPane
+        trafficSegments.forEach((tseg) => {
+          const tColor =
+            tseg.congestion_level === 'HEAVY'
+              ? '#EF4444' // Red (Heavy Traffic)
+              : tseg.congestion_level === 'MODERATE'
+              ? '#F59E0B' // Amber / Orange (Moderate Congestion)
+              : tseg.is_flood_affected
+              ? '#06B6D4' // Cyan (Flood-avoidance detour corridor)
+              : '#22C55E'; // Green (Free Flow)
+
+          const pts = tseg.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
+          if (pts.length >= 2) {
+            L.polyline(pts, {
+              pane: 'navPane',
+              color: tColor,
+              weight: 6.5,
+              opacity: 0.98,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }).addTo(navLayerRef.current!);
+          }
+        });
+      } else {
+        // Fallback if no segments: crisp green
+        L.polyline(fullLatLngs, {
+          pane: 'navPane',
+          color: '#22C55E',
+          weight: 6.5,
+          opacity: 0.98,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(navLayerRef.current);
+      }
+    }
+
+    // C. Render Moving Vehicle Marker (Pulsing Radar Beacon + Rotating Heading Arrow)
+    const heading = Math.round(navBearing || 0);
+    const vehicleIcon = L.divIcon({
+      className: 'custom-nav-vehicle-marker',
+      html: `
+        <div style="position: relative; width: 44px; height: 44px; display: flex; align-items: center; justify-content: center;">
+          <div style="position: absolute; inset: -4px; border-radius: 50%; background: rgba(6, 182, 212, 0.45); animation: ping 1.6s cubic-bezier(0, 0, 0.2, 1) infinite;"></div>
+          <div style="
+            width: 32px; height: 32px; border-radius: 50%;
+            background: linear-gradient(135deg, #06B6D4, #0284C7);
+            border: 2.5px solid #FFFFFF;
+            display: flex; align-items: center; justify-content: center;
+            box-shadow: 0 0 18px rgba(6, 182, 212, 0.95);
+            transform: rotate(${heading}deg);
+            transition: transform 0.2s ease-out;
+          ">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
+              <polygon points="12 2 20 21 12 17 4 21 12 2"/>
+            </svg>
+          </div>
+        </div>
+      `,
+      iconSize: [44, 44],
+      iconAnchor: [22, 22],
+    });
+
+    L.marker([vLat, vLng], { icon: vehicleIcon, pane: 'navPane' })
+      .bindTooltip('🚗 Live Vehicle Position', {
+        direction: 'top',
+        className: 'custom-leaflet-tooltip font-bold text-cyan-300',
+        offset: [0, -14],
+      })
+      .addTo(navLayerRef.current);
+
+    // 🚀 AUTOMATIC CAMERA ZOOM:
+    // When navigation is launched, fly and zoom directly into the pointer at street level (zoom 17)!
+    if (justStartedNav && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([vLat, vLng], 17, {
+        animate: true,
+        duration: 1.2,
+      });
+    } else if (isFollowMode && mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      if (currentZoom < 16) {
+        mapInstanceRef.current.setView([vLat, vLng], 17, { animate: true });
+      } else {
+        mapInstanceRef.current.panTo([vLat, vLng], { animate: true, duration: 0.4 });
+      }
+    }
+  }, [isNavigating, navLocation, navBearing, navTraversedCoords, navRemainingCoords, isFollowMode]);
 
   // HUD Controls
   const handleZoomIn = () => mapInstanceRef.current?.zoomIn();
@@ -1346,6 +1672,35 @@ export const GisMap: React.FC<GisMapProps> = ({
                 </span>
                 <span className="text-amber-400 font-semibold text-[10px]">Active Click Highlight / Subtle Ghost</span>
               </div>
+
+              {/* Traffic Flow Congestion Scale */}
+              {showTrafficLayer && (
+                <>
+                  <div className="h-px bg-slate-800" />
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between text-[10px] text-slate-400">
+                      <span className="uppercase tracking-wider font-bold text-amber-400 flex items-center space-x-1">
+                        <span>Traffic Flow ({trafficMode === 'peak_monsoon' ? 'Monsoon Rush Hour' : 'TomTom Live'})</span>
+                      </span>
+                      <span className="text-amber-400 font-mono text-[9px]">Speed Telemetry</span>
+                    </div>
+                    <div className="grid grid-cols-3 gap-1 text-[9px]">
+                      <div className="flex items-center space-x-1 p-1 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
+                        <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                        <span>Free (&gt;80%)</span>
+                      </div>
+                      <div className="flex items-center space-x-1 p-1 rounded bg-amber-950/40 border border-amber-500/30 text-amber-300">
+                        <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                        <span>Moderate</span>
+                      </div>
+                      <div className="flex items-center space-x-1 p-1 rounded bg-red-950/40 border border-red-500/30 text-red-300">
+                        <span className="h-2 w-2 rounded-full bg-red-500 shrink-0 animate-pulse" />
+                        <span>Heavy Gridlock</span>
+                      </div>
+                    </div>
+                  </div>
+                </>
+              )}
 
               <div className="h-px bg-slate-800" />
 

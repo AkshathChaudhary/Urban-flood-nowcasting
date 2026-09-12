@@ -1,0 +1,13 @@
+{
+  "name": "urban-flood-nowcasting",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Urban Flood Nowcasting and Resilient Routing Engine",
+  "scripts": {
+    "dev": "python run_dev.py",
+    "start": "python run_dev.py",
+    "frontend": "npm --prefix frontend run frontend",
+    "backend": "python run_dev.py --backend-only",
+    "build": "npm --prefix frontend run build"
+  }
+}

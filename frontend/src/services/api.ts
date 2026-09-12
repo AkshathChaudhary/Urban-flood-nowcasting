@@ -102,6 +102,7 @@ export interface RouteRequest {
   vehicle_type: string;
   time_horizon_min: number;
   include_alternatives?: boolean;
+  traffic_mode?: 'peak_monsoon' | 'live';
 }
 
 export interface RouteSegment {
@@ -114,6 +115,17 @@ export interface RouteSegment {
   maxspeed_kmh: number;
   flood_depth_m: number;
   status: string;
+  current_speed_kmh?: number;
+  free_flow_speed_kmh?: number;
+  congestion_level?: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  traffic_delay_s?: number;
+}
+
+export interface TrafficSegment {
+  coordinates: [number, number][];
+  congestion_level: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  current_speed_kmh: number;
+  is_flood_affected: boolean;
 }
 
 export interface RouteResult {
@@ -122,14 +134,55 @@ export interface RouteResult {
   distance_m: number;
   travel_time_s: number;
   travel_time_min: number;
+  free_flow_travel_time_min?: number;
+  traffic_delay_min?: number;
+  traffic_status?: string;
+  traffic_mode?: string;
   max_flood_depth_m: number;
   avg_flood_depth_m: number;
   flood_risk: string;
   segment_count: number;
   roads_traversed: RouteSegment[];
   roads_avoided: RouteSegment[];
+  traffic_segments?: TrafficSegment[];
   geojson: GeoJSONFeature;
 }
+
+export interface TrafficConfig {
+  is_live_tomtom_active: boolean;
+  traffic_tile_url: string | null;
+  traffic_service_mode: string;
+  supported_modes?: string[];
+  default_mode?: string;
+  supported_features: string[];
+}
+
+export const fetchTrafficConfig = async (): Promise<TrafficConfig | null> => {
+  try {
+    const res = await fetch('/api/route/traffic/config');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/traffic/config:', err);
+    return null;
+  }
+};
+
+export const fetchTrafficOverlay = async (
+  city: string = 'mumbai',
+  traffic_mode: string = 'peak_monsoon'
+): Promise<GeoJSONFeatureCollection | null> => {
+  try {
+    const res = await fetch(
+      `/api/route/traffic/overlay?city=${encodeURIComponent(city)}&traffic_mode=${encodeURIComponent(traffic_mode)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/traffic/overlay:', err);
+    return null;
+  }
+};
 
 export interface RouteResponse {
   route_found: boolean;

@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "concurrently --kill-others-on-fail --names \"BACKEND,FRONTEND\" --prefix-colors \"cyan,green\" \"cd .. && python -m uvicorn backend.app.main:app --reload --port 8000\" \"vite\"",
+    "dev": "python ../run_dev.py",
     "frontend": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",
