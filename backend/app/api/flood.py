@@ -283,6 +283,8 @@ def get_flood_forecast_grid(minutes: int, city: Optional[str] = Query("mumbai"))
     engine = get_engine()
     if minutes not in engine.forecast_grids:
         available = sorted(engine.forecast_grids.keys())
+        if minutes < 0 or minutes > max(available):
+            raise HTTPException(status_code=404, detail=f"Forecast horizon {minutes} min not found. Available: {available}")
         nearest_horizon = min(available, key=lambda h: abs(h - minutes))
         minutes = nearest_horizon
 
