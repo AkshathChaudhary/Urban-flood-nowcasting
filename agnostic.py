@@ -38,7 +38,13 @@ import networkx as nx
 import numpy as np
 from scipy.spatial import cKDTree
 
-from backend import config as cfg_module
+try:
+    from backend import config as cfg_module
+except ImportError:
+    try:
+        import config as cfg_module
+    except ImportError:
+        cfg_module = None
 
 # Spatial snapping tolerance in meters: joins disjoint street drains and waterways
 SNAP_TOLERANCE_M = 8.0
@@ -205,41 +211,28 @@ def resolve_osm_file(directory: Path, base_name: str, pattern: str) -> Optional[
     return None
 
 
-def build_comprehensive_real_drainage(config_path: Optional[str | Path] = None) -> Tuple[int, int]:
+def build_grid_drainage(
+    bbox: Tuple[float, float, float, float],
+    grid_rows: int,
+    grid_cols: int,
+    dem_grid: np.ndarray,
+    osm_drainage_file: Optional[Path] = None,
+    osm_roads_file: Optional[Path] = None,
+    output_dir: Optional[Path] = None,
+    city_name: str = "Dynamic Domain",
+) -> Tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
     """
-    Main pipeline entrypoint to build city drainage GeoJSON assets.
+    Constructs a connected subterranean hydraulic drainage network for an arbitrary
+    raster grid (rows x cols) and elevation model. Can output to GeoJSON if output_dir given.
     """
-    city_name = cfg_module.get_city_name(config_path)
-    bbox = cfg_module.get_bbox(config_path)
-    grid_rows, grid_cols, cell_size_m = cfg_module.get_grid(config_path)
-    paths = cfg_module.get_data_paths(config_path)
-
-    print(f"\n========================================================")
-    print(f"🏗️  Building Drainage Graph for '{city_name}'")
-    print(f"📍 BBox: Lat [{bbox[0]:.5f}, {bbox[1]:.5f}], Lon [{bbox[2]:.5f}, {bbox[3]:.5f}]")
-    print(f"📐 Grid: {grid_rows}x{grid_cols} (Cell resolution: {cell_size_m}m)")
-    print(f"📁 Target Directory: {paths['drainage_dir']}")
-    print(f"========================================================\n")
-
     latlon_to_grid = make_latlon_to_grid(bbox, grid_rows, grid_cols)
-
-    dem_path = paths["dem_dir"] / "elevation_grid.npy"
-    if not dem_path.exists():
-        raise FileNotFoundError(
-            f"❌ Elevation grid missing at {dem_path}. "
-            f"Please run DEM raster extraction first (e.g. backend/data/dem/process_dem.py)."
-        )
-    dem_grid = np.load(dem_path)
-    print(f"✅ Loaded DEM grid: shape={dem_grid.shape}, min={dem_grid.min():.2f}m, max={dem_grid.max():.2f}m")
-
     index = NodeIndex(dem_grid, latlon_to_grid, tolerance_m=SNAP_TOLERANCE_M)
     edges_list: List[Dict[str, Any]] = []
     edge_counter = 1
 
     # 1. Process Natural & Canal Waterways from OSM
-    osm_drainage_file = resolve_osm_file(paths["drainage_dir"], "osm_drainage.json", "*drainage*.json")
     if osm_drainage_file and osm_drainage_file.exists():
-        print(f"🌊 Processing OSM waterways from: {osm_drainage_file.name}")
+        print(f"🌊 [{city_name}] Processing OSM waterways from: {osm_drainage_file.name}")
         with open(osm_drainage_file, "r", encoding="utf-8") as f:
             osm_data = json.load(f)
 
@@ -293,13 +286,12 @@ def build_comprehensive_real_drainage(config_path: Optional[str | Path] = None) 
                     edge_counter += 1
         print(f"   -> Extracted {waterway_count} waterway features.")
     else:
-        print(f"⚠️ No OSM drainage file found in {paths['drainage_dir'] / 'raw'}. Skipping waterways.")
+        print(f"⚠️ [{city_name}] No OSM drainage file provided or found. Skipping waterways.")
 
     # 2. Process Roadside Stormwater Drains
-    roads_file = resolve_osm_file(paths["roads_dir"], "osm_roads.json", "*roads*.json")
-    if roads_file and roads_file.exists():
-        print(f"🛣️ Processing roadside storm conduits from: {roads_file.name}")
-        with open(roads_file, "r", encoding="utf-8") as f:
+    if osm_roads_file and osm_roads_file.exists():
+        print(f"🛣️ [{city_name}] Processing roadside storm conduits from: {osm_roads_file.name}")
+        with open(osm_roads_file, "r", encoding="utf-8") as f:
             roads_data = json.load(f)
 
         road_ways = [
@@ -349,7 +341,7 @@ def build_comprehensive_real_drainage(config_path: Optional[str | Path] = None) 
                 edge_counter += 1
         print(f"   -> Extracted {len(road_ways)} roadside drain corridors.")
     else:
-        print(f"⚠️ No OSM roads file found in {paths['roads_dir'] / 'raw'}. Skipping roadside drains.")
+        print(f"⚠️ [{city_name}] No OSM roads file provided or found. Skipping roadside drains.")
 
     nodes_features = [
         {
@@ -362,20 +354,63 @@ def build_comprehensive_real_drainage(config_path: Optional[str | Path] = None) 
 
     check_connectivity(index.nodes_dict, edges_list)
 
-    out_dir = paths["drainage_dir"]
-    out_dir.mkdir(parents=True, exist_ok=True)
-    nodes_path = out_dir / "drainage_nodes.geojson"
-    edges_path = out_dir / "drainage_edges.geojson"
+    if output_dir:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        nodes_path = output_dir / "drainage_nodes.geojson"
+        edges_path = output_dir / "drainage_edges.geojson"
 
-    with open(nodes_path, "w", encoding="utf-8") as f:
-        json.dump({"type": "FeatureCollection", "features": nodes_features}, f, indent=2)
+        with open(nodes_path, "w", encoding="utf-8") as f:
+            json.dump({"type": "FeatureCollection", "features": nodes_features}, f, indent=2)
 
-    with open(edges_path, "w", encoding="utf-8") as f:
-        json.dump({"type": "FeatureCollection", "features": edges_list}, f, indent=2)
+        with open(edges_path, "w", encoding="utf-8") as f:
+            json.dump({"type": "FeatureCollection", "features": edges_list}, f, indent=2)
 
-    print(f"\n🎉 Successfully compiled drainage network for '{city_name}':")
-    print(f"   • Nodes: {len(nodes_features)} -> {nodes_path}")
-    print(f"   • Edges: {len(edges_list)} -> {edges_path}\n")
+        print(f"\n🎉 Successfully saved drainage network for '{city_name}':")
+        print(f"   • Nodes: {len(nodes_features)} -> {nodes_path}")
+        print(f"   • Edges: {len(edges_list)} -> {edges_path}\n")
+
+    return nodes_features, edges_list
+
+
+def build_comprehensive_real_drainage(config_path: Optional[str | Path] = None) -> Tuple[int, int]:
+    """
+    Main pipeline entrypoint to build city drainage GeoJSON assets.
+    """
+    city_name = cfg_module.get_city_name(config_path)
+    bbox = cfg_module.get_bbox(config_path)
+    grid_rows, grid_cols, cell_size_m = cfg_module.get_grid(config_path)
+    paths = cfg_module.get_data_paths(config_path)
+
+    print(f"\n========================================================")
+    print(f"🏗️  Building Drainage Graph for '{city_name}'")
+    print(f"📍 BBox: Lat [{bbox[0]:.5f}, {bbox[1]:.5f}], Lon [{bbox[2]:.5f}, {bbox[3]:.5f}]")
+    print(f"📐 Grid: {grid_rows}x{grid_cols} (Cell resolution: {cell_size_m}m)")
+    print(f"📁 Target Directory: {paths['drainage_dir']}")
+    print(f"========================================================\n")
+
+    dem_path = paths["dem_dir"] / "elevation_grid.npy"
+    if not dem_path.exists():
+        raise FileNotFoundError(
+            f"❌ Elevation grid missing at {dem_path}. "
+            f"Please run DEM raster extraction first (e.g. backend/data/dem/process_dem.py)."
+        )
+    dem_grid = np.load(dem_path)
+    print(f"✅ Loaded DEM grid: shape={dem_grid.shape}, min={dem_grid.min():.2f}m, max={dem_grid.max():.2f}m")
+
+    osm_drainage_file = resolve_osm_file(paths["drainage_dir"], "osm_drainage.json", "*drainage*.json")
+    roads_file = resolve_osm_file(paths["roads_dir"], "osm_roads.json", "*roads*.json")
+
+    nodes_features, edges_list = build_grid_drainage(
+        bbox=bbox,
+        grid_rows=grid_rows,
+        grid_cols=grid_cols,
+        dem_grid=dem_grid,
+        osm_drainage_file=osm_drainage_file,
+        osm_roads_file=roads_file,
+        output_dir=paths["drainage_dir"],
+        city_name=city_name,
+    )
 
     return len(nodes_features), len(edges_list)
 

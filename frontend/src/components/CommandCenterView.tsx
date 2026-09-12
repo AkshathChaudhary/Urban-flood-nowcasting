@@ -42,9 +42,9 @@ import type {
   FloodForecastOverview, 
   HorizonSummary, 
   Landmark, 
-  RouteResult,
-  DrainageSummary,
-  ScenariosResponse
+  RouteResult, 
+  ScenariosResponse,
+  DrainageSummary 
 } from '../services/api';
 
 interface CommandCenterViewProps {
@@ -91,12 +91,43 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeAlternatives, setRouteAlternatives] = useState<RouteResult[]>([]);
   const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0);
+
+  // ── Live GPS Location ─────────────────────────────────────────────────────
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const geoWatchRef = useRef<number | null>(null);
+  // ─────────────────────────────────────────────────────────────────────────
   
   const playIntervalRef = useRef<any>(null);
 
   // ── Resizable footer ──────────────────────────────────────────────────────
   const [footerHeight, setFooterHeight] = useState<number>(80);
   const footerDragRef = useRef<{ startY: number; startH: number } | null>(null);
+
+  // ── Live GPS Geolocation ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by this browser.');
+      return;
+    }
+    geoWatchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+        setGeoError(null);
+      },
+      (err) => {
+        console.warn('Geolocation error:', err.message);
+        setGeoError(err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+    );
+    return () => {
+      if (geoWatchRef.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+      }
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
   const onFooterDragStart = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -331,6 +362,10 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     setDrainageRefreshKey((k) => k + 1);
   };
 
+  const handleMapClick = (_lat: number, _lng: number) => {
+    // Interactive map click for depth inspection
+  };
+
   // Route calculation routine
   const triggerRouteCalculation = async (
     origId = selectedOriginId,
@@ -338,9 +373,25 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     veh = selectedVehicle,
     horizon = currentTimeStep
   ) => {
-    if (landmarks.length === 0) return;
-    const orig = landmarks.find(l => l.id === origId);
-    const dest = landmarks.find(l => l.id === destId);
+    // Standard landmark & live GPS mode
+    const allLandmarks: Landmark[] = userLocation
+      ? [
+          {
+            id: 'my-location',
+            name: '📍 My Current Location (GPS)',
+            category: 'live',
+            lat: userLocation[0],
+            lon: userLocation[1],
+            elevation_m: 0,
+            description: 'Your live GPS position',
+          },
+          ...landmarks,
+        ]
+      : landmarks;
+
+    if (allLandmarks.length === 0) return;
+    const orig = allLandmarks.find(l => l.id === origId);
+    const dest = allLandmarks.find(l => l.id === destId);
     if (!orig || !dest) return;
 
     setIsCalculatingRoute(true);
@@ -371,7 +422,15 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     if (landmarks.length > 0 && selectedOriginId && selectedDestinationId) {
       triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep);
     }
-  }, [landmarks, selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep]);
+  }, [
+    landmarks,
+    userLocation,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedVehicle,
+    currentTimeStep,
+    selectedScenario,
+  ]);
 
   // Handle Play/Pause Auto-Advance Scrubber Loop
   useEffect(() => {
@@ -398,10 +457,28 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     floodOverview?.summaries ? floodOverview.summaries[String(currentTimeStep)] : undefined;
 
   // Selected Origin and Destination Waypoint Lookups
-  const currentOrigin = landmarks.find(l => l.id === selectedOriginId);
-  const currentDestination = landmarks.find(l => l.id === selectedDestinationId);
+  // Inject "My Location" as a virtual landmark when GPS is active
+  const landmarksWithMyLocation: Landmark[] = userLocation
+    ? [
+        {
+          id: 'my-location',
+          name: '📍 My Current Location (GPS)',
+          category: 'live',
+          lat: userLocation[0],
+          lon: userLocation[1],
+          elevation_m: 0,
+          description: 'Your live GPS position',
+        },
+        ...landmarks,
+      ]
+    : landmarks;
+
+  const currentOrigin = landmarksWithMyLocation.find(l => l.id === selectedOriginId);
+  const currentDestination = landmarksWithMyLocation.find(l => l.id === selectedDestinationId);
   const originCoords: [number, number] | null = currentOrigin ? [currentOrigin.lat, currentOrigin.lon] : null;
   const destinationCoords: [number, number] | null = currentDestination ? [currentDestination.lat, currentDestination.lon] : null;
+  const displayedOriginName = currentOrigin?.name;
+  const displayedDestinationName = currentDestination?.name;
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 overflow-hidden">
@@ -815,11 +892,13 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
             originCoords={originCoords}
             destinationCoords={destinationCoords}
-            originName={currentOrigin?.name}
-            destinationName={currentDestination?.name}
+            originName={displayedOriginName}
+            destinationName={displayedDestinationName}
             onDrainageSummaryLoaded={(surcharges) => setSurchargingCount(surcharges)}
             drainageRefreshKey={drainageRefreshKey}
             simulationKey={simulationKey}
+            userLocation={userLocation}
+            onMapClick={handleMapClick}
           />
 
           {/* Floating Subterranean Drainage Diagnostics HUD Panel */}
@@ -835,7 +914,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
 
           {/* Floating Resilient Evacuation Route HUD Panel */}
           <RoutePanel
-            landmarks={landmarks}
+            landmarks={landmarksWithMyLocation}
             selectedOriginId={selectedOriginId}
             selectedDestinationId={selectedDestinationId}
             onSelectOriginId={(id) => setSelectedOriginId(id)}
@@ -852,6 +931,13 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             onToggleOpen={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
             timeHorizon={currentTimeStep}
           />
+          {/* GPS Error / Permission nudge */}
+          {geoError && !userLocation && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-950/90 border border-amber-500/40 text-amber-300 text-xs font-mono-num shadow-xl backdrop-blur-md">
+              <span>⚠️</span>
+              <span>GPS: {geoError} — allow location access for live tracking</span>
+            </div>
+          )}
         </main>
 
       </div>

@@ -7,9 +7,9 @@ import {
   AlertTriangle, 
   Clock, 
   Gauge, 
-  ChevronDown,
-  X,
-  ShieldCheck,
+  ChevronDown, 
+  X, 
+  ShieldCheck, 
   GitFork
 } from 'lucide-react';
 import type { Landmark, RouteResult } from '../services/api';
@@ -73,7 +73,7 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
     <div className="absolute top-4 right-4 z-20 w-84 sm:w-96 glass-panel rounded-3xl border border-slate-800/90 shadow-2xl p-5 flex flex-col max-h-[calc(100vh-8rem)] overflow-y-auto backdrop-blur-2xl">
       
       {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-4">
+      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-3">
         <div className="flex items-center space-x-2">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-cyan-500/10 border border-cyan-500/30 text-cyan-400">
             <Navigation className="h-4 w-4" />

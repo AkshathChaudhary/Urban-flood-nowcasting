@@ -32,6 +32,8 @@ interface GisMapProps {
   onDrainageSummaryLoaded?: (surchargingCount: number) => void;
   drainageRefreshKey?: number;
   simulationKey?: number;
+  /** Live GPS coordinates from the browser — renders a pulsing blue dot */
+  userLocation?: [number, number] | null;
 }
 
 export const GisMap: React.FC<GisMapProps> = ({
@@ -54,6 +56,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   onDrainageSummaryLoaded,
   drainageRefreshKey = 0,
   simulationKey = 0,
+  userLocation = null,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -67,6 +70,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   const drainagePipesLayerRef = useRef<L.GeoJSON | null>(null);
   const drainageNodesLayerRef = useRef<L.LayerGroup | null>(null);
   const inspectMarkerRef = useRef<L.CircleMarker | null>(null);
+  const userLocationMarkerRef = useRef<L.Marker | null>(null);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [roadCount, setRoadCount] = useState<number>(0);
@@ -108,6 +112,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     routeLayerRef.current = null;
     waypointsLayerRef.current = null;
     inspectMarkerRef.current = null;
+    userLocationMarkerRef.current = null;
 
     const map = L.map(mapContainerRef.current, {
       center: [centerLat, centerLon],
@@ -141,6 +146,10 @@ export const GisMap: React.FC<GisMapProps> = ({
 
     map.createPane('waypointsPane');
     map.getPane('waypointsPane')!.style.zIndex = '550';
+
+    // Live user location pane — sits above waypoints so the blue dot is always visible
+    map.createPane('userLocationPane');
+    map.getPane('userLocationPane')!.style.zIndex = '580';
 
     // Labels pane — sits above ALL data layers so place names are always visible
     map.createPane('labelsPane');
@@ -186,6 +195,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     map.on('click', async (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng;
       if (onMapClick) onMapClick(lat, lng);
+
 
       const inBounds = isKolkata
         ? (lat >= 22.5050 && lat <= 22.6020 && lng >= 88.3850 && lng <= 88.4380)
@@ -450,8 +460,74 @@ export const GisMap: React.FC<GisMapProps> = ({
       routeLayerRef.current = null;
       waypointsLayerRef.current = null;
       inspectMarkerRef.current = null;
+      userLocationMarkerRef.current = null;
     };
   }, [currentCity]);
+
+  // LIVE USER LOCATION: Render/Update pulsing blue dot whenever GPS coords change
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (!userLocation) {
+      // Remove marker if location is lost
+      if (userLocationMarkerRef.current) {
+        mapInstanceRef.current.removeLayer(userLocationMarkerRef.current);
+        userLocationMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const [lat, lng] = userLocation;
+
+    const blueDotIcon = L.divIcon({
+      className: 'user-location-dot',
+      html: `
+        <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <!-- Outer accuracy pulse ring -->
+          <div style="
+            position: absolute;
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1.5px solid rgba(59, 130, 246, 0.35);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: user-loc-pulse 2.5s ease-out infinite;
+          "></div>
+          <!-- Inner solid blue dot -->
+          <div style="
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            border: 3px solid #FFFFFF;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.9), 0 2px 8px rgba(0,0,0,0.5);
+            position: relative; z-index: 1;
+          "></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.setLatLng([lat, lng]);
+      userLocationMarkerRef.current.setIcon(blueDotIcon);
+    } else {
+      const marker = L.marker([lat, lng], {
+        icon: blueDotIcon,
+        pane: 'userLocationPane',
+        interactive: true,
+        title: 'Your live location',
+        zIndexOffset: 1000,
+      }).bindTooltip('📍 Your live location', {
+        direction: 'top',
+        className: 'custom-leaflet-tooltip font-bold text-blue-300',
+        offset: [0, -12],
+      });
+      marker.addTo(mapInstanceRef.current);
+      userLocationMarkerRef.current = marker;
+    }
+  }, [userLocation]);
 
   // Helper: Scientific continuous hydrodynamic colormap (Punchy, GIS-Publication Grade)
   // Kolkata max ~27cm, Mumbai max ~0.7m — colormap is vivid and clear for BOTH scales.
@@ -1244,6 +1320,11 @@ export const GisMap: React.FC<GisMapProps> = ({
       mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
     }
   };
+  const handleCenterOnUser = () => {
+    if (mapInstanceRef.current && userLocation) {
+      mapInstanceRef.current.setView(userLocation, 16, { animate: true });
+    }
+  };
 
   return (
     <div className="relative w-full h-full overflow-hidden">
@@ -1328,6 +1409,16 @@ export const GisMap: React.FC<GisMapProps> = ({
                 <span className="text-red-400 font-bold">Point B</span>
               </div>
 
+              {userLocation && (
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center space-x-2">
+                    <span className="h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-white shadow-[0_0_6px_#3B82F6]" />
+                    <span>Your Live Location</span>
+                  </span>
+                  <span className="text-blue-400 font-bold animate-pulse">GPS LIVE</span>
+                </div>
+              )}
+
               <div className="h-px bg-slate-800" />
 
               {/* Routes */}
@@ -1411,8 +1502,21 @@ export const GisMap: React.FC<GisMapProps> = ({
         </div>
       </div>
 
+
+
       {/* Floating HUD Map Control Buttons (Bottom Right) */}
       <div className="absolute bottom-6 right-6 z-20 flex flex-col space-y-2">
+        {/* Live Location Button — only shown when GPS is active */}
+        {userLocation && (
+          <button
+            onClick={handleCenterOnUser}
+            title="Center on your live location"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/90 border border-blue-400/60 text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/50 backdrop-blur-md cursor-pointer active:scale-95 animate-pulse"
+          >
+            <span className="text-base leading-none">📍</span>
+          </button>
+        )}
+
         <button
           onClick={handleRecenter}
           title={`Recenter ${currentCity} Bounds`}
