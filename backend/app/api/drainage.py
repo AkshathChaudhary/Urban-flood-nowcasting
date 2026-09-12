@@ -114,6 +114,7 @@ class DrainageSummaryResponse(BaseModel):
     junction_nodes: int
     current_water_stored_m3: float
     total_discharged_m3: float
+    average_blockage_pct: Optional[float] = 0.0
 
 
 # ---------------------------------------------------------------------------
@@ -271,5 +272,5 @@ def reset_drainage(city: Optional[str] = Query("mumbai")):
     c = (city or "mumbai").lower().strip()
     graph = get_drainage_graph(c)
     invalidate_drainage_cache(c)
-    graph.reset_state()
+    graph.reset_state(reset_blockage=True)
     return {"status": "success", "message": "Drainage network state reset to zero."}

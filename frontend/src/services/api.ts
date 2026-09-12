@@ -335,6 +335,7 @@ export interface DrainageSummary {
   junction_nodes: number;
   current_water_stored_m3: number;
   total_discharged_m3: number;
+  average_blockage_pct?: number;
 }
 
 export interface DrainageNodeProperties {
@@ -421,7 +422,8 @@ export const resetDrainageNetwork = async (city: string = 'mumbai'): Promise<boo
 
 export const createFloodWebSocket = (
   onMessage: (data: any) => void,
-  onStatusChange?: (status: 'connected' | 'connecting' | 'disconnected') => void
+  onStatusChange?: (status: 'connected' | 'connecting' | 'disconnected') => void,
+  city: string = 'mumbai'
 ): (() => void) => {
   let ws: WebSocket | null = null;
   let isClosedManually = false;
@@ -431,7 +433,7 @@ export const createFloodWebSocket = (
     if (onStatusChange) onStatusChange('connecting');
     const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
     const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
-    const wsUrl = `${protocol}//${host}/ws/flood-updates`;
+    const wsUrl = `${protocol}//${host}/ws/flood-updates?city=${encodeURIComponent((city || 'mumbai').toLowerCase())}`;
 
     try {
       ws = new WebSocket(wsUrl);

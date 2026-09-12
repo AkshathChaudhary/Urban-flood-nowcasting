@@ -18,7 +18,7 @@ from backend.app.engine_state import (
 from backend.app.engine.flood_engine import FloodEngine
 from backend.app.models.flood import FloodForecastOverview, SimulateRequest
 from backend.app.models.drainage import DrainageGraph
-from backend.app.api.drainage import get_drainage_graph
+from backend.app.api.drainage import get_drainage_graph, invalidate_drainage_cache
 from backend.app.api.flood import set_kolkata_engine
 from backend.data.rainfall.provider import get_rainfall_provider
 
@@ -209,14 +209,25 @@ def run_simulation(req: SimulateRequest):
         drainage_graph = get_drainage_graph(city)
         if drainage_graph is not None:
             if hasattr(drainage_graph, "reset_state"):
-                drainage_graph.reset_state()
+                drainage_graph.reset_state(reset_blockage=False)
             if hasattr(drainage_graph, "set_global_blockage"):
                 if req.scenario in ("extreme_blocked", "blocked_drainage"):
                     drainage_graph.set_global_blockage(0.40)  # 40% pipe capacity reduction
-                else:
-                    drainage_graph.set_global_blockage(0.0)
+                    invalidate_drainage_cache(city)
 
-        drain_blockage = 0.50 if req.scenario in ("extreme_blocked", "blocked_drainage") else 1.0
+        # Determine drainage conveyance factor from active network state
+        avg_blockage = 0.0
+        if drainage_graph is not None and hasattr(drainage_graph, "edge_data") and drainage_graph.edge_data:
+            blockages = [e.get("blockage_pct", 0.0) for e in drainage_graph.edge_data.values()]
+            if blockages:
+                avg_blockage = float(np.mean(blockages))
+
+        if req.scenario in ("extreme_blocked", "blocked_drainage"):
+            drain_blockage = 0.50
+        elif avg_blockage > 0.0:
+            drain_blockage = max(0.05, 1.0 - avg_blockage)
+        else:
+            drain_blockage = 1.0
 
         # 3. Instantiate Engine & Run Forecast
         if is_kolkata:
@@ -238,6 +249,7 @@ def run_simulation(req: SimulateRequest):
                 dt=req.dt_seconds,
             )
             set_kolkata_engine(engine, grids, scenario=req.scenario)
+            invalidate_drainage_cache(city)
 
             horizons = sorted(grids.keys())
             summaries = {
@@ -268,6 +280,7 @@ def run_simulation(req: SimulateRequest):
             )
 
             set_engine(engine, scenario=req.scenario)
+            invalidate_drainage_cache(city)
 
             horizons = sorted(engine.forecast_grids.keys())
             summaries = {

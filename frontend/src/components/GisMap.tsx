@@ -30,6 +30,8 @@ interface GisMapProps {
   destinationName?: string;
   onMapClick?: (lat: number, lng: number) => void;
   onDrainageSummaryLoaded?: (surchargingCount: number) => void;
+  drainageRefreshKey?: number;
+  simulationKey?: number;
 }
 
 export const GisMap: React.FC<GisMapProps> = ({
@@ -50,6 +52,8 @@ export const GisMap: React.FC<GisMapProps> = ({
   destinationName,
   onMapClick,
   onDrainageSummaryLoaded,
+  drainageRefreshKey = 0,
+  simulationKey = 0,
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -138,16 +142,22 @@ export const GisMap: React.FC<GisMapProps> = ({
     map.createPane('waypointsPane');
     map.getPane('waypointsPane')!.style.zIndex = '550';
 
+    // Labels pane — sits above ALL data layers so place names are always visible
+    map.createPane('labelsPane');
+    map.getPane('labelsPane')!.style.zIndex = '600';
+    map.getPane('labelsPane')!.style.pointerEvents = 'none';
+
     // ArcGIS World Dark Gray Base with overzooming for street-level inspection (no API key required)
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Base/MapServer/tile/{z}/{y}/{x}', {
       maxNativeZoom: 16,
       maxZoom: 20,
       attribution: 'Esri, HERE, Garmin, &copy; OpenStreetMap contributors',
     }).addTo(map);
-    // Reference labels overlay (street names, place names visible at all zoom levels)
+    // Reference labels overlay — pinned above flood/DEM/roads via labelsPane so names stay readable
     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/Canvas/World_Dark_Gray_Reference/MapServer/tile/{z}/{y}/{x}', {
       maxNativeZoom: 16,
       maxZoom: 20,
+      pane: 'labelsPane',
     }).addTo(map);
 
     // Simulation Domain Boundary Polygon
@@ -759,7 +769,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     };
 
     loadFloodRaster();
-  }, [currentTimeStep, currentCity]);
+  }, [currentTimeStep, currentCity, simulationKey]);
 
   // 2b. Load & Render DEM Elevation Terrain Raster
   useEffect(() => {
@@ -890,6 +900,116 @@ export const GisMap: React.FC<GisMapProps> = ({
       }
     }
   }, [showDrainagePipes]);
+
+  // Re-fetch and update drainage pipes & nodes when blockage or network state changes
+  useEffect(() => {
+    if (!mapInstanceRef.current || drainageRefreshKey === 0) return;
+
+    let isCancelled = false;
+    const refreshDrainage = async () => {
+      try {
+        const [drainageEdges, drainageNodes] = await Promise.all([
+          fetchDrainageEdges(currentCity),
+          fetchDrainageNodes(currentCity),
+        ]);
+
+        if (isCancelled || !mapInstanceRef.current) return;
+
+        // Clean up old layers
+        if (drainagePipesLayerRef.current && mapInstanceRef.current.hasLayer(drainagePipesLayerRef.current)) {
+          mapInstanceRef.current.removeLayer(drainagePipesLayerRef.current);
+        }
+        if (drainageNodesLayerRef.current && mapInstanceRef.current.hasLayer(drainageNodesLayerRef.current)) {
+          mapInstanceRef.current.removeLayer(drainageNodesLayerRef.current);
+        }
+
+        if (drainageEdges) {
+          setDrainagePipeCount(drainageEdges.features.length);
+          const pipeLayer = L.geoJSON(drainageEdges as any, {
+            pane: 'drainagePane',
+            style: (feature: any) => {
+              const blk = feature?.properties?.blockage_pct || 0;
+              const isOver = feature?.properties?.is_surcharging;
+              return {
+                color: isOver ? '#EF4444' : blk > 0.3 ? '#F59E0B' : '#10B981',
+                weight: blk > 0.3 ? 3.8 : 2.6,
+                dashArray: '6, 5',
+                opacity: 0.95,
+              };
+            },
+            onEachFeature: (feature: any, layer: any) => {
+              const p = feature.properties || {};
+              const id = p.id || 'Pipe';
+              const dia = p.diameter_m ? `${(p.diameter_m * 1000).toFixed(0)}mm` : '600mm';
+              const cap = p.effective_capacity_m3s ? `${p.effective_capacity_m3s.toFixed(2)} m³/s` : '1.5 m³/s';
+              const blk = p.blockage_pct ? `${(p.blockage_pct * 100).toFixed(0)}%` : '0%';
+              layer.bindPopup(`
+                <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; background: #0F172A; border-radius: 8px; border: 1px solid rgba(16, 185, 129, 0.4);">
+                  <div style="font-weight: 700; font-size: 13px; color: #10B981; margin-bottom: 4px;">CONDUIT: ${id}</div>
+                  <div style="font-size: 11px; color: #94A3B8;">Diameter: <span style="color: #E2E8F0; font-weight: 600;">${dia}</span></div>
+                  <div style="font-size: 11px; color: #94A3B8;">Manning Capacity: <span style="color: #38BDF8; font-weight: 600;">${cap}</span></div>
+                  <div style="font-size: 11px; color: #94A3B8;">Debris Blockage: <span style="color: ${p.blockage_pct > 0.3 ? '#F59E0B' : '#34D399'}; font-weight: 600;">${blk}</span></div>
+                </div>
+              `);
+            },
+          } as any);
+          drainagePipesLayerRef.current = pipeLayer;
+          if (showDrainagePipes) pipeLayer.addTo(mapInstanceRef.current);
+        }
+
+        if (drainageNodes) {
+          const nodesGroup = L.layerGroup();
+          let surcharges = 0;
+
+          drainageNodes.features.forEach((feat) => {
+            const coords = feat.geometry?.coordinates;
+            if (coords && coords.length >= 2) {
+              const lng = coords[0];
+              const lat = coords[1];
+              const p = feat.properties || {};
+              const nodeType = p.type || 'inlet';
+              const isOver = p.is_overflowing || (p.stress_ratio && p.stress_ratio >= 1.0);
+              if (isOver) surcharges++;
+
+              if (isOver || nodeType === 'outfall') {
+                const marker = L.circleMarker([lat, lng], {
+                  pane: 'drainagePane',
+                  radius: isOver ? 7.5 : 6.0,
+                  color: isOver ? '#EF4444' : '#06B6D4',
+                  fillColor: isOver ? '#DC2626' : '#0284C7',
+                  weight: 2.5,
+                  opacity: 1.0,
+                  fillOpacity: 0.9,
+                }).bindPopup(`
+                  <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; background: #0F172A; border-radius: 8px;">
+                    <div style="font-weight: 700; font-size: 13px; color: ${isOver ? '#EF4444' : '#38BDF8'}; margin-bottom: 4px;">
+                      ${isOver ? '⚠️ SURCHARGING MANHOLE' : '🌊 CANAL / RIVER OUTFALL'} (${p.id})
+                    </div>
+                    <div style="font-size: 11px; color: #94A3B8;">Elevation: <span style="color: #E2E8F0;">${p.elevation_m}m</span></div>
+                    <div style="font-size: 11px; color: #94A3B8;">Hydraulic Stress: <span style="color: ${isOver ? '#EF4444' : '#34D399'}; font-weight: 600;">${((p.stress_ratio || 0) * 100).toFixed(0)}%</span></div>
+                    <div style="font-size: 11px; color: #94A3B8;">Stored Water: <span style="color: #38BDF8;">${p.current_water_m3 ? p.current_water_m3.toFixed(2) : '0'} m³</span></div>
+                  </div>
+                `);
+
+                nodesGroup.addLayer(marker);
+              }
+            }
+          });
+
+          drainageNodesLayerRef.current = nodesGroup;
+          if (onDrainageSummaryLoaded) onDrainageSummaryLoaded(surcharges);
+          if (showDrainagePipes) nodesGroup.addTo(mapInstanceRef.current);
+        }
+      } catch (err) {
+        console.error('Error refreshing drainage layers:', err);
+      }
+    };
+
+    refreshDrainage();
+    return () => {
+      isCancelled = true;
+    };
+  }, [drainageRefreshKey, currentCity, showDrainagePipes]);
 
   // 3. WAYPOINT PINS: Origin (Point A) and Destination (Point B)
   // Rendered INDEPENDENTLY of route calculation so selecting dropdowns immediately marks them!

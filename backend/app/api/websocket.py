@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import json
-from typing import Any, Dict, List, Set
+from typing import Any, Dict, List, Optional, Set
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 
 from backend.app.engine_state import compute_summary, get_current_scenario, get_engine
@@ -49,7 +49,7 @@ manager = ConnectionManager()
 
 
 @router.websocket("/ws/flood-updates")
-async def websocket_flood_updates(websocket: WebSocket):
+async def websocket_flood_updates(websocket: WebSocket, city: Optional[str] = "mumbai"):
     """
     WebSocket endpoint streaming live flood nowcast timeline updates.
 
@@ -60,8 +60,16 @@ async def websocket_flood_updates(websocket: WebSocket):
     """
     await manager.connect(websocket)
     try:
-        engine = get_engine()
-        scenario = get_current_scenario()
+        c = (city or "mumbai").lower().strip()
+
+        def _get_active_engine_and_scenario(city_name: str):
+            if city_name == "kolkata":
+                from backend.app.api.flood import get_kolkata_forecast, get_kolkata_scenario
+                k_engine, _ = get_kolkata_forecast()
+                return k_engine, get_kolkata_scenario()
+            return get_engine(), get_current_scenario()
+
+        engine, scenario = _get_active_engine_and_scenario(c)
         horizons = sorted(engine.forecast_grids.keys())
 
         # 1. Send initial state
@@ -81,6 +89,8 @@ async def websocket_flood_updates(websocket: WebSocket):
 
         # 2. Cycle through forecast horizons with live KPI telemetry
         while True:
+            engine, scenario = _get_active_engine_and_scenario(c)
+            horizons = sorted(engine.forecast_grids.keys())
             for h in horizons:
                 if h in engine.forecast_grids:
                     summary = compute_summary(engine.forecast_grids[h], h)
@@ -89,7 +99,7 @@ async def websocket_flood_updates(websocket: WebSocket):
                     road_status = None
                     try:
                         from backend.app.api.roads import get_routing_engine
-                        routing_eng = get_routing_engine()
+                        routing_eng = get_routing_engine(c)
                         street_grid = engine.get_street_depth_grid(h) if hasattr(engine, "get_street_depth_grid") else engine.forecast_grids[h]
                         corridor_data = routing_eng.classify_corridors(street_grid)
                         road_status = corridor_data.get("summary")

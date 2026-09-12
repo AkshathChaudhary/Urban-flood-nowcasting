@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { 
   GitBranch, 
   Droplets, 
@@ -7,7 +7,8 @@ import {
   RotateCcw, 
   X,
   Waves,
-  ArrowDownCircle
+  ArrowDownCircle,
+  GripHorizontal
 } from 'lucide-react';
 import type { DrainageSummary } from '../services/api';
 
@@ -30,7 +31,46 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
   onToggleOpen,
   surchargingCount,
 }) => {
-  const [blockagePct, setBlockagePct] = useState<number>(0);
+  const [blockagePct, setBlockagePct] = useState<number>(() => {
+    return summary?.average_blockage_pct !== undefined ? Math.round(summary.average_blockage_pct * 100) : 0;
+  });
+
+  // Vertical dragging state to move panel up and down the screen
+  const [posY, setPosY] = useState<number>(64);
+  const [isDragging, setIsDragging] = useState<boolean>(false);
+  const dragStartYRef = useRef<{ startY: number; initialPosY: number } | null>(null);
+
+  const onDragHeaderStart = (e: React.MouseEvent) => {
+    // Ignore clicks on buttons inside header (e.g. close X)
+    if ((e.target as HTMLElement).closest('button')) return;
+    e.preventDefault();
+    setIsDragging(true);
+    dragStartYRef.current = { startY: e.clientY, initialPosY: posY };
+
+    const onMove = (mv: MouseEvent) => {
+      if (!dragStartYRef.current) return;
+      const delta = mv.clientY - dragStartYRef.current.startY;
+      const maxTop = Math.max(64, window.innerHeight - 280);
+      setPosY(Math.max(16, Math.min(maxTop, dragStartYRef.current.initialPosY + delta)));
+    };
+
+    const onUp = () => {
+      dragStartYRef.current = null;
+      setIsDragging(false);
+      window.removeEventListener('mousemove', onMove);
+      window.removeEventListener('mouseup', onUp);
+    };
+
+    window.addEventListener('mousemove', onMove);
+    window.addEventListener('mouseup', onUp);
+  };
+
+  // Synchronize blockagePct when summary updates from server (e.g. initial fetch or post-simulation)
+  useEffect(() => {
+    if (summary?.average_blockage_pct !== undefined && !isUpdating) {
+      setBlockagePct(Math.round(summary.average_blockage_pct * 100));
+    }
+  }, [summary?.average_blockage_pct, isUpdating]);
 
   const handleApplyBlockage = () => {
     onUpdateBlockage(blockagePct / 100.0);
@@ -45,7 +85,8 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
     return (
       <button
         onClick={onToggleOpen}
-        className="absolute top-16 right-4 z-20 flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-emerald-300 font-semibold text-xs shadow-xl hover:brightness-110 active:scale-95 transition-all cursor-pointer backdrop-blur-md"
+        style={{ top: `${posY}px` }}
+        className="absolute right-4 z-20 flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-900/90 border border-emerald-500/40 text-emerald-300 font-semibold text-xs shadow-xl hover:brightness-110 active:scale-95 transition-all cursor-pointer backdrop-blur-md"
       >
         <GitBranch className="h-3.5 w-3.5" />
         <span>Drainage Diagnostics</span>
@@ -59,11 +100,22 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
   }
 
   return (
-    <div className="absolute top-16 right-4 z-20 w-84 sm:w-96 glass-panel rounded-3xl border border-slate-800/90 shadow-2xl p-5 flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto backdrop-blur-2xl">
+    <div
+      style={{ top: `${posY}px` }}
+      className={`absolute right-4 z-20 w-84 sm:w-96 glass-panel rounded-3xl border shadow-2xl p-5 flex flex-col max-h-[calc(100vh-10rem)] overflow-y-auto backdrop-blur-2xl transition-shadow select-none ${
+        isDragging 
+          ? 'border-emerald-500/60 shadow-emerald-500/20 ring-1 ring-emerald-500/30' 
+          : 'border-slate-800/90'
+      }`}
+    >
       
-      {/* Header */}
-      <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-4">
-        <div className="flex items-center space-x-2">
+      {/* Header (Draggable Up / Down) */}
+      <div
+        onMouseDown={onDragHeaderStart}
+        title="Click and drag up or down to reposition panel"
+        className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-4 cursor-grab active:cursor-grabbing select-none"
+      >
+        <div className="flex items-center space-x-2 pointer-events-none">
           <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
             <GitBranch className="h-4 w-4" />
           </div>
@@ -77,12 +129,20 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
           </div>
         </div>
 
-        <button
-          onClick={onToggleOpen}
-          className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
-        >
-          <X className="h-4 w-4" />
-        </button>
+        <div className="flex items-center space-x-1">
+          <div
+            title="Drag up or down"
+            className="p-1 text-slate-500 hover:text-slate-300 transition-colors cursor-grab active:cursor-grabbing"
+          >
+            <GripHorizontal className="h-4 w-4" />
+          </div>
+          <button
+            onClick={onToggleOpen}
+            className="p-1 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors cursor-pointer"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       {/* Hydraulic State Grid */}
