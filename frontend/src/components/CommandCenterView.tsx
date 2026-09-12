@@ -66,6 +66,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isAdvancedConfigOpen, setIsAdvancedConfigOpen] = useState<boolean>(false);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState<boolean>(false);
+  const [showTimelineBar, setShowTimelineBar] = useState<boolean>(true);
 
   // Simulation Intelligence State
   const [isSimModalOpen, setIsSimModalOpen] = useState<boolean>(false);
@@ -409,11 +410,19 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             <Sliders className="h-3 w-3 text-slate-500" />
           </button>
 
-          {/* Forecast Horizon Badge */}
-          <div className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900/60 border border-slate-800 text-xs font-mono text-cyan-400">
-            <Clock className="h-3 w-3" />
+          {/* Forecast Horizon Badge & Toggle */}
+          <button
+            onClick={() => setShowTimelineBar(!showTimelineBar)}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              showTimelineBar
+                ? 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-cyan-400'
+                : 'bg-cyan-500/20 hover:bg-cyan-500/30 border-cyan-500/40 text-cyan-300'
+            }`}
+            title={showTimelineBar ? "Hide timeline bar" : "Show timeline bar"}
+          >
+            {showTimelineBar ? <Clock className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
             <span>T+{currentTimeStep}m</span>
-          </div>
+          </button>
         </div>
 
         {/* Right: Consolidated System Status Indicator with Popover */}
@@ -819,7 +828,8 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
       </div>
 
       {/* Bottom Temporal Timeline Bar */}
-      <footer
+      {showTimelineBar ? (
+        <footer
         className="relative h-[54px] shrink-0 border-t border-slate-800/80 bg-slate-950/95 backdrop-blur-xl px-4 flex items-center justify-between z-20 overflow-hidden"
       >
         <div className="flex items-center space-x-2.5">
@@ -886,19 +896,43 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
           </div>
         </div>
 
-        {/* Compact Critical Alerts Area */}
-        <div className="flex items-center space-x-2 text-xs font-mono">
-          <span className="flex items-center space-x-1 text-amber-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
-            <span>{currentSummary?.flooded_cells_15cm || 30} caution</span>
-          </span>
-          <span className="text-slate-600">·</span>
-          <span className="flex items-center space-x-1 text-rose-400">
-            <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
-            <span>{currentSummary?.flooded_cells_30cm || 0} severe</span>
-          </span>
+        {/* Compact Critical Alerts Area & Hide Button */}
+        <div className="flex items-center space-x-3 text-xs font-mono">
+          <div className="flex items-center space-x-2">
+            <span className="flex items-center space-x-1 text-amber-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+              <span>{currentSummary?.flooded_cells_15cm || 30} caution</span>
+            </span>
+            <span className="text-slate-600">·</span>
+            <span className="flex items-center space-x-1 text-rose-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-rose-400" />
+              <span>{currentSummary?.flooded_cells_30cm || 0} severe</span>
+            </span>
+          </div>
+
+          <button
+            onClick={() => setShowTimelineBar(false)}
+            className="flex items-center space-x-1.5 px-2.5 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 border border-slate-700 hover:border-cyan-500/50 text-xs text-cyan-300 hover:text-white transition-all cursor-pointer shadow-sm"
+            title="Hide horizon timeline bar"
+          >
+            <EyeOff className="h-3.5 w-3.5 text-cyan-400" />
+            <span className="font-semibold">Hide Bar</span>
+          </button>
         </div>
       </footer>
+    ) : (
+      /* Floating restore button when timeline bar is hidden */
+      <div className="fixed bottom-3 right-4 z-30 pointer-events-none">
+        <button
+          onClick={() => setShowTimelineBar(true)}
+          className="pointer-events-auto flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-900/95 hover:bg-slate-800 border border-cyan-500/50 text-xs font-mono text-cyan-300 hover:text-white shadow-2xl backdrop-blur-md transition-all cursor-pointer group"
+          title="Show horizon timeline bar"
+        >
+          <Eye className="h-4 w-4 text-cyan-400 group-hover:scale-110 transition-transform" />
+          <span className="font-semibold">Show Horizon Bar (T+{currentTimeStep}m)</span>
+        </button>
+      </div>
+    )}
 
       {/* Simulation & Live / Historic Rainfall Intelligence Modal */}
       {isSimModalOpen && (
