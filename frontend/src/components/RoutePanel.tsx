@@ -55,10 +55,15 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
     return (
       <button
         onClick={onToggleOpen}
-        className="absolute top-4 right-4 z-20 flex items-center space-x-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-semibold text-xs shadow-xl shadow-cyan-500/25 hover:brightness-110 active:scale-95 transition-all cursor-pointer ring-1 ring-white/20"
+        className="absolute top-4 right-4 z-20 flex items-center space-x-2 px-3.5 py-2 rounded-xl bg-slate-950/85 border border-cyan-500/40 text-cyan-300 font-mono text-xs font-semibold shadow-xl backdrop-blur-md hover:bg-slate-900/90 active:scale-95 transition-all cursor-pointer ring-1 ring-cyan-500/20"
       >
-        <Navigation className="h-4 w-4" />
-        <span>Resilient Evacuation Router</span>
+        <Navigation className="h-3.5 w-3.5 text-cyan-400" />
+        <span>Evacuation Router</span>
+        {routeResult && (
+          <span className="px-1.5 py-0.5 rounded bg-emerald-500/20 text-emerald-400 text-[10px] font-bold border border-emerald-500/30">
+            {(routeResult.distance_m / 1000).toFixed(1)} km
+          </span>
+        )}
       </button>
     );
   }
@@ -70,7 +75,7 @@ export const RoutePanel: React.FC<RoutePanelProps> = ({
       : alternatives[activeRouteIndex - 1] || routeResult;
 
   return (
-    <div className="absolute top-4 right-4 z-20 w-84 sm:w-96 glass-panel rounded-3xl border border-slate-800/90 shadow-2xl p-5 flex flex-col max-h-[calc(100vh-8rem)] overflow-y-auto backdrop-blur-2xl">
+    <div className="absolute top-4 right-4 z-20 w-80 sm:w-96 rounded-2xl bg-slate-950/95 border border-slate-800/90 shadow-2xl p-4 flex flex-col max-h-[calc(100vh-6rem)] overflow-y-auto backdrop-blur-2xl animate-in slide-in-from-right-4 duration-200">
       
       {/* Header */}
       <div className="flex items-center justify-between pb-3 border-b border-slate-800/80 mb-4">
