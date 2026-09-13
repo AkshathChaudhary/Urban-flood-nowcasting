@@ -9,8 +9,10 @@ import { AetherBackground } from './components/ui/aether-background';
 export function App() {
   const [activeView, setActiveView] = useState<'landing' | 'command-center'>('landing');
   const [currentCity, setCurrentCity] = useState<string>('mumbai');
+  const [selectedScenario, setSelectedScenario] = useState<string | undefined>(undefined);
 
   const handleLaunchCommandCenter = () => {
+    setSelectedScenario(undefined);
     setActiveView('command-center');
   };
 
@@ -26,11 +28,13 @@ export function App() {
     } else {
       setCurrentCity('mumbai');
     }
+    setSelectedScenario(scenario);
     setActiveView('command-center');
   };
 
   const handleExploreFeature = (featureId: string) => {
     console.log('Explore feature:', featureId);
+    setSelectedScenario(undefined);
     setActiveView('command-center');
   };
 
@@ -89,7 +93,11 @@ export function App() {
       ) : (
         <main className="flex-1 flex flex-col">
           {/* Interactive Command Center Workspace */}
-          <CommandCenterView currentCity={currentCity} onCityChange={setCurrentCity} />
+          <CommandCenterView 
+            currentCity={currentCity} 
+            onCityChange={setCurrentCity} 
+            initialScenario={selectedScenario}
+          />
         </main>
       )}
 

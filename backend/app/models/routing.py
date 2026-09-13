@@ -203,12 +203,32 @@ class RoutingEngine:
         if self.node_coords_list:
             self.node_coords_array = np.array(self.node_coords_list, dtype=np.float64)
 
-    def snap_to_nearest_node(self, lon: float, lat: float) -> str:
-        """Finds closest node in road network using vectorized Euclidean distance."""
+        # Precompute the giant strongly connected component (SCC) to prevent snapping to one-way dead-ends
+        sccs = list(nx.strongly_connected_components(self.graph))
+        if sccs:
+            sccs.sort(key=len, reverse=True)
+            self.primary_scc: Set[str] = set(sccs[0])
+        else:
+            self.primary_scc: Set[str] = set(self.graph.nodes())
+
+    def snap_to_nearest_node(self, lon: float, lat: float, prefer_connected: bool = True) -> str:
+        """
+        Finds closest node in road network using vectorized Euclidean distance.
+        Prioritizes nodes in the primary strongly connected component to avoid unreachable dead-ends/one-ways.
+        """
         if self.node_coords_array is None or len(self.node_coords_array) == 0:
             raise RuntimeError("Road graph is empty; cannot snap coordinates.")
         diffs = self.node_coords_array - np.array([lon, lat])
         sq_dists = np.sum(diffs ** 2, axis=1)
+
+        if prefer_connected and hasattr(self, "primary_scc") and self.primary_scc:
+            # Check top 35 closest candidate nodes to find one in the primary network
+            closest_indices = np.argsort(sq_dists)[:35]
+            for idx in closest_indices:
+                nid = self.node_id_list[idx]
+                if nid in self.primary_scc:
+                    return nid
+
         idx = int(np.argmin(sq_dists))
         return self.node_id_list[idx]
 
@@ -217,7 +237,7 @@ class RoutingEngine:
         depth_grid: Optional[np.ndarray] = None,
         vehicle_type: str = "car",
         blocked_road_ids: Optional[List[str]] = None,
-        traffic_mode: str = "live",
+        traffic_mode: str = "peak_monsoon",
     ) -> Tuple[Dict[Tuple[str, str], float], Dict[Tuple[str, str], float], Dict[Tuple[str, str], str], List[Dict[str, Any]]]:
         """
         Thread-safe, functional weight evaluator. Computes dynamic weights per query without mutating the shared graph.
@@ -448,6 +468,8 @@ class RoutingEngine:
         def weight_func(u: str, v: str, edge_data: Dict[str, Any]) -> float:
             return weights.get((u, v), edge_data.get("base_weight", 10.0))
 
+        path_nodes = None
+        is_compromised = False
         try:
             path_nodes = nx.astar_path(
                 subgraph_view,
@@ -457,19 +479,69 @@ class RoutingEngine:
                 weight=weight_func,
             )
         except (nx.NetworkXNoPath, nx.NodeNotFound):
-            return {
-                "route_found": False,
-                "reason": "All viable corridors are submerged or impassable for this vehicle.",
-                "src_node": src_node,
-                "dst_node": dst_node,
-                "vehicle_type": vehicle_type,
-                "roads_avoided": blocked_roads,
-                "traffic_mode": traffic_mode,
-            }
+            pass
+
+        # 3b. SAFEST CONTINGENCY ROUTE FALLBACK:
+        # If all strictly passable corridors are submerged above vehicle wading depth,
+        # find the route that MINIMIZES cumulative water depth and flood risk rather than failing.
+        if path_nodes is None:
+            v_thresh = VEHICLE_THRESHOLDS.get(vehicle_type.lower(), 0.30)
+            blocked_set = set(blocked_road_ids or [])
+
+            def fallback_weight(u: str, v: str, edge_data: Dict[str, Any]) -> float:
+                if (u, v) in avoid_set:
+                    return float("inf")
+                edge_id = edge_data.get("id")
+                if edge_id in blocked_set:
+                    return float("inf")
+                base = edge_data.get("base_weight", 10.0)
+                d = depths.get((u, v), 0.0)
+                if d < v_thresh:
+                    return weights.get((u, v), base)
+                # Exponential penalty for water depth above threshold: prioritizes the shallowest path
+                excess = d - v_thresh
+                return base + 1000.0 + (excess * 5000.0) + ((d / max(0.01, v_thresh)) ** 2) * 200.0
+
+            try:
+                path_nodes = nx.dijkstra_path(
+                    self.graph,
+                    source=src_node,
+                    target=dst_node,
+                    weight=fallback_weight,
+                )
+                is_compromised = True
+            except (nx.NetworkXNoPath, nx.NodeNotFound):
+                # Fallback to bidirectional graph view if one-way constraints prevent reaching destination
+                try:
+                    undir = self.graph.to_undirected(as_view=True)
+                    path_nodes = nx.dijkstra_path(
+                        undir,
+                        source=src_node,
+                        target=dst_node,
+                        weight=fallback_weight,
+                    )
+                    is_compromised = True
+                except (nx.NetworkXNoPath, nx.NodeNotFound):
+                    return {
+                        "route_found": False,
+                        "reason": "All viable corridors are completely disconnected or impassable.",
+                        "src_node": src_node,
+                        "dst_node": dst_node,
+                        "vehicle_type": vehicle_type,
+                        "roads_avoided": blocked_roads,
+                        "traffic_mode": traffic_mode,
+                    }
 
         # 4. Build response using query-local weight states
         return self._build_route_response(
-            path_nodes, vehicle_type, weights, depths, statuses, blocked_roads, traffic_mode=traffic_mode
+            path_nodes,
+            vehicle_type,
+            weights,
+            depths,
+            statuses,
+            blocked_roads,
+            traffic_mode=traffic_mode,
+            is_compromised=is_compromised,
         )
 
     def find_alternative_routes(
@@ -530,6 +602,7 @@ class RoutingEngine:
         statuses: Dict[Tuple[str, str], str],
         blocked_roads: List[Dict[str, Any]],
         traffic_mode: str = "peak_monsoon",
+        is_compromised: bool = False,
     ) -> Dict[str, Any]:
         """Constructs response payload from path nodes and query-local weight evaluation."""
         route_coords: List[List[float]] = []
@@ -541,12 +614,16 @@ class RoutingEngine:
         total_traffic_delay_s = 0.0
         flood_depths: List[float] = []
 
+        v_mode = vehicle_type.lower()
+        v_thresh = VEHICLE_THRESHOLDS.get(v_mode, 0.30)
+        nom_spd = MODE_NOMINAL_SPEEDS_KMH.get(v_mode, 35.0)
+
         for i in range(len(path_nodes) - 1):
             u = path_nodes[i]
             v = path_nodes[i + 1]
-            edge_data = self.edge_attributes.get((u, v), self.graph[u][v])
-            
-            w = weights.get((u, v), edge_data["base_weight"])
+            edge_data = self.edge_attributes.get((u, v), self.graph[u][v] if self.graph.has_edge(u, v) else self.graph[v][u])
+
+            w = weights.get((u, v), edge_data.get("base_weight", 10.0))
             d = depths.get((u, v), 0.0)
             st = statuses.get((u, v), "PASSABLE")
             length_m = edge_data.get("length_m", 10.0)
@@ -567,36 +644,38 @@ class RoutingEngine:
             mid_lat = (u_pt[1] + v_pt[1]) / 2.0
             maxspd = edge_data.get("maxspeed_kmh", 40.0)
 
-            v_mode = vehicle_type.lower()
-            nom_spd = MODE_NOMINAL_SPEEDS_KMH.get(v_mode, 35.0)
-
             flow = traffic_service.get_flow_for_point(mid_lat, mid_lon, maxspd, traffic_mode=traffic_mode)
             curr_spd = flow["current_speed_kmh"]
             free_spd = flow["free_flow_speed_kmh"]
             c_level = flow["congestion_level"]
             delay_factor = flow.get("delay_factor", 1.0)
 
-            # For pedestrians and bikes:
-            # - Pedestrians walk on sidewalks at constant ~5 km/h largely unaffected by vehicular gridlock,
-            #   except for street crossing impedance at major junctions during heavy congestion.
-            # - Bicycles can filter through heavy traffic, so vehicular delay affects them at only 25% severity.
             if v_mode == "pedestrian":
                 edge_free_time = length_m / (nom_spd / 3.6)
                 ped_traffic_factor = 1.05 if c_level == "HEAVY" else 1.0
                 edge_traffic_time = edge_free_time * ped_traffic_factor
                 edge_traffic_delay = max(0.0, edge_traffic_time - edge_free_time)
-                total_time_s += w * ped_traffic_factor
+                if math.isinf(w):
+                    total_time_s += edge_traffic_time * (3.0 + (d / max(0.01, v_thresh)) * 3.0)
+                else:
+                    total_time_s += w * ped_traffic_factor
             elif v_mode in ["bike", "motorcycle"]:
                 edge_free_time = length_m / (nom_spd / 3.6)
-                bike_traffic_factor = 1.0 + (delay_factor - 1.0) * 0.35  # Filter through gridlock
+                bike_traffic_factor = 1.0 + (delay_factor - 1.0) * 0.35
                 edge_traffic_time = edge_free_time * bike_traffic_factor
                 edge_traffic_delay = max(0.0, edge_traffic_time - edge_free_time)
-                total_time_s += w * bike_traffic_factor
+                if math.isinf(w):
+                    total_time_s += edge_traffic_time * (3.0 + (d / max(0.01, v_thresh)) * 3.0)
+                else:
+                    total_time_s += w * bike_traffic_factor
             else:
                 edge_free_time = length_m / max(2.0, (free_spd / 3.6))
                 edge_traffic_time = length_m / max(1.5, (curr_spd / 3.6))
                 edge_traffic_delay = max(0.0, edge_traffic_time - edge_free_time)
-                total_time_s += w * delay_factor
+                if math.isinf(w):
+                    total_time_s += edge_traffic_time * (4.0 + (d / max(0.01, v_thresh)) * 4.0)
+                else:
+                    total_time_s += w * delay_factor
 
             total_free_flow_time_s += edge_free_time
             total_traffic_delay_s += edge_traffic_delay
@@ -614,7 +693,7 @@ class RoutingEngine:
                 "congestion_level": c_level,
                 "traffic_delay_s": round(edge_traffic_delay, 1),
                 "flood_depth_m": d,
-                "status": st,
+                "status": st if not math.isinf(w) else "SUBMERGED_CAUTION",
             })
 
             if coords:
@@ -628,7 +707,9 @@ class RoutingEngine:
         max_depth = max(flood_depths) if flood_depths else 0.0
         avg_depth = sum(flood_depths) / len(flood_depths) if flood_depths else 0.0
 
-        if max_depth >= VEHICLE_THRESHOLDS.get(vehicle_type.lower(), 0.30):
+        compromised_state = is_compromised or (max_depth >= v_thresh)
+
+        if max_depth >= v_thresh:
             risk_level = "CRITICAL"
         elif max_depth >= PONDING_SEVERE_DELAY_DEPTH_M:
             risk_level = "ELEVATED"
@@ -643,8 +724,18 @@ class RoutingEngine:
             else "OPTIMAL"
         )
 
+        advisory = None
+        if compromised_state:
+            advisory = (
+                f"CAUTION: Water depth ({int(max_depth * 100)} cm) on sections of this corridor exceeds "
+                f"nominal {vehicle_type} wading threshold ({int(v_thresh * 100)} cm). "
+                f"Showing safest contingency path minimizing flood exposure. Drive with extreme caution."
+            )
+
         return {
             "route_found": True,
+            "is_compromised": compromised_state,
+            "advisory": advisory,
             "vehicle_type": vehicle_type,
             "distance_m": round(total_dist_m, 1),
             "travel_time_s": round(total_time_s, 1),
@@ -672,6 +763,8 @@ class RoutingEngine:
                     "flood_risk": risk_level,
                     "vehicle_type": vehicle_type,
                     "traffic_mode": traffic_mode,
+                    "is_compromised": compromised_state,
+                    "advisory": advisory,
                 },
                 "geometry": {
                     "type": "LineString",

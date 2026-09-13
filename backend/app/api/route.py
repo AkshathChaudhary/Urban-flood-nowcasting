@@ -30,9 +30,39 @@ from backend.app.models.location import (
 )
 from backend.app.api.roads import get_routing_engine
 from backend.app.engine_state import get_engine
+from backend.app.api.flood import get_kolkata_forecast
 from backend.app.engine.corridor_pipeline import run_unified_corridor_pipeline
 
 router = APIRouter(prefix="/api/route", tags=["Flood-Resilient Routing"])
+
+
+def _get_depth_grid_for_city(city: str, time_horizon_min: int) -> 'np.ndarray | None':
+    """
+    Returns the correct depth grid for the given city and forecast horizon.
+    Prevents cross-city contamination by keeping Mumbai and Kolkata grids separate.
+    """
+    try:
+        if city == "kolkata":
+            k_engine, k_grids = get_kolkata_forecast()
+            if k_grids and time_horizon_min in k_grids:
+                return k_grids[time_horizon_min]
+            # Fallback: find closest available horizon
+            if k_grids:
+                closest = min(k_grids.keys(), key=lambda h: abs(h - time_horizon_min))
+                return k_grids[closest]
+            return None
+        else:
+            # Mumbai uses the singleton FloodEngine
+            flood_eng = get_engine()
+            if hasattr(flood_eng, "forecast_grids") and flood_eng.forecast_grids:
+                if time_horizon_min in flood_eng.forecast_grids:
+                    return flood_eng.forecast_grids[time_horizon_min]
+                # Fallback: closest horizon
+                closest = min(flood_eng.forecast_grids.keys(), key=lambda h: abs(h - time_horizon_min))
+                return flood_eng.forecast_grids[closest]
+            return None
+    except Exception:
+        return None
 
 
 # ---------------------------------------------------------------------------
@@ -61,6 +91,10 @@ class RouteRequest(BaseModel):
     blocked_road_ids: Optional[List[str]] = Field(
         None,
         description="Optional list of road IDs to manually treat as impassable (e.g. debris or police blockades)."
+    )
+    traffic_mode: str = Field(
+        "peak_monsoon",
+        description="Traffic condition mode: 'peak_monsoon' (simulates prolonged busy rush hour bottlenecks) or 'live' (TomTom real-time)."
     )
 
 
@@ -233,22 +267,17 @@ def calculate_flood_route(req: RouteRequest):
     src = (req.src_lon, req.src_lat)
     dst = (req.dst_lon, req.dst_lat)
 
-    # Check if FloodEngine has depth grids available for this horizon
-    depth_grid = None
-    try:
-        flood_eng = get_engine()
-        if hasattr(flood_eng, "get_street_depth_grid"):
-            depth_grid = flood_eng.get_street_depth_grid(req.time_horizon_min)
-        elif hasattr(flood_eng, "forecast_grids") and req.time_horizon_min in flood_eng.forecast_grids:
-            depth_grid = flood_eng.forecast_grids[req.time_horizon_min]
-    except Exception:
-        depth_grid = None
+    # Get the correct city-specific depth grid (prevents cross-city contamination)
+    depth_grid = _get_depth_grid_for_city(city, req.time_horizon_min)
+
+    traffic_m = req.traffic_mode or "peak_monsoon"
 
     if req.blocked_road_ids:
         engine.apply_flood_weights(
             depth_grid=depth_grid,
             vehicle_type=vtype,
             blocked_road_ids=req.blocked_road_ids,
+            traffic_mode=traffic_m,
         )
 
     if req.include_alternatives:
@@ -258,19 +287,24 @@ def calculate_flood_route(req: RouteRequest):
             vehicle_type=vtype,
             depth_grid=depth_grid,
             max_alternatives=2,
+            traffic_mode=traffic_m,
         )
         if not routes or not routes[0].get("route_found"):
             return {
                 "route_found": False,
                 "message": "No passable route available for this vehicle due to flooded or closed roads.",
                 "vehicle_type": vtype,
+                "traffic_mode": traffic_m,
                 "alternatives_count": 0,
                 "routes": routes,
+                "primary_route": routes[0] if routes else None,
+                "alternatives": routes[1:] if len(routes) > 1 else [],
             }
         return {
             "route_found": True,
             "vehicle_type": vtype,
             "time_horizon_min": req.time_horizon_min,
+            "traffic_mode": traffic_m,
             "primary_route": routes[0],
             "alternatives": routes[1:],
             "alternatives_count": len(routes) - 1,
@@ -281,11 +315,13 @@ def calculate_flood_route(req: RouteRequest):
             dst=dst,
             vehicle_type=vtype,
             depth_grid=depth_grid,
+            traffic_mode=traffic_m,
         )
         return {
             "route_found": route.get("route_found", False),
             "vehicle_type": vtype,
             "time_horizon_min": req.time_horizon_min,
+            "traffic_mode": traffic_m,
             "primary_route": route,
             "alternatives": [],
             "alternatives_count": 0,
@@ -298,7 +334,8 @@ def simulate_flood_route(req: FloodSimulationRouteRequest):
     Simulates a flood scenario by flooding low-elevation roads/hotspots to `simulated_flood_depth_m`
     and computes the rerouted path, demonstrating dynamic flood evasion in real-time.
     """
-    engine = get_routing_engine()
+    city = "kolkata" if (req.src_lat > 21.0 or req.dst_lat > 21.0) else "mumbai"
+    engine = get_routing_engine(city)
     vtype = req.vehicle_type.lower()
     if vtype not in VEHICLE_THRESHOLDS:
         raise HTTPException(
@@ -306,17 +343,21 @@ def simulate_flood_route(req: FloodSimulationRouteRequest):
             detail=f"Invalid vehicle type '{req.vehicle_type}'."
         )
 
-    # Synthesize 200x200 flood grid based on DEM elevation low-points
-    mock_depth_grid = np.zeros((200, 200), dtype=np.float32)
+    # Multi-city dynamic grid dimensions (200x200 for Mumbai, 300x160 for Kolkata)
+    cfg = CITY_CONFIGS.get(city, CITY_CONFIGS["mumbai"])
+    grid_rows, grid_cols = cfg["grid"][0], cfg["grid"][1]
+    mock_depth_grid = np.zeros((grid_rows, grid_cols), dtype=np.float32)
 
-    # Inundate grid cells corresponding to road midpoints with elevation <= 3.8m
+    # Inundate grid cells corresponding to road midpoints with elevation <= threshold
     flooded_edges_count = 0
+    elev_threshold = 3.5 if city == "kolkata" else 3.8
     for edge in engine.edge_attributes.values():
-        if edge.get("elevation_m", 10.0) <= 3.8:
+        if edge.get("elevation_m", 10.0) <= elev_threshold:
             r = edge.get("midpoint_grid_row", 0)
             c = edge.get("midpoint_grid_col", 0)
-            mock_depth_grid[r, c] = req.simulated_flood_depth_m
-            flooded_edges_count += 1
+            if 0 <= r < grid_rows and 0 <= c < grid_cols:
+                mock_depth_grid[r, c] = req.simulated_flood_depth_m
+                flooded_edges_count += 1
 
     src = (req.src_lon, req.src_lat)
     dst = (req.dst_lon, req.dst_lat)
@@ -348,6 +389,7 @@ class NavigateRequest(BaseModel):
     vehicle_type: str = Field("car", description="Vehicle type: 'car', 'suv', 'ambulance', 'truck', 'pedestrian'")
     simulated_flood_depth_m: Optional[float] = Field(None, ge=0.0, le=3.0, description="Optional flood depth in meters (e.g. 0.35) to simulate in real-time.")
     include_alternatives: bool = Field(True, description="Whether to include safe alternative detour options.")
+    traffic_mode: Optional[str] = Field("peak_monsoon", description="Traffic condition mode: 'peak_monsoon' or 'live'")
 
 
 @router.get("/current-location")
@@ -367,7 +409,12 @@ def live_navigate(req: NavigateRequest):
     - Resolves natural-language destination landmarks or coordinates.
     - Computes flood-resilient A* route avoiding submerged streets for the selected vehicle.
     """
-    engine = get_routing_engine()
+    # Detect city from destination text first, then from coordinates
+    from backend.app.models.location import detect_city_from_text_or_coords
+    city = detect_city_from_text_or_coords(req.destination)
+    if req.src_lat and req.src_lat > 21.0:
+        city = "kolkata"
+    engine = get_routing_engine(city)
     vtype = req.vehicle_type.lower()
     if vtype not in VEHICLE_THRESHOLDS:
         raise HTTPException(
@@ -380,31 +427,39 @@ def live_navigate(req: NavigateRequest):
         src = (req.src_lon, req.src_lat)
         origin_desc = f"Custom origin ({req.src_lat:.4f}, {req.src_lon:.4f})"
     else:
-        live = get_live_location()
+        live = get_live_location(city=city)
         src = (live["lon"], live["lat"])
         origin_desc = live["location_name"]
 
     # 2. Resolve Destination
-    dst_lon, dst_lat, dest_name = resolve_destination(req.destination)
+    dst_lon, dst_lat, dest_name = resolve_destination(req.destination, city=city)
     dst = (dst_lon, dst_lat)
 
-    # 3. Simulate Flood if requested
+    # 3. Simulate Flood if requested, otherwise use active simulation depth grid
+    cfg = CITY_CONFIGS.get(city, CITY_CONFIGS["mumbai"])
+    grid_rows, grid_cols = cfg["grid"][0], cfg["grid"][1]
     mock_depth_grid = None
     if req.simulated_flood_depth_m is not None and req.simulated_flood_depth_m > 0.0:
-        mock_depth_grid = np.zeros((200, 200), dtype=np.float32)
+        mock_depth_grid = np.zeros((grid_rows, grid_cols), dtype=np.float32)
+        elev_threshold = 3.5 if city == "kolkata" else 3.8
         for edge in engine.edge_attributes.values():
-            if edge.get("elevation_m", 10.0) <= 3.8:
+            if edge.get("elevation_m", 10.0) <= elev_threshold:
                 r = edge.get("midpoint_grid_row", 0)
                 c = edge.get("midpoint_grid_col", 0)
-                mock_depth_grid[r, c] = req.simulated_flood_depth_m
+                if 0 <= r < grid_rows and 0 <= c < grid_cols:
+                    mock_depth_grid[r, c] = req.simulated_flood_depth_m
+    else:
+        mock_depth_grid = _get_depth_grid_for_city(city, 0)
 
     # 4. Route Calculation
+    traffic_m = req.traffic_mode or "peak_monsoon"
     routes = engine.find_alternative_routes(
         src=src,
         dst=dst,
         vehicle_type=vtype,
         depth_grid=mock_depth_grid,
         max_alternatives=2 if req.include_alternatives else 0,
+        traffic_mode=traffic_m,
     )
 
     if not routes or not routes[0].get("route_found"):
@@ -413,7 +468,10 @@ def live_navigate(req: NavigateRequest):
             "origin": {"name": origin_desc, "lon": src[0], "lat": src[1]},
             "destination": {"name": dest_name, "lon": dst_lon, "lat": dst_lat},
             "vehicle_type": vtype,
+            "traffic_mode": traffic_m,
             "message": "All paths to destination are submerged or impassable for your vehicle.",
+            "primary_route": routes[0] if routes else None,
+            "alternatives": routes[1:] if len(routes) > 1 else [],
         }
 
     return {
@@ -421,6 +479,7 @@ def live_navigate(req: NavigateRequest):
         "origin": {"name": origin_desc, "lon": src[0], "lat": src[1]},
         "destination": {"name": dest_name, "lon": dst_lon, "lat": dst_lat},
         "vehicle_type": vtype,
+        "traffic_mode": traffic_m,
         "clearance_limit_cm": int(VEHICLE_THRESHOLDS[vtype] * 100),
         "primary_route": routes[0],
         "alternatives": routes[1:] if len(routes) > 1 else [],
@@ -473,4 +532,71 @@ def compute_unified_corridor_route(req: UnifiedCorridorRouteRequest):
         horizon_minutes=req.horizon_minutes,
     )
     return result
+
+
+@router.get("/traffic/config")
+def get_traffic_configuration():
+    """
+    Returns live TomTom traffic telemetry configuration, tile templates, and status.
+    """
+    from backend.app.services.traffic import traffic_service
+    is_live = traffic_service.is_api_key_configured()
+    tile_url = traffic_service.get_tile_url_template()
+    return {
+        "is_live_tomtom_active": is_live,
+        "traffic_tile_url": tile_url,
+        "traffic_service_mode": "tomtom_live" if is_live else "monsoon_traffic_engine",
+        "supported_modes": ["peak_monsoon", "live"],
+        "default_mode": "peak_monsoon",
+        "supported_features": [
+            "live_flow_tiles",
+            "traffic_edge_penalties",
+            "segmented_traffic_polylines",
+            "busy_day_simulation",
+            "vector_traffic_overlay"
+        ],
+    }
+
+
+@router.get("/traffic/overlay")
+def get_traffic_overlay(
+    city: Optional[str] = Query("mumbai", description="City context: 'mumbai' or 'kolkata'"),
+    traffic_mode: Optional[str] = Query("peak_monsoon", description="'peak_monsoon' or 'live'")
+):
+    """
+    Returns road network features decorated with real-time or simulated peak monsoon
+    traffic speeds, delay multipliers, and color-coded statuses (#22C55E, #F59E0B, #EF4444).
+    """
+    from backend.app.services.traffic import traffic_service
+    from backend.app.config import ROADS_DIR
+    from pathlib import Path
+    import json
+
+    c = (city or "mumbai").lower().strip()
+    if c == "kolkata":
+        geojson_path = Path("backend/data/cities/kolkata/roads/road_network.geojson")
+    else:
+        geojson_path = ROADS_DIR / "road_network.geojson" if (ROADS_DIR / "road_network.geojson").exists() else Path("backend/data/roads/road_network.geojson")
+
+    if not geojson_path.exists():
+        raise HTTPException(status_code=404, detail=f"Road network GeoJSON not found for city '{c}'.")
+
+    with open(geojson_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    features = data.get("features", [])
+    mode = traffic_mode or "peak_monsoon"
+    decorated_features = traffic_service.decorate_road_features(features, traffic_mode=mode)
+
+    return {
+        "type": "FeatureCollection",
+        "metadata": {
+            "city": c,
+            "traffic_mode": mode,
+            "total_segments": len(decorated_features),
+            "description": "Prolonged monsoon rush-hour traffic gridlock" if mode == "peak_monsoon" else "Live TomTom telemetry",
+        },
+        "features": decorated_features,
+    }
+
 

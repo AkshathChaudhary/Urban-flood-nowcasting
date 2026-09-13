@@ -37,18 +37,25 @@ router = APIRouter(prefix="/api", tags=["flood-forecast"])
 _kolkata_engine: Optional[FloodEngine] = None
 _kolkata_grids: Optional[Dict[int, np.ndarray]] = None
 _kolkata_scenario: str = "heavy"
+_kolkata_scenario_title: Optional[str] = "Heavy Convective Storm (30 mm/hr)"
 
 
-def set_kolkata_engine(engine: FloodEngine, grids: Dict[int, np.ndarray], scenario: str = "heavy") -> None:
-    global _kolkata_engine, _kolkata_grids, _kolkata_scenario
+def set_kolkata_engine(engine: FloodEngine, grids: Dict[int, np.ndarray], scenario: str = "heavy", scenario_title: Optional[str] = None) -> None:
+    global _kolkata_engine, _kolkata_grids, _kolkata_scenario, _kolkata_scenario_title
     _kolkata_engine = engine
     _kolkata_grids = grids
     _kolkata_scenario = scenario
+    _kolkata_scenario_title = scenario_title or scenario.replace("_", " ").title()
 
 
 def get_kolkata_scenario() -> str:
     global _kolkata_scenario
     return _kolkata_scenario
+
+
+def get_kolkata_scenario_title() -> Optional[str]:
+    global _kolkata_scenario_title
+    return _kolkata_scenario_title
 
 
 def get_kolkata_forecast():
@@ -133,9 +140,10 @@ def get_flood_forecast_overview(city: Optional[str] = Query("mumbai")):
     if c == "kolkata":
         k_engine, k_grids = get_kolkata_forecast()
         horizons = sorted(k_grids.keys())
-        summaries = {h: compute_summary(k_grids[h], h) for h in horizons}
+        summaries = {h: compute_summary(k_grids[h], h, cell_size_m=35.0) for h in horizons}
         return FloodForecastOverview(
             scenario=get_kolkata_scenario(),
+            scenario_title=get_kolkata_scenario_title(),
             horizons=horizons,
             summaries=summaries,
             total_rain_volume_m3=round(k_engine.total_rain_volume_m3, 1),
@@ -152,8 +160,12 @@ def get_flood_forecast_overview(city: Optional[str] = Query("mumbai")):
         h: compute_summary(engine.forecast_grids[h], h) for h in horizons
     }
 
+    from backend.app.api.simulate import SUPPORTED_SCENARIOS
+    sc_title = SUPPORTED_SCENARIOS.get(scenario, {}).get("title", scenario.replace("_", " ").title())
+
     return FloodForecastOverview(
         scenario=scenario,
+        scenario_title=sc_title,
         horizons=horizons,
         summaries=summaries,
         total_rain_volume_m3=round(engine.total_rain_volume_m3, 1),
@@ -270,6 +282,7 @@ def get_flood_forecast_grid(minutes: int, city: Optional[str] = Query("mumbai"))
         summary = compute_summary(grid, nearest_horizon)
         return FloodGridResponse(
             scenario=get_kolkata_scenario(),
+            scenario_title=get_kolkata_scenario_title(),
             horizon_minutes=nearest_horizon,
             rows=int(grid.shape[0]),
             cols=int(grid.shape[1]),
@@ -291,8 +304,13 @@ def get_flood_forecast_grid(minutes: int, city: Optional[str] = Query("mumbai"))
     grid = engine.forecast_grids[minutes]
     summary = compute_summary(grid, minutes)
 
+    curr_sc = get_current_scenario()
+    from backend.app.api.simulate import SUPPORTED_SCENARIOS
+    sc_title = SUPPORTED_SCENARIOS.get(curr_sc, {}).get("title", curr_sc.replace("_", " ").title())
+
     return FloodGridResponse(
-        scenario=get_current_scenario(),
+        scenario=curr_sc,
+        scenario_title=sc_title,
         horizon_minutes=minutes,
         rows=GRID_ROWS,
         cols=GRID_COLS,

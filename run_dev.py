@@ -244,6 +244,8 @@ def main():
             "--port",
             "8000",
             "--reload",
+            "--reload-dir",
+            "backend",
         ]
         print("[3/4] Launching FastAPI backend on http://127.0.0.1:8000...")
         backend_proc = subprocess.Popen(backend_cmd, cwd=project_root)
@@ -285,9 +287,15 @@ def main():
         while True:
             time.sleep(1)
             if backend_proc and backend_proc.poll() is not None:
+                if is_port_in_use(8000):
+                    time.sleep(1)
+                    continue
                 print("[ERROR] Backend exited unexpectedly.")
                 break
             if frontend_proc and frontend_proc.poll() is not None:
+                if is_port_in_use(5173):
+                    time.sleep(1)
+                    continue
                 print("[INFO] Frontend stopped.")
                 break
     except KeyboardInterrupt:

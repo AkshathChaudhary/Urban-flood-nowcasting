@@ -33,6 +33,7 @@ export interface HorizonSummary {
 
 export interface FloodForecastOverview {
   scenario: string;
+  scenario_title?: string;
   horizons: number[];
   summaries: Record<string, HorizonSummary>;
   total_rain_volume_m3: number;
@@ -43,6 +44,7 @@ export interface FloodForecastOverview {
 
 export interface FloodGridResponse {
   scenario: string;
+  scenario_title?: string;
   horizon_minutes: number;
   rows: number;
   cols: number;
@@ -144,6 +146,8 @@ export interface RouteResult {
   segment_count: number;
   roads_traversed: RouteSegment[];
   roads_avoided: RouteSegment[];
+  is_compromised?: boolean;
+  advisory?: string | null;
   traffic_segments?: TrafficSegment[];
   geojson: GeoJSONFeature;
 }
@@ -327,6 +331,7 @@ export interface SimulateRequestPayload {
   lon?: number;
   date_str?: string;
   start_hour?: number;
+  preset?: string;
 }
 
 export const fetchSupportedScenarios = async (): Promise<ScenariosResponse | null> => {
@@ -376,6 +381,135 @@ export const calculateFloodRoute = async (req: RouteRequest): Promise<RouteRespo
     return await res.json();
   } catch (err) {
     console.warn('Could not calculate flood route:', err);
+    return null;
+  }
+};
+
+export interface LiveLocationResponse {
+  location_name: string;
+  lat: number;
+  lon: number;
+  elevation_m: number;
+  inside_study_area: boolean;
+  status: string;
+}
+
+export const fetchLiveUserLocation = async (): Promise<LiveLocationResponse | null> => {
+  try {
+    const res = await fetch('/api/route/current-location');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/current-location:', err);
+    return null;
+  }
+};
+
+export interface LiveNavigateRequest {
+  destination: string;
+  src_lon?: number;
+  src_lat?: number;
+  vehicle_type?: string;
+  simulated_flood_depth_m?: number;
+  include_alternatives?: boolean;
+  traffic_mode?: 'peak_monsoon' | 'live';
+}
+
+export const runLiveNavigate = async (req: LiveNavigateRequest): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/navigate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not run /api/route/navigate:', err);
+    return null;
+  }
+};
+
+export interface UnifiedCorridorRequest {
+  src: string;
+  dst: string;
+  scenario?: string;
+  vehicle_type?: string;
+  horizon_minutes?: number;
+}
+
+export const computeCorridorRoute = async (req: UnifiedCorridorRequest): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/corridor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not run /api/route/corridor:', err);
+    return null;
+  }
+};
+
+export const fetchAvailableCities = async (): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/cities');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/cities:', err);
+    return null;
+  }
+};
+
+export const fetchCorridorPassability = async (time_horizon_min: number = 0): Promise<any> => {
+  try {
+    const res = await fetch(`/api/roads/corridors/passability?time_horizon_min=${time_horizon_min}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/roads/corridors/passability:', err);
+    return null;
+  }
+};
+
+export interface RoadPassabilityItem {
+  status: 'OPEN' | 'RESTRICTED' | 'CLOSED';
+  depth_cm: number;
+  passability: Record<string, boolean>;
+  speed_kmh: number;
+  congestion: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  delay_mult: number;
+}
+
+export interface RoadPassabilityGridResponse {
+  city: string;
+  time_horizon_min: number;
+  selected_vehicle: string;
+  clearance_cm: number;
+  total_roads: number;
+  open_count: number;
+  restricted_count: number;
+  closed_count: number;
+  roads: Record<string, RoadPassabilityItem>;
+}
+
+export const fetchRoadPassabilityGrid = async (
+  city: string = 'mumbai',
+  time_horizon_min: number = 0,
+  vehicle_type: string = 'ambulance',
+  traffic_mode: string = 'peak_monsoon'
+): Promise<RoadPassabilityGridResponse | null> => {
+  try {
+    const res = await fetch(
+      `/api/roads/passability-grid?city=${encodeURIComponent(city)}&time_horizon_min=${time_horizon_min}&vehicle_type=${encodeURIComponent(vehicle_type)}&traffic_mode=${encodeURIComponent(traffic_mode)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/roads/passability-grid:', err);
     return null;
   }
 };

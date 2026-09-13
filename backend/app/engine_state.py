@@ -54,13 +54,21 @@ def get_current_scenario() -> str:
         return _current_scenario
 
 
-def compute_summary(depth_grid: np.ndarray, horizon: int) -> FloodSummary:
+def compute_summary(depth_grid: np.ndarray, horizon: int, cell_size_m: Optional[float] = None) -> FloodSummary:
     """Calculates dashboard KPI metrics for a given water depth array."""
+    if cell_size_m is None:
+        # Deduce from grid shape: (300, 160) is Kolkata (35.0m resolution); (200, 200) is Mumbai (10.0m)
+        if depth_grid.shape == (300, 160):
+            cell_size_m = 35.0
+        else:
+            cell_size_m = float(CELL_SIZE_M)
+
+    cell_area = cell_size_m * cell_size_m
     max_d = float(np.max(depth_grid)) if depth_grid.size > 0 else 0.0
     mean_d = float(np.mean(depth_grid)) if depth_grid.size > 0 else 0.0
     flooded_15 = int(np.sum(depth_grid > 0.15))
     flooded_30 = int(np.sum(depth_grid > 0.30))
-    vol_m3 = float(np.sum(depth_grid) * CELL_AREA_M2)
+    vol_m3 = float(np.sum(depth_grid) * cell_area)
 
     return FloodSummary(
         horizon_minutes=horizon,

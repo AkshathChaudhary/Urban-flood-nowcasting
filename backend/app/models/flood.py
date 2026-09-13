@@ -19,6 +19,7 @@ class SimulateRequest(BaseModel):
         pattern=r"^\d{4}-\d{2}-\d{2}$",
     )
     start_hour: Optional[int] = Field(default=None, ge=0, le=23)
+    preset: Optional[str] = Field(default=None, description="Preset scenario ID (e.g. 'kolkata_2020_amphan', 'mumbai_2005_cloudburst')")
 
 
 class FloodSummary(BaseModel):
@@ -32,6 +33,7 @@ class FloodSummary(BaseModel):
 
 class FloodGridResponse(BaseModel):
     scenario: str
+    scenario_title: Optional[str] = None
     horizon_minutes: int
     rows: int
     cols: int
@@ -44,6 +46,7 @@ class FloodGridResponse(BaseModel):
 
 class FloodForecastOverview(BaseModel):
     scenario: str
+    scenario_title: Optional[str] = None
     horizons: List[int]
     summaries: Dict[int, FloodSummary]
     total_rain_volume_m3: float
