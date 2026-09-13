@@ -33,6 +33,7 @@ export interface HorizonSummary {
 
 export interface FloodForecastOverview {
   scenario: string;
+  scenario_title?: string;
   horizons: number[];
   summaries: Record<string, HorizonSummary>;
   total_rain_volume_m3: number;
@@ -43,6 +44,7 @@ export interface FloodForecastOverview {
 
 export interface FloodGridResponse {
   scenario: string;
+  scenario_title?: string;
   horizon_minutes: number;
   rows: number;
   cols: number;
@@ -102,6 +104,7 @@ export interface RouteRequest {
   vehicle_type: string;
   time_horizon_min: number;
   include_alternatives?: boolean;
+  traffic_mode?: 'peak_monsoon' | 'live';
 }
 
 export interface RouteSegment {
@@ -114,6 +117,17 @@ export interface RouteSegment {
   maxspeed_kmh: number;
   flood_depth_m: number;
   status: string;
+  current_speed_kmh?: number;
+  free_flow_speed_kmh?: number;
+  congestion_level?: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  traffic_delay_s?: number;
+}
+
+export interface TrafficSegment {
+  coordinates: [number, number][];
+  congestion_level: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  current_speed_kmh: number;
+  is_flood_affected: boolean;
 }
 
 export interface RouteResult {
@@ -122,14 +136,57 @@ export interface RouteResult {
   distance_m: number;
   travel_time_s: number;
   travel_time_min: number;
+  free_flow_travel_time_min?: number;
+  traffic_delay_min?: number;
+  traffic_status?: string;
+  traffic_mode?: string;
   max_flood_depth_m: number;
   avg_flood_depth_m: number;
   flood_risk: string;
   segment_count: number;
   roads_traversed: RouteSegment[];
   roads_avoided: RouteSegment[];
+  is_compromised?: boolean;
+  advisory?: string | null;
+  traffic_segments?: TrafficSegment[];
   geojson: GeoJSONFeature;
 }
+
+export interface TrafficConfig {
+  is_live_tomtom_active: boolean;
+  traffic_tile_url: string | null;
+  traffic_service_mode: string;
+  supported_modes?: string[];
+  default_mode?: string;
+  supported_features: string[];
+}
+
+export const fetchTrafficConfig = async (): Promise<TrafficConfig | null> => {
+  try {
+    const res = await fetch('/api/route/traffic/config');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/traffic/config:', err);
+    return null;
+  }
+};
+
+export const fetchTrafficOverlay = async (
+  city: string = 'mumbai',
+  traffic_mode: string = 'peak_monsoon'
+): Promise<GeoJSONFeatureCollection | null> => {
+  try {
+    const res = await fetch(
+      `/api/route/traffic/overlay?city=${encodeURIComponent(city)}&traffic_mode=${encodeURIComponent(traffic_mode)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/traffic/overlay:', err);
+    return null;
+  }
+};
 
 export interface RouteResponse {
   route_found: boolean;
@@ -274,6 +331,7 @@ export interface SimulateRequestPayload {
   lon?: number;
   date_str?: string;
   start_hour?: number;
+  preset?: string;
 }
 
 export const fetchSupportedScenarios = async (): Promise<ScenariosResponse | null> => {
@@ -323,6 +381,135 @@ export const calculateFloodRoute = async (req: RouteRequest): Promise<RouteRespo
     return await res.json();
   } catch (err) {
     console.warn('Could not calculate flood route:', err);
+    return null;
+  }
+};
+
+export interface LiveLocationResponse {
+  location_name: string;
+  lat: number;
+  lon: number;
+  elevation_m: number;
+  inside_study_area: boolean;
+  status: string;
+}
+
+export const fetchLiveUserLocation = async (): Promise<LiveLocationResponse | null> => {
+  try {
+    const res = await fetch('/api/route/current-location');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/current-location:', err);
+    return null;
+  }
+};
+
+export interface LiveNavigateRequest {
+  destination: string;
+  src_lon?: number;
+  src_lat?: number;
+  vehicle_type?: string;
+  simulated_flood_depth_m?: number;
+  include_alternatives?: boolean;
+  traffic_mode?: 'peak_monsoon' | 'live';
+}
+
+export const runLiveNavigate = async (req: LiveNavigateRequest): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/navigate', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not run /api/route/navigate:', err);
+    return null;
+  }
+};
+
+export interface UnifiedCorridorRequest {
+  src: string;
+  dst: string;
+  scenario?: string;
+  vehicle_type?: string;
+  horizon_minutes?: number;
+}
+
+export const computeCorridorRoute = async (req: UnifiedCorridorRequest): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/corridor', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(req),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not run /api/route/corridor:', err);
+    return null;
+  }
+};
+
+export const fetchAvailableCities = async (): Promise<any> => {
+  try {
+    const res = await fetch('/api/route/cities');
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/route/cities:', err);
+    return null;
+  }
+};
+
+export const fetchCorridorPassability = async (time_horizon_min: number = 0): Promise<any> => {
+  try {
+    const res = await fetch(`/api/roads/corridors/passability?time_horizon_min=${time_horizon_min}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/roads/corridors/passability:', err);
+    return null;
+  }
+};
+
+export interface RoadPassabilityItem {
+  status: 'OPEN' | 'RESTRICTED' | 'CLOSED';
+  depth_cm: number;
+  passability: Record<string, boolean>;
+  speed_kmh: number;
+  congestion: 'FREE_FLOW' | 'MODERATE' | 'HEAVY' | 'BLOCKED';
+  delay_mult: number;
+}
+
+export interface RoadPassabilityGridResponse {
+  city: string;
+  time_horizon_min: number;
+  selected_vehicle: string;
+  clearance_cm: number;
+  total_roads: number;
+  open_count: number;
+  restricted_count: number;
+  closed_count: number;
+  roads: Record<string, RoadPassabilityItem>;
+}
+
+export const fetchRoadPassabilityGrid = async (
+  city: string = 'mumbai',
+  time_horizon_min: number = 0,
+  vehicle_type: string = 'ambulance',
+  traffic_mode: string = 'peak_monsoon'
+): Promise<RoadPassabilityGridResponse | null> => {
+  try {
+    const res = await fetch(
+      `/api/roads/passability-grid?city=${encodeURIComponent(city)}&time_horizon_min=${time_horizon_min}&vehicle_type=${encodeURIComponent(vehicle_type)}&traffic_mode=${encodeURIComponent(traffic_mode)}`
+    );
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return await res.json();
+  } catch (err) {
+    console.warn('Could not fetch /api/roads/passability-grid:', err);
     return null;
   }
 };

@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { 
   Play, 
   Pause, 
@@ -19,11 +19,22 @@ import {
   ChevronDown,
   ChevronLeft,
   Clock,
-  Waves
+  Waves,
+  Navigation,
+  GitFork
 } from 'lucide-react';
 import { GisMap } from './GisMap';
-import { RoutePanel } from './RoutePanel';
+import { RoutePanel, type TransportMode } from './RoutePanel';
 import { DrainagePanel } from './DrainagePanel';
+import { NavigationHud } from './NavigationHud';
+import {
+  generateTurnByTurnSteps,
+  calculateBearing,
+  calculateDistanceMeters,
+  getMinDistanceToRouteMeters,
+  navigationVoice,
+  type NavigationStep,
+} from '../services/navigation';
 import { 
   fetchRoadsSummary, 
   fetchFloodOverview, 
@@ -35,34 +46,42 @@ import {
   createFloodWebSocket,
   runSimulation,
   fetchSupportedScenarios,
-  clearFloodGridCache
+  clearFloodGridCache,
+  fetchTrafficConfig,
+  computeCorridorRoute,
 } from '../services/api';
 import type { 
   RoadSummary, 
   FloodForecastOverview, 
   HorizonSummary, 
   Landmark, 
-  RouteResult,
+  RouteResult, 
+  ScenariosResponse,
   DrainageSummary,
-  ScenariosResponse
+  TrafficConfig,
 } from '../services/api';
 
 interface CommandCenterViewProps {
   currentCity: string;
   onCityChange?: (city: string) => void;
+  initialScenario?: string;
 }
 
-export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCity, onCityChange }) => {
+export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCity, onCityChange, initialScenario }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
   const [currentTimeStep, setCurrentTimeStep] = useState<number>(60); // default to T+60m
-  const [showFloodHeatmap, setShowFloodHeatmap] = useState<boolean>(false);
-  const [showDrainagePipes, setShowDrainagePipes] = useState<boolean>(false);
-  const [showRoadGrid, setShowRoadGrid] = useState<boolean>(false);
-  const [showHotspots, setShowHotspots] = useState<boolean>(false);
+  const [showFloodHeatmap, setShowFloodHeatmap] = useState<boolean>(true);
+  const [showDrainagePipes, setShowDrainagePipes] = useState<boolean>(false); // default OFF to avoid cluttered green lines
+  const [showRoadGrid, setShowRoadGrid] = useState<boolean>(true);
+  const [showHotspots, setShowHotspots] = useState<boolean>(true);
   const [showDemTerrain, setShowDemTerrain] = useState<boolean>(false);
-  const [selectedVehicle, setSelectedVehicle] = useState<'car' | 'ambulance' | 'rescue'>('ambulance');
+  const [showTrafficLayer, setShowTrafficLayer] = useState<boolean>(true);
+  const [trafficConfig, setTrafficConfig] = useState<TrafficConfig | null>(null);
+  const [trafficMode, setTrafficMode] = useState<'peak_monsoon' | 'live'>('peak_monsoon');
+  const [selectedVehicle, setSelectedVehicle] = useState<TransportMode>('ambulance');
   
   // Navigation & Drawer State
+  const [navViewMode, setNavViewMode] = useState<'3d' | '2d'>('3d');
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState<boolean>(false);
   const [isAdvancedConfigOpen, setIsAdvancedConfigOpen] = useState<boolean>(false);
   const [isTelemetryOpen, setIsTelemetryOpen] = useState<boolean>(false);
@@ -97,9 +116,62 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeAlternatives, setRouteAlternatives] = useState<RouteResult[]>([]);
   const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0);
+
+  // ── Turn-by-Turn Navigation HUD & Simulator State ──────────────────────────
+  const [isNavigating, setIsNavigating] = useState<boolean>(false);
+  const [navSteps, setNavSteps] = useState<NavigationStep[]>([]);
+  const [navActiveStepIndex, setNavActiveStepIndex] = useState<number>(0);
+  const [navLocation, setNavLocation] = useState<[number, number] | null>(null);
+  const [navBearing, setNavBearing] = useState<number>(0);
+  const [navTraversedCoords, setNavTraversedCoords] = useState<[number, number][]>([]);
+  const [navRemainingCoords, setNavRemainingCoords] = useState<[number, number][]>([]);
+  const [isFollowMode, setIsFollowMode] = useState<boolean>(true);
+  const [isLiveGps, setIsLiveGps] = useState<boolean>(false);
+  const [hasGpsLock, setHasGpsLock] = useState<boolean>(false);
+  const [isVoiceMuted, setIsVoiceMuted] = useState<boolean>(false);
+  const [isSimPlaying, setIsSimPlaying] = useState<boolean>(false);
+  const [simProgressPct, setSimProgressPct] = useState<number>(0);
+  const [simSpeedMultiplier, setSimSpeedMultiplier] = useState<number>(1);
+  const [distanceToNextTurn, setDistanceToNextTurn] = useState<number>(0);
+  const [totalRemainingDistance, setTotalRemainingDistance] = useState<number>(0);
+  const [totalRemainingDuration, setTotalRemainingDuration] = useState<number>(0);
+
+  const lastAnnouncedStepRef = useRef<number>(-1);
+  const navWatchIdRef = useRef<number | null>(null);
+
+  // ── Live GPS Location ─────────────────────────────────────────────────────
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [geoError, setGeoError] = useState<string | null>(null);
+  const geoWatchRef = useRef<number | null>(null);
+  // ─────────────────────────────────────────────────────────────────────────
   
   const playIntervalRef = useRef<any>(null);
 
+
+  // ── Live GPS Geolocation ─────────────────────────────────────────────────
+  useEffect(() => {
+    if (!navigator.geolocation) {
+      setGeoError('Geolocation is not supported by this browser.');
+      return;
+    }
+    geoWatchRef.current = navigator.geolocation.watchPosition(
+      (pos) => {
+        setUserLocation([pos.coords.latitude, pos.coords.longitude]);
+        setGeoError(null);
+      },
+      (err) => {
+        console.warn('Geolocation error:', err.message);
+        setGeoError(err.message);
+      },
+      { enableHighAccuracy: true, timeout: 15000, maximumAge: 5000 }
+    );
+    return () => {
+      if (geoWatchRef.current !== null) {
+        navigator.geolocation.clearWatch(geoWatchRef.current);
+      }
+    };
+  }, []);
+  // ─────────────────────────────────────────────────────────────────────────
 
 
   const forecastHorizons = [0, 30, 60, 90, 120, 180];
@@ -111,7 +183,26 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
         setScenariosMeta(data);
       }
     });
+    fetchTrafficConfig().then(cfg => {
+      if (cfg) setTrafficConfig(cfg);
+    });
   }, []);
+
+  // Handle initial scenario trigger from landing / bento grid
+  useEffect(() => {
+    if (initialScenario) {
+      setHasCalculatedRoute(true);
+      if (initialScenario === 'mumbai_severe') {
+        handleRunSimulation('demo', 'cloudburst');
+      } else if (initialScenario === 'mumbai_river_spill') {
+        handleRunSimulation('demo', 'extreme');
+      } else if (initialScenario === 'kolkata_drainage_choke') {
+        handleRunSimulation('demo', 'extreme_blocked');
+      } else {
+        handleRunSimulation('demo', initialScenario);
+      }
+    }
+  }, [initialScenario]);
 
   // Update default historical dates and presets when city changes
   useEffect(() => {
@@ -137,27 +228,50 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
 
     try {
       let scenario = scenarioOverride || selectedScenario;
-      let date_str = undefined;
-      let start_hour = undefined;
+      let date_str: string | undefined = undefined;
+      let start_hour: number | undefined = undefined;
+      let preset: string | undefined = undefined;
+
+      const allPresets = [
+        'kolkata_2021_cloudburst',
+        'kolkata_2020_amphan',
+        'kolkata_2021_depression',
+        'mumbai_2023_deluge',
+        'mumbai_2005_cloudburst',
+        'mumbai_2019_monsoon',
+      ];
+      if (allPresets.includes(scenario)) {
+        preset = scenario;
+      }
 
       if (activeMode === 'live') {
         scenario = 'live';
       } else if (activeMode === 'historical') {
         scenario = 'historical';
         const presets = scenariosMeta?.historical_presets?.[isKolkata ? 'kolkata' : 'mumbai'] || [];
-        const preset = presets.find(p => p.id === selectedHistoricalPreset);
-        if (preset) {
-          date_str = preset.date_str;
-          start_hour = preset.start_hour;
+        const foundPreset = presets.find(p => p.id === (preset || selectedHistoricalPreset));
+        if (foundPreset) {
+          preset = foundPreset.id;
+          date_str = foundPreset.date_str;
+          start_hour = foundPreset.start_hour;
+        } else if (preset) {
+          if (preset === 'kolkata_2021_cloudburst') { date_str = '2021-09-20'; start_hour = 1; }
+          else if (preset === 'kolkata_2020_amphan') { date_str = '2020-05-20'; start_hour = 8; }
+          else if (preset === 'kolkata_2021_depression') { date_str = '2021-06-17'; start_hour = 4; }
+          else if (preset === 'mumbai_2023_deluge') { date_str = '2023-07-26'; start_hour = 11; }
+          else if (preset === 'mumbai_2005_cloudburst') { date_str = '2005-07-26'; start_hour = 9; }
+          else if (preset === 'mumbai_2019_monsoon') { date_str = '2019-07-02'; start_hour = 3; }
         } else {
           date_str = customDate || (isKolkata ? '2021-09-20' : '2023-07-26');
           start_hour = customStartHour;
+          preset = selectedHistoricalPreset || undefined;
         }
       }
 
       const res = await runSimulation({
         city: currentCity,
         scenario,
+        preset,
         horizon_minutes: 180,
         date_str,
         start_hour,
@@ -170,6 +284,8 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
         const dSummary = await fetchDrainageSummary(currentCity);
         if (dSummary) setDrainageSummary(dSummary);
         setDrainageRefreshKey((prev) => prev + 1);
+        // Automatically advance timeline from 0m to 60m so flood inundation is immediately visible
+        setCurrentTimeStep((prev) => (prev === 0 ? 60 : prev));
       }
       setIsSimModalOpen(false);
     } catch (err: any) {
@@ -187,6 +303,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     setRouteResult(null);
     setRouteAlternatives([]);
     setActiveRouteIndex(0);
+    setHasCalculatedRoute(false);
 
     fetchRoadsSummary(currentCity).then(data => {
       if (data) setRoadSummary(data);
@@ -296,16 +413,37 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     setDrainageRefreshKey((k) => k + 1);
   };
 
+  const handleMapClick = (_lat: number, _lng: number) => {
+    // Interactive map click for depth inspection
+  };
+
   // Route calculation routine
   const triggerRouteCalculation = async (
-    origId = selectedOriginId,
-    destId = selectedDestinationId,
-    veh = selectedVehicle,
-    horizon = currentTimeStep
+    origId: string = selectedOriginId,
+    destId: string = selectedDestinationId,
+    veh: TransportMode = selectedVehicle,
+    horizon: number = currentTimeStep,
+    trafficM: 'peak_monsoon' | 'live' = trafficMode,
   ) => {
-    if (landmarks.length === 0) return;
-    const orig = landmarks.find(l => l.id === origId);
-    const dest = landmarks.find(l => l.id === destId);
+    // Standard landmark & live GPS mode
+    const allLandmarks: Landmark[] = userLocation
+      ? [
+          {
+            id: 'my-location',
+            name: '📍 My Current Location (GPS)',
+            category: 'live',
+            lat: userLocation[0],
+            lon: userLocation[1],
+            elevation_m: 0,
+            description: 'Your live GPS position',
+          },
+          ...landmarks,
+        ]
+      : landmarks;
+
+    if (allLandmarks.length === 0) return;
+    const orig = allLandmarks.find(l => l.id === origId);
+    const dest = allLandmarks.find(l => l.id === destId);
     if (!orig || !dest) return;
 
     setIsCalculatingRoute(true);
@@ -318,6 +456,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
         vehicle_type: veh,
         time_horizon_min: horizon,
         include_alternatives: true,
+        traffic_mode: trafficM,
       });
       if (res) {
         if (res.primary_route) {
@@ -333,10 +472,19 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
 
   // Trigger route recalculation when waypoints, vehicle, or forecast horizon change
   useEffect(() => {
-    if (landmarks.length > 0 && selectedOriginId && selectedDestinationId) {
+    if (hasCalculatedRoute && landmarks.length > 0 && selectedOriginId && selectedDestinationId) {
       triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep);
     }
-  }, [landmarks, selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep]);
+  }, [
+    hasCalculatedRoute,
+    landmarks,
+    userLocation,
+    selectedOriginId,
+    selectedDestinationId,
+    selectedVehicle,
+    currentTimeStep,
+    selectedScenario,
+  ]);
 
   // Handle Play/Pause Auto-Advance Scrubber Loop
   useEffect(() => {
@@ -358,15 +506,285 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     };
   }, [isPlaying]);
 
+  // Active Navigation Route Coordinates & Calculations
+  const activeNavRoute: RouteResult | null =
+    activeRouteIndex === 0 ? routeResult : routeAlternatives[activeRouteIndex - 1] || routeResult;
+
+  const activeRouteCoords: [number, number][] =
+    (activeNavRoute?.geojson?.geometry?.coordinates as [number, number][]) || [];
+
+  const updateNavTelemetryFromProgress = (
+    pct: number,
+    coords: [number, number][],
+    steps: NavigationStep[],
+    speedMultiplier: number = simSpeedMultiplier
+  ) => {
+    if (coords.length < 2) return;
+
+    const segDistances: number[] = [];
+    let totalD = 0;
+    for (let i = 0; i < coords.length - 1; i++) {
+      const d = calculateDistanceMeters(coords[i], coords[i + 1]);
+      segDistances.push(d);
+      totalD += d;
+    }
+
+    const targetDistance = (pct / 100) * totalD;
+    let accumulated = 0;
+    let currentSegmentIndex = 0;
+    let segFraction = 0;
+
+    for (let i = 0; i < segDistances.length; i++) {
+      if (accumulated + segDistances[i] >= targetDistance) {
+        currentSegmentIndex = i;
+        segFraction = segDistances[i] > 0 ? (targetDistance - accumulated) / segDistances[i] : 0;
+        break;
+      }
+      accumulated += segDistances[i];
+      if (i === segDistances.length - 1) {
+        currentSegmentIndex = i;
+        segFraction = 1;
+      }
+    }
+
+    const pA = coords[currentSegmentIndex];
+    const pB = coords[Math.min(currentSegmentIndex + 1, coords.length - 1)];
+
+    const currLng = pA[0] + segFraction * (pB[0] - pA[0]);
+    const currLat = pA[1] + segFraction * (pB[1] - pA[1]);
+    const currPos: [number, number] = [currLng, currLat];
+    const heading = calculateBearing(pA, pB);
+
+    setNavLocation(currPos);
+    setNavBearing(heading);
+
+    const traversed: [number, number][] = coords.slice(0, currentSegmentIndex + 1);
+    traversed.push(currPos);
+    const remaining: [number, number][] = [currPos, ...coords.slice(currentSegmentIndex + 1)];
+
+    setNavTraversedCoords(traversed);
+    setNavRemainingCoords(remaining);
+
+    const remDist = Math.max(0, totalD - targetDistance);
+    setTotalRemainingDistance(remDist);
+    const totalDuration = activeNavRoute?.travel_time_s || (totalD / 8.33);
+    setTotalRemainingDuration(Math.max(0, (remDist / totalD) * totalDuration));
+
+    if (steps.length > 0) {
+      let activeIdx = 0;
+      for (let s = 0; s < steps.length; s++) {
+        const stepDistFromStart = calculateDistanceMeters(coords[0], steps[s].startCoord);
+        if (targetDistance >= stepDistFromStart) {
+          activeIdx = s;
+        } else {
+          break;
+        }
+      }
+      setNavActiveStepIndex(activeIdx);
+
+      const nextTurnCoord = steps[activeIdx + 1]?.startCoord || steps[steps.length - 1].startCoord;
+      const distToTurn = calculateDistanceMeters(currPos, nextTurnCoord);
+      setDistanceToNextTurn(distToTurn);
+
+      if (activeIdx !== lastAnnouncedStepRef.current && activeIdx < steps.length) {
+        lastAnnouncedStepRef.current = activeIdx;
+        const prompt = steps[activeIdx].instruction;
+        if (prompt) {
+          navigationVoice.speak(prompt, false, speedMultiplier);
+        }
+      }
+    }
+  };
+
+  const handleStartNavigation = () => {
+    if (!activeNavRoute || activeRouteCoords.length < 2) return;
+
+    const steps = generateTurnByTurnSteps(activeNavRoute);
+    setNavSteps(steps);
+    setNavActiveStepIndex(0);
+    setNavLocation(activeRouteCoords[0]);
+    setNavBearing(steps[0]?.bearing || 0);
+    setNavTraversedCoords([activeRouteCoords[0]]);
+    setNavRemainingCoords(activeRouteCoords);
+    setSimProgressPct(0);
+    setTotalRemainingDistance(activeNavRoute.distance_m);
+    setTotalRemainingDuration(activeNavRoute.travel_time_s);
+    setIsNavigating(true);
+    setIsSimPlaying(true);
+    setIsRoutePanelOpen(false);
+    setIsDrainagePanelOpen(false);
+    setIsFollowMode(true);
+    lastAnnouncedStepRef.current = -1;
+
+    const vehicleName = selectedVehicle.toUpperCase();
+    navigationVoice.speak(
+      `Starting flood-resilient navigation for ${vehicleName}. Clearance calibrated. ${steps[0]?.instruction || 'Proceed on route.'}`,
+      true
+    );
+  };
+
+  const handleExitNavigation = () => {
+    setIsNavigating(false);
+    setIsSimPlaying(false);
+    navigationVoice.stop();
+    setIsRoutePanelOpen(true);
+    if (navWatchIdRef.current !== null && 'geolocation' in navigator) {
+      navigator.geolocation.clearWatch(navWatchIdRef.current);
+      navWatchIdRef.current = null;
+    }
+  };
+
+  const handleToggleVoice = () => {
+    const nextMuted = !isVoiceMuted;
+    setIsVoiceMuted(nextMuted);
+    navigationVoice.setMuted(nextMuted);
+  };
+
+  const handleSeekProgress = (pct: number) => {
+    setSimProgressPct(pct);
+    updateNavTelemetryFromProgress(pct, activeRouteCoords, navSteps);
+  };
+
+  const handleToggleLiveGps = () => {
+    const nextGps = !isLiveGps;
+    setIsLiveGps(nextGps);
+    if (nextGps) {
+      setIsSimPlaying(false);
+      if ('geolocation' in navigator) {
+        navigationVoice.speak('Switching to live device GPS tracking.');
+        const wid = navigator.geolocation.watchPosition(
+          (pos) => {
+            setHasGpsLock(true);
+            const userPt: [number, number] = [pos.coords.longitude, pos.coords.latitude];
+            setNavLocation(userPt);
+            if (pos.coords.heading !== null && !isNaN(pos.coords.heading)) {
+              setNavBearing(pos.coords.heading);
+            }
+            if (activeRouteCoords.length >= 2) {
+              const { minDistance_m } = getMinDistanceToRouteMeters(userPt, activeRouteCoords);
+              if (minDistance_m > 40) {
+                navigationVoice.speak('Off route detected. Recalculating route around submerged roads.', true);
+              }
+            }
+          },
+          (err) => {
+            console.warn('GPS watch error:', err);
+            setHasGpsLock(false);
+          },
+          { enableHighAccuracy: true, maximumAge: 1000 }
+        );
+        navWatchIdRef.current = wid;
+      } else {
+        alert('Geolocation is not supported by your browser.');
+        setIsLiveGps(false);
+      }
+    } else {
+      if (navWatchIdRef.current !== null && 'geolocation' in navigator) {
+        navigator.geolocation.clearWatch(navWatchIdRef.current);
+        navWatchIdRef.current = null;
+      }
+      setIsSimPlaying(true);
+      navigationVoice.speak('Resuming route navigation playback.');
+    }
+  };
+
+  const handleTriggerOffRouteSim = () => {
+    if (!navLocation) return;
+    const [lng, lat] = navLocation;
+    const deviated: [number, number] = [lng + 0.003, lat + 0.003];
+    setNavLocation(deviated);
+    navigationVoice.speak('Off-route deviation simulated! Dynamic A* recalculation initiated.', true);
+  };
+
+  // Turn-by-Turn Simulated Vehicle Movement Clock
+  useEffect(() => {
+    if (!isNavigating || !isSimPlaying || isLiveGps || activeRouteCoords.length < 2) return;
+
+    const intervalMs = 100;
+    const totalD = activeNavRoute?.distance_m || 1000;
+    const speedMs = 12 * simSpeedMultiplier; // ~43 km/h base speed
+    const distPerTick = speedMs * (intervalMs / 1000);
+    const pctIncrement = (distPerTick / totalD) * 100;
+
+    const simTimer = setInterval(() => {
+      setSimProgressPct((prevPct) => {
+        const nextPct = prevPct + pctIncrement;
+        if (nextPct >= 100) {
+          clearInterval(simTimer);
+          setIsSimPlaying(false);
+          updateNavTelemetryFromProgress(100, activeRouteCoords, navSteps, simSpeedMultiplier);
+          navigationVoice.speak('You have safely arrived at your destination.', true, simSpeedMultiplier);
+          return 100;
+        }
+        updateNavTelemetryFromProgress(nextPct, activeRouteCoords, navSteps, simSpeedMultiplier);
+        return nextPct;
+      });
+    }, intervalMs);
+
+    return () => clearInterval(simTimer);
+  }, [isNavigating, isSimPlaying, isLiveGps, simSpeedMultiplier, activeRouteCoords, navSteps, activeNavRoute]);
+
+  const handleUseLiveLocationAsOrigin = () => {
+    if (!userLocation) {
+      alert('Live GPS location not acquired yet. Please allow browser location access.');
+      return;
+    }
+    setSelectedOriginId('my-location');
+    triggerRouteCalculation('my-location', selectedDestinationId, selectedVehicle, currentTimeStep, trafficMode);
+  };
+
+  const handleTestCorridorPipeline = async (src?: string, dst?: string) => {
+    try {
+      const sourcePoint = src || selectedOriginId || 'bkc-hub';
+      const destPoint = dst || selectedDestinationId || 'kurla-station';
+      const resp = await computeCorridorRoute({
+        src: sourcePoint,
+        dst: destPoint,
+        vehicle_type: selectedVehicle,
+        horizon_minutes: currentTimeStep,
+      });
+      if (resp && resp.status === 'ok') {
+        alert(`Corridor Pipeline Computed from ${sourcePoint} to ${destPoint}:\nTotal Distance: ${resp.distance_m ? (resp.distance_m / 1000).toFixed(2) + ' km' : 'N/A'}\nFlood Status: ${resp.flooded ? 'Submerged' : 'Clear'}`);
+      } else {
+        alert('Corridor calculation response: ' + (resp?.message || JSON.stringify(resp)));
+      }
+    } catch (e: any) {
+      console.error('Corridor error:', e);
+      alert('Error calculating corridor route: ' + (e.message || 'Check network'));
+    }
+  };
+
   // Current Horizon Summary
   const currentSummary: HorizonSummary | undefined = 
     floodOverview?.summaries ? floodOverview.summaries[String(currentTimeStep)] : undefined;
 
   // Selected Origin and Destination Waypoint Lookups
-  const currentOrigin = landmarks.find(l => l.id === selectedOriginId);
-  const currentDestination = landmarks.find(l => l.id === selectedDestinationId);
-  const originCoords: [number, number] | null = currentOrigin ? [currentOrigin.lat, currentOrigin.lon] : null;
-  const destinationCoords: [number, number] | null = currentDestination ? [currentDestination.lat, currentDestination.lon] : null;
+  // Inject "My Location" as a virtual landmark when GPS is active
+  const landmarksWithMyLocation: Landmark[] = userLocation
+    ? [
+        {
+          id: 'my-location',
+          name: '📍 My Current Location (GPS)',
+          category: 'live',
+          lat: userLocation[0],
+          lon: userLocation[1],
+          elevation_m: 0,
+          description: 'Your live GPS position',
+        },
+        ...landmarks,
+      ]
+    : landmarks;
+
+  const currentOrigin = landmarksWithMyLocation.find(l => l.id === selectedOriginId);
+  const currentDestination = landmarksWithMyLocation.find(l => l.id === selectedDestinationId);
+  const originCoords = useMemo<[number, number] | null>(() => {
+    return currentOrigin ? [currentOrigin.lat, currentOrigin.lon] : null;
+  }, [currentOrigin?.lat, currentOrigin?.lon]);
+  const destinationCoords = useMemo<[number, number] | null>(() => {
+    return currentDestination ? [currentDestination.lat, currentDestination.lon] : null;
+  }, [currentDestination?.lat, currentDestination?.lon]);
+  const displayedOriginName = currentOrigin?.name;
+  const displayedDestinationName = currentDestination?.name;
 
   return (
     <div className="relative flex flex-col h-[calc(100vh-4rem)] bg-slate-950 text-slate-100 overflow-hidden">
@@ -420,8 +838,55 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             }`}
             title={showTimelineBar ? "Hide timeline bar" : "Show timeline bar"}
           >
-            {showTimelineBar ? <Clock className="h-3 w-3" /> : <Eye className="h-3 w-3" />}
+            <Clock className="h-3 w-3" />
             <span>T+{currentTimeStep}m</span>
+          </button>
+
+          {/* Traffic Layer Quick Toggle */}
+          <button
+            onClick={() => setShowTrafficLayer(!showTrafficLayer)}
+            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              showTrafficLayer
+                ? 'bg-amber-950/40 hover:bg-amber-900/50 border-amber-500/40 text-amber-300 shadow-sm'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-500'
+            }`}
+            title={showTrafficLayer ? `Traffic Layer Active (${trafficMode === 'peak_monsoon' ? 'Peak Monsoon Rush Hour' : 'TomTom Live'})` : 'Show Traffic Flow Layer'}
+          >
+            <span className={`h-2 w-2 rounded-full ${showTrafficLayer ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
+            <span className="font-semibold">Traffic: {trafficMode === 'peak_monsoon' ? 'Peak' : 'Live'}</span>
+          </button>
+
+          {/* Drainage HUD Quick Button */}
+          <button
+            onClick={() => setIsDrainagePanelOpen(!isDrainagePanelOpen)}
+            className={`hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              isDrainagePanelOpen
+                ? 'bg-emerald-950/40 hover:bg-emerald-900/50 border-emerald-500/40 text-emerald-300 shadow-sm'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-400'
+            }`}
+            title="Toggle Drainage Network HUD"
+          >
+            <GitFork className="h-3 w-3 text-emerald-400" />
+            <span>Drainage HUD</span>
+            {surchargingCount > 0 && (
+              <span className="px-1.5 py-0.2 rounded-full bg-red-500/30 text-red-400 text-[9px] font-bold border border-red-500/40">
+                {surchargingCount}
+              </span>
+            )}
+          </button>
+
+          {/* Evacuation Router HUD Quick Button */}
+          <button
+            onClick={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
+            className={`hidden md:flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
+              isRoutePanelOpen
+                ? 'bg-cyan-950/40 hover:bg-cyan-900/50 border-cyan-500/40 text-cyan-300 shadow-sm'
+                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-400'
+            }`}
+            title="Toggle Evacuation Router HUD"
+          >
+            <Navigation className="h-3 w-3 text-cyan-400" />
+            <span>Router HUD</span>
           </button>
         </div>
 
@@ -581,8 +1046,11 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                     <CloudRain className="h-3.5 w-3.5 mr-1 text-cyan-400" />
                     RAINFALL
                   </span>
-                  <span className="text-[10px] text-cyan-400 uppercase font-mono">
-                    {floodOverview?.scenario || 'HEAVY'}
+                  <span 
+                    className="text-[10px] text-cyan-400 uppercase font-mono truncate max-w-[130px]"
+                    title={floodOverview?.scenario_title || floodOverview?.scenario || 'HEAVY'}
+                  >
+                    {floodOverview?.scenario_title || floodOverview?.scenario || 'HEAVY'}
                   </span>
                 </div>
                 <div className="grid grid-cols-2 gap-1.5">
@@ -603,6 +1071,35 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                     <span>Historical</span>
                   </button>
                 </div>
+
+                {/* Quick Historic Presets Selector */}
+                <div className="pt-0.5">
+                  <select
+                    value={selectedHistoricalPreset}
+                    onChange={(e) => {
+                      const presetId = e.target.value;
+                      setSelectedHistoricalPreset(presetId);
+                      setSimMode('historical');
+                      handleRunSimulation('historical', presetId);
+                    }}
+                    className="w-full bg-slate-900/90 border border-cyan-500/30 hover:border-cyan-400/50 rounded-xl px-2 py-1.5 text-[11px] font-mono text-cyan-300 focus:outline-none focus:border-cyan-400 cursor-pointer shadow-inner transition-colors"
+                  >
+                    {currentCity.toLowerCase() === 'kolkata' ? (
+                      <>
+                        <option value="kolkata_2021_cloudburst">Sep 2021 Cloudburst (142mm)</option>
+                        <option value="kolkata_2020_amphan">May 2020 Cyclone Amphan (236mm)</option>
+                        <option value="kolkata_2021_depression">Jun 2021 Depression (178mm)</option>
+                      </>
+                    ) : (
+                      <>
+                        <option value="mumbai_2023_deluge">Jul 2023 Deluge (204mm)</option>
+                        <option value="mumbai_2005_cloudburst">Jul 2005 Cloudburst (944mm)</option>
+                        <option value="mumbai_2019_monsoon">Jul 2019 Monsoon Deluge (375mm)</option>
+                      </>
+                    )}
+                  </select>
+                </div>
+
                 <button
                   onClick={() => setIsSimModalOpen(true)}
                   className="w-full py-1.5 px-2.5 rounded-xl border border-slate-800 bg-slate-900/50 hover:bg-slate-800/80 text-slate-300 text-[11px] font-mono flex items-center justify-between cursor-pointer transition-all group"
@@ -683,6 +1180,21 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                   </button>
 
                   <button
+                    onClick={() => setShowTrafficLayer(!showTrafficLayer)}
+                    className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
+                      showTrafficLayer
+                        ? 'bg-amber-950/40 border-amber-500/40 text-amber-300 shadow-sm'
+                        : 'bg-slate-900/40 border-slate-800/80 text-slate-500'
+                    }`}
+                  >
+                    <span className="flex items-center space-x-2">
+                      <span className={`h-1.5 w-1.5 rounded-full ${showTrafficLayer ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
+                      <span>Traffic Flow ({trafficMode === 'peak_monsoon' ? 'Peak Rush' : 'TomTom'})</span>
+                    </span>
+                    {showTrafficLayer ? <Eye className="h-3.5 w-3.5 text-amber-400" /> : <EyeOff className="h-3.5 w-3.5" />}
+                  </button>
+
+                  <button
                     onClick={() => setShowDemTerrain(!showDemTerrain)}
                     className={`w-full flex items-center justify-between p-2 rounded-xl border text-xs font-medium transition-all cursor-pointer ${
                       showDemTerrain
@@ -717,8 +1229,28 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                       </span>
                       <div className="grid grid-cols-3 gap-1 p-1 rounded-xl bg-slate-900/80 border border-slate-800">
                         <button
+                          onClick={() => setSelectedVehicle('pedestrian')}
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'pedestrian'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Foot
+                        </button>
+                        <button
+                          onClick={() => setSelectedVehicle('bike')}
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'bike'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          Bike
+                        </button>
+                        <button
                           onClick={() => setSelectedVehicle('car')}
-                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
                             selectedVehicle === 'car'
                               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                               : 'text-slate-400 hover:text-slate-200'
@@ -727,8 +1259,18 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                           Car
                         </button>
                         <button
+                          onClick={() => setSelectedVehicle('suv')}
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
+                            selectedVehicle === 'suv'
+                              ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
+                              : 'text-slate-400 hover:text-slate-200'
+                          }`}
+                        >
+                          SUV
+                        </button>
+                        <button
                           onClick={() => setSelectedVehicle('ambulance')}
-                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
                             selectedVehicle === 'ambulance'
                               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                               : 'text-slate-400 hover:text-slate-200'
@@ -738,13 +1280,13 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
                         </button>
                         <button
                           onClick={() => setSelectedVehicle('rescue')}
-                          className={`py-1 text-center text-[10px] font-medium rounded-lg transition-all cursor-pointer ${
+                          className={`py-1 text-center text-[9px] font-medium rounded-lg transition-all cursor-pointer ${
                             selectedVehicle === 'rescue'
                               ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 font-bold'
                               : 'text-slate-400 hover:text-slate-200'
                           }`}
                         >
-                          Rescue
+                          Truck
                         </button>
                       </div>
                     </div>
@@ -786,43 +1328,109 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
             originCoords={originCoords}
             destinationCoords={destinationCoords}
-            originName={currentOrigin?.name}
-            destinationName={currentDestination?.name}
+            originName={displayedOriginName}
+            destinationName={displayedDestinationName}
             onDrainageSummaryLoaded={(surcharges) => setSurchargingCount(surcharges)}
             drainageRefreshKey={drainageRefreshKey}
             simulationKey={simulationKey}
-          />
-
-          {/* Floating Subterranean Drainage Diagnostics HUD Panel */}
-          <DrainagePanel
-            summary={drainageSummary}
-            onUpdateBlockage={handleUpdateBlockage}
-            onResetDrainage={handleResetDrainage}
-            isUpdating={isUpdatingBlockage}
-            isOpen={isDrainagePanelOpen}
-            onToggleOpen={() => setIsDrainagePanelOpen(!isDrainagePanelOpen)}
-            surchargingCount={surchargingCount}
-          />
-
-          {/* Floating Resilient Evacuation Route HUD Panel */}
-          <RoutePanel
-            landmarks={landmarks}
-            selectedOriginId={selectedOriginId}
-            selectedDestinationId={selectedDestinationId}
-            onSelectOriginId={(id) => setSelectedOriginId(id)}
-            onSelectDestinationId={(id) => setSelectedDestinationId(id)}
+            userLocation={userLocation}
+            onMapClick={handleMapClick}
+            isNavigating={isNavigating}
+            navLocation={navLocation}
+            navBearing={navBearing}
+            navTraversedCoords={navTraversedCoords}
+            navRemainingCoords={navRemainingCoords}
+            isFollowMode={isFollowMode}
+            onMapUserDrag={() => setIsFollowMode(false)}
+            showTrafficLayer={showTrafficLayer}
+            trafficTileUrl={trafficConfig?.traffic_tile_url}
+            trafficMode={trafficMode}
             selectedVehicle={selectedVehicle}
-            onSelectVehicle={(v) => setSelectedVehicle(v)}
-            onCalculateRoute={() => triggerRouteCalculation()}
-            isCalculating={isCalculatingRoute}
-            routeResult={routeResult}
-            alternatives={routeAlternatives}
-            activeRouteIndex={activeRouteIndex}
-            onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
-            isOpen={isRoutePanelOpen}
-            onToggleOpen={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
-            timeHorizon={currentTimeStep}
+            navViewMode={navViewMode}
           />
+
+          {/* Active Turn-by-Turn Navigation HUD Overlay */}
+          {isNavigating && (
+            <NavigationHud
+              currentStep={navSteps[navActiveStepIndex] || null}
+              nextStep={navSteps[navActiveStepIndex + 1] || null}
+              distanceToNextTurn_m={distanceToNextTurn}
+              totalRemainingDistance_m={totalRemainingDistance}
+              totalRemainingDuration_s={totalRemainingDuration}
+              isSimulating={isSimPlaying}
+              simProgressPct={simProgressPct}
+              simSpeedMultiplier={simSpeedMultiplier}
+              isVoiceMuted={isVoiceMuted}
+              vehicleType={selectedVehicle}
+              isLiveGps={isLiveGps}
+              hasGpsLock={hasGpsLock}
+              isFollowMode={isFollowMode}
+              navViewMode={navViewMode}
+              onToggleViewMode={() => setNavViewMode((prev) => (prev === '3d' ? '2d' : '3d'))}
+              onTogglePlayPause={() => setIsSimPlaying(!isSimPlaying)}
+              onChangeSpeed={(mult) => setSimSpeedMultiplier(mult)}
+              onSeekProgress={(pct) => handleSeekProgress(pct)}
+              onToggleVoice={handleToggleVoice}
+              onRecenterCamera={() => setIsFollowMode(true)}
+              onToggleLiveGps={handleToggleLiveGps}
+              onTriggerOffRouteSim={handleTriggerOffRouteSim}
+              onExitNavigation={handleExitNavigation}
+            />
+          )}
+
+          {/* Floating Subterranean Drainage Diagnostics HUD Panel (Hidden during navigation) */}
+          {!isNavigating && (
+            <DrainagePanel
+              city={currentCity}
+              summary={drainageSummary}
+              onUpdateBlockage={handleUpdateBlockage}
+              onResetDrainage={handleResetDrainage}
+              isUpdating={isUpdatingBlockage}
+              isOpen={isDrainagePanelOpen}
+              onToggleOpen={() => setIsDrainagePanelOpen(!isDrainagePanelOpen)}
+              surchargingCount={surchargingCount}
+            />
+          )}
+
+          {/* Floating Resilient Evacuation Route HUD Panel (Hidden during navigation) */}
+          {!isNavigating && (
+            <RoutePanel
+              landmarks={landmarksWithMyLocation}
+              selectedOriginId={selectedOriginId}
+              selectedDestinationId={selectedDestinationId}
+              onSelectOriginId={(id) => { setSelectedOriginId(id); setRouteResult(null); setRouteAlternatives([]); }}
+              onSelectDestinationId={(id) => { setSelectedDestinationId(id); setRouteResult(null); setRouteAlternatives([]); }}
+              selectedVehicle={selectedVehicle}
+              onSelectVehicle={(v) => { setSelectedVehicle(v); setRouteResult(null); setRouteAlternatives([]); }}
+              onCalculateRoute={() => { setHasCalculatedRoute(true); triggerRouteCalculation(); }}
+              isCalculating={isCalculatingRoute}
+              routeResult={routeResult}
+              alternatives={routeAlternatives}
+              activeRouteIndex={activeRouteIndex}
+              onSelectRouteIndex={(idx) => setActiveRouteIndex(idx)}
+              isOpen={isRoutePanelOpen}
+              onToggleOpen={() => setIsRoutePanelOpen(!isRoutePanelOpen)}
+              timeHorizon={currentTimeStep}
+              onStartNavigation={handleStartNavigation}
+              trafficMode={trafficMode}
+              onSelectTrafficMode={(mode) => {
+                setTrafficMode(mode);
+                if (routeResult) {
+                  triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, mode);
+                }
+              }}
+              userLocation={userLocation}
+              onUseLiveLocation={handleUseLiveLocationAsOrigin}
+              onTestCorridorPipeline={handleTestCorridorPipeline}
+            />
+          )}
+          {/* GPS Error / Permission nudge */}
+          {geoError && !userLocation && !isNavigating && (
+            <div className="absolute bottom-24 left-1/2 -translate-x-1/2 z-30 flex items-center space-x-2 px-4 py-2 rounded-xl bg-amber-950/90 border border-amber-500/40 text-amber-300 text-xs font-mono-num shadow-xl backdrop-blur-md">
+              <span>⚠️</span>
+              <span>GPS: {geoError} — allow location access for live tracking</span>
+            </div>
+          )}
         </main>
 
       </div>

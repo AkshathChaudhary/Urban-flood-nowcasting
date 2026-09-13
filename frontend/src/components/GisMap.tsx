@@ -7,9 +7,13 @@ import {
   fetchDemGrid,
   queryPointDepth,
   fetchDrainageNodes,
-  fetchDrainageEdges
+  fetchDrainageEdges,
+  fetchTrafficOverlay,
+  fetchRoadPassabilityGrid,
+  type RoadPassabilityItem
 } from '../services/api';
 import type { RouteResult } from '../services/api';
+import type { TransportMode } from './RoutePanel';
 import { ZoomIn, ZoomOut, Compass, Info, Mountain, X } from 'lucide-react';
 
 interface GisMapProps {
@@ -32,6 +36,20 @@ interface GisMapProps {
   onDrainageSummaryLoaded?: (surchargingCount: number) => void;
   drainageRefreshKey?: number;
   simulationKey?: number;
+  /** Live GPS coordinates from the browser — renders a pulsing blue dot */
+  userLocation?: [number, number] | null;
+  isNavigating?: boolean;
+  navLocation?: [number, number] | null;
+  navBearing?: number;
+  navTraversedCoords?: [number, number][];
+  navRemainingCoords?: [number, number][];
+  isFollowMode?: boolean;
+  onMapUserDrag?: () => void;
+  showTrafficLayer?: boolean;
+  trafficTileUrl?: string | null;
+  trafficMode?: 'peak_monsoon' | 'live';
+  selectedVehicle?: TransportMode;
+  navViewMode?: '3d' | '2d';
 }
 
 export const GisMap: React.FC<GisMapProps> = ({
@@ -54,6 +72,19 @@ export const GisMap: React.FC<GisMapProps> = ({
   onDrainageSummaryLoaded,
   drainageRefreshKey = 0,
   simulationKey = 0,
+  userLocation = null,
+  isNavigating = false,
+  navLocation,
+  navBearing = 0,
+  navTraversedCoords = [],
+  navRemainingCoords = [],
+  isFollowMode = true,
+  onMapUserDrag,
+  showTrafficLayer = false,
+  trafficTileUrl,
+  trafficMode = 'peak_monsoon',
+  selectedVehicle = 'ambulance',
+  navViewMode = '3d',
 }) => {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapInstanceRef = useRef<L.Map | null>(null);
@@ -68,15 +99,183 @@ export const GisMap: React.FC<GisMapProps> = ({
   const drainagePipesLayerRef = useRef<L.GeoJSON | null>(null);
   const drainageNodesLayerRef = useRef<L.LayerGroup | null>(null);
   const inspectMarkerRef = useRef<L.CircleMarker | null>(null);
-  const renderHotspotsClusteredRef = useRef<() => void>(() => {});
+  const userLocationMarkerRef = useRef<L.Marker | null>(null);
+  const navLayerRef = useRef<L.LayerGroup | null>(null);
+  const trafficTileLayerRef = useRef<L.TileLayer | null>(null);
+  const trafficVectorLayerRef = useRef<L.GeoJSON | null>(null);
+  const prevNavigatingRef = useRef<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [mapReadyKey, setMapReadyKey] = useState<number>(0);
   const [roadCount, setRoadCount] = useState<number>(0);
   const [hotspotCount, setHotspotCount] = useState<number>(0);
   const [drainagePipeCount, setDrainagePipeCount] = useState<number>(0);
   const [activePeakDepth, setActivePeakDepth] = useState<number>(0);
   const [demMeta, setDemMeta] = useState<{ min: number; max: number; mean: number } | null>(null);
   const [isLegendOpen, setIsLegendOpen] = useState<boolean>(false);
+
+  const [passabilityMap, setPassabilityMap] = useState<Record<string, RoadPassabilityItem>>({});
+  const [passabilityStats, setPassabilityStats] = useState<{ open: number; restricted: number; closed: number; total: number } | null>(null);
+  const passabilityMapRef = useRef<Record<string, RoadPassabilityItem>>({});
+  passabilityMapRef.current = passabilityMap;
+
+  const getRoadStyle = (feature: any) => {
+    const roadId = feature?.properties?.id;
+    const pInfo = passabilityMapRef.current[roadId];
+    if (pInfo) {
+      if (pInfo.status === 'CLOSED') {
+        return { color: '#EF4444', weight: 3.4, opacity: 0.95, dashArray: '5, 5' };
+      } else if (pInfo.status === 'RESTRICTED') {
+        return { color: '#F59E0B', weight: 2.6, opacity: 0.88 };
+      } else {
+        const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
+        if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
+          return { color: '#10B981', weight: 2.4, opacity: 0.8 };
+        }
+        return { color: '#10B981', weight: 1.6, opacity: 0.6 };
+      }
+    }
+    const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
+    if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
+      return { color: '#94A3B8', weight: 2.2, opacity: 0.65 };
+    } else if (ht.includes('secondary')) {
+      return { color: '#64748B', weight: 1.6, opacity: 0.45 };
+    } else if (ht.includes('tertiary')) {
+      return { color: '#475569', weight: 1.2, opacity: 0.35 };
+    }
+    return { color: '#334155', weight: 0.8, opacity: 0.25 };
+  };
+
+  const generateRoadPopupHtml = (feature: any) => {
+    const p = feature.properties || {};
+    const roadId = p.id;
+    const pInfo = passabilityMapRef.current[roadId];
+    const name = p.name || 'Unnamed Street';
+    const ht = p.highway_type || p.highway || 'road';
+    const len = p.length_m ? `${p.length_m.toFixed(1)}m` : 'N/A';
+    const elev = p.elevation_m ? `${p.elevation_m.toFixed(1)}m` : 'N/A';
+    const depthCm = pInfo ? pInfo.depth_cm : 0;
+    const status = pInfo?.status || (depthCm > 0 ? 'RESTRICTED' : 'OPEN');
+    const speedKmh = pInfo ? pInfo.speed_kmh : (p.maxspeed_kmh || 40);
+    const congestion = pInfo?.congestion || 'FREE_FLOW';
+    const delayMult = pInfo?.delay_mult || 1.0;
+
+    const statusBg = status === 'CLOSED' ? '#EF4444' : status === 'RESTRICTED' ? '#F59E0B' : '#10B981';
+    const statusText = status === 'CLOSED' ? 'CLOSED / IMPASSABLE' : status === 'RESTRICTED' ? 'CAUTION / RESTRICTED' : 'OPEN / PASSABLE';
+
+    return `
+      <div style="font-family: 'Inter', system-ui, sans-serif; padding: 6px 4px; color: #F8FAFC; min-width: 250px;">
+        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+          <span style="font-weight: 800; font-size: 13px; color: #38BDF8;">${name}</span>
+          <span style="background: ${statusBg}22; color: ${statusBg}; border: 1px solid ${statusBg}55; font-size: 10px; font-weight: 700; padding: 2px 6px; border-radius: 4px; text-transform: uppercase;">
+            ${statusText}
+          </span>
+        </div>
+        <div style="font-size: 11px; color: #94A3B8; margin-bottom: 6px;">
+          Type: <span style="color: #E2E8F0; text-transform: uppercase; font-weight: 600;">${ht}</span> · Elev: <span style="color: #34D399; font-weight: 600;">${elev}</span> · Len: <span style="color: #E2E8F0;">${len}</span>
+        </div>
+        
+        <div style="background: rgba(15, 23, 42, 0.85); border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 8px; padding: 8px; margin: 8px 0;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 4px; font-size: 11px;">
+            <span style="color: #94A3B8;">Water Inundation (T+${currentTimeStep}m):</span>
+            <span style="font-weight: 800; font-family: monospace; color: ${depthCm >= 30 ? '#EF4444' : depthCm >= 15 ? '#F59E0B' : '#38BDF8'};">${depthCm.toFixed(1)} cm</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px;">
+            <span style="color: #94A3B8;">Vehicle Selected:</span>
+            <span style="font-weight: 700; color: #38BDF8; text-transform: capitalize;">${selectedVehicle}</span>
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 11px; margin-top: 4px;">
+            <span style="color: #94A3B8;">Traffic Flow:</span>
+            <span style="font-weight: 700; color: ${congestion === 'HEAVY' ? '#EF4444' : congestion === 'MODERATE' ? '#F59E0B' : '#10B981'};">
+              ${speedKmh} km/h (${congestion}, ${delayMult}x)
+            </span>
+          </div>
+        </div>
+
+        <div style="font-size: 10px; font-weight: 700; color: #94A3B8; margin-bottom: 4px; text-transform: uppercase; letter-spacing: 0.05em;">
+          Vehicle Clearance Matrix
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 4px; font-size: 10px;">
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚶 Pedestrian (12cm)</span>
+            <span>${depthCm < 12 ? '✅' : '❌'}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚲 Bicycle (18cm)</span>
+            <span>${depthCm < 18 ? '✅' : '❌'}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚗 Sedan/Car (30cm)</span>
+            <span>${depthCm < 30 ? '✅' : '❌'}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚙 SUV (45cm)</span>
+            <span>${depthCm < 45 ? '✅' : '❌'}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚑 Ambulance (45cm)</span>
+            <span>${depthCm < 45 ? '✅' : '❌'}</span>
+          </div>
+          <div style="display: flex; align-items: center; justify-content: space-between; padding: 3px 6px; background: rgba(30, 41, 59, 0.6); border-radius: 4px;">
+            <span>🚛 Rescue (60cm)</span>
+            <span>${depthCm < 60 ? '✅' : '❌'}</span>
+          </div>
+        </div>
+      </div>
+    `;
+  };
+
+  // Query dynamic passability whenever city, horizon, vehicle, or traffic mode changes
+  useEffect(() => {
+    let isCancelled = false;
+    const loadPassability = async () => {
+      const data = await fetchRoadPassabilityGrid(
+        currentCity,
+        currentTimeStep,
+        selectedVehicle,
+        trafficMode
+      );
+      if (isCancelled || !data) return;
+
+      setPassabilityMap(data.roads || {});
+      setPassabilityStats({
+        open: data.open_count,
+        restricted: data.restricted_count,
+        closed: data.closed_count,
+        total: data.total_roads,
+      });
+
+      if (roadsLayerRef.current) {
+        roadsLayerRef.current.setStyle((feature: any) => {
+          const roadId = feature?.properties?.id;
+          const pInfo = data.roads?.[roadId];
+          if (pInfo) {
+            if (pInfo.status === 'CLOSED') {
+              return { color: '#EF4444', weight: 3.4, opacity: 0.95, dashArray: '5, 5' };
+            } else if (pInfo.status === 'RESTRICTED') {
+              return { color: '#F59E0B', weight: 2.6, opacity: 0.88 };
+            } else {
+              const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
+              if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
+                return { color: '#10B981', weight: 2.4, opacity: 0.8 };
+              }
+              return { color: '#10B981', weight: 1.6, opacity: 0.6 };
+            }
+          }
+          const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
+          if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
+            return { color: '#94A3B8', weight: 2.2, opacity: 0.65 };
+          }
+          return { color: '#475569', weight: 1.2, opacity: 0.35 };
+        });
+      }
+    };
+
+    loadPassability();
+    return () => {
+      isCancelled = true;
+    };
+  }, [currentCity, currentTimeStep, selectedVehicle, trafficMode, simulationKey, mapReadyKey]);
 
   const isKolkata = currentCity.toLowerCase() === 'kolkata';
   const centerLat = isKolkata ? 22.5535 : 19.069;
@@ -110,6 +309,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     routeLayerRef.current = null;
     waypointsLayerRef.current = null;
     inspectMarkerRef.current = null;
+    userLocationMarkerRef.current = null;
 
     const map = L.map(mapContainerRef.current, {
       center: [centerLat, centerLon],
@@ -135,14 +335,26 @@ export const GisMap: React.FC<GisMapProps> = ({
     map.createPane('roadsPane');
     map.getPane('roadsPane')!.style.zIndex = '450';
 
+    // TomTom Live Traffic Raster Flow Pane: Sits directly above roads
+    map.createPane('trafficPane');
+    map.getPane('trafficPane')!.style.zIndex = '460';
+
     map.createPane('hotspotsPane');
     map.getPane('hotspotsPane')!.style.zIndex = '480';
 
     map.createPane('routesPane');
     map.getPane('routesPane')!.style.zIndex = '520';
 
+    // Navigation Active Route HUD Pane: Sits above standard routes but under waypoints
+    map.createPane('navPane');
+    map.getPane('navPane')!.style.zIndex = '540';
+
     map.createPane('waypointsPane');
     map.getPane('waypointsPane')!.style.zIndex = '550';
+
+    // Live user location pane — sits above waypoints so the blue dot is always visible
+    map.createPane('userLocationPane');
+    map.getPane('userLocationPane')!.style.zIndex = '580';
 
     // Labels pane — sits above ALL data layers so place names are always visible
     map.createPane('labelsPane');
@@ -185,10 +397,20 @@ export const GisMap: React.FC<GisMapProps> = ({
     const routesGroup = L.layerGroup().addTo(map);
     routeLayerRef.current = routesGroup;
 
+    // Navigation Dynamic HUD Layer Group
+    const navGroup = L.layerGroup().addTo(map);
+    navLayerRef.current = navGroup;
+
+    // Notify parent if user manually pans/drags map (to unlock follow mode)
+    map.on('dragstart', () => {
+      if (onMapUserDrag) onMapUserDrag();
+    });
+
     // Interactive Click Point Depth Inspection
     map.on('click', async (e: L.LeafletMouseEvent) => {
       const { lat, lng } = e.latlng;
       if (onMapClick) onMapClick(lat, lng);
+
 
       const inBounds = isKolkata
         ? (lat >= 22.5050 && lat <= 22.6020 && lng >= 88.3850 && lng <= 88.4380)
@@ -263,6 +485,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     });
 
     mapInstanceRef.current = map;
+    setMapReadyKey((prev) => prev + 1);
 
     // Clustering handler for hotspots
     const renderHotspotsClustered = () => {
@@ -386,36 +609,13 @@ export const GisMap: React.FC<GisMapProps> = ({
           const roadLayer = L.geoJSON(roadData as any, {
             pane: 'roadsPane',
             renderer: canvasRenderer,
-            style: (feature: any) => {
-              const ht = (feature?.properties?.highway_type || feature?.properties?.highway || '').toLowerCase();
-              if (ht.includes('primary') || ht.includes('trunk') || ht.includes('motorway')) {
-                return { color: '#94A3B8', weight: 2.2, opacity: 0.65 }; // Subtle crisp highway
-              } else if (ht.includes('secondary')) {
-                return { color: '#64748B', weight: 1.6, opacity: 0.45 }; // Secondary road
-              } else if (ht.includes('tertiary')) {
-                return { color: '#475569', weight: 1.2, opacity: 0.35 }; // Tertiary road
-              }
-              return { color: '#334155', weight: 0.8, opacity: 0.25 }; // Local street
-            },
+            style: (feature: any) => getRoadStyle(feature),
             onEachFeature: (feature: any, layer: any) => {
-              const p = feature.properties || {};
-              const name = p.name || 'Unnamed Street';
-              const ht = p.highway_type || p.highway || 'road';
-              const len = p.length_m ? `${p.length_m.toFixed(1)}m` : 'N/A';
-              const elev = p.elevation_m ? `${p.elevation_m.toFixed(1)}m` : 'N/A';
-
-              layer.bindPopup(`
-                <div style="font-family: 'Inter', sans-serif; padding: 4px; color: #F8FAFC;">
-                  <div style="font-weight: 700; font-size: 13px; color: #38BDF8; margin-bottom: 4px;">${name}</div>
-                  <div style="font-size: 11px; color: #94A3B8; margin-bottom: 2px;">Type: <span style="color: #E2E8F0; text-transform: uppercase;">${ht}</span></div>
-                  <div style="font-size: 11px; color: #94A3B8; margin-bottom: 2px;">Length: <span style="color: #E2E8F0;">${len}</span></div>
-                  <div style="font-size: 11px; color: #94A3B8;">Terrain Elevation: <span style="color: #34D399; font-weight: 600;">${elev}</span></div>
-                </div>
-              `);
+              layer.bindPopup(() => generateRoadPopupHtml(feature));
 
               layer.on({
                 mouseover: (e: any) => {
-                  e.target.setStyle({ weight: 3.5, opacity: 0.9, color: '#06B6D4' });
+                  e.target.setStyle({ weight: 4.0, opacity: 1.0, color: '#06B6D4' });
                 },
                 mouseout: (e: any) => {
                   roadLayer.resetStyle(e.target);
@@ -553,8 +753,368 @@ export const GisMap: React.FC<GisMapProps> = ({
       routeLayerRef.current = null;
       waypointsLayerRef.current = null;
       inspectMarkerRef.current = null;
+      userLocationMarkerRef.current = null;
+      trafficTileLayerRef.current = null;
+      trafficVectorLayerRef.current = null;
+      navLayerRef.current = null;
     };
   }, [currentCity]);
+
+  // LIVE USER LOCATION: Render/Update pulsing blue dot whenever GPS coords change
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (!userLocation) {
+      // Remove marker if location is lost
+      if (userLocationMarkerRef.current) {
+        mapInstanceRef.current.removeLayer(userLocationMarkerRef.current);
+        userLocationMarkerRef.current = null;
+      }
+      return;
+    }
+
+    const [lat, lng] = userLocation;
+
+    const blueDotIcon = L.divIcon({
+      className: 'user-location-dot',
+      html: `
+        <div style="position: relative; width: 24px; height: 24px; display: flex; align-items: center; justify-content: center;">
+          <!-- Outer accuracy pulse ring -->
+          <div style="
+            position: absolute;
+            width: 48px; height: 48px;
+            border-radius: 50%;
+            background: rgba(59, 130, 246, 0.15);
+            border: 1.5px solid rgba(59, 130, 246, 0.35);
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            animation: user-loc-pulse 2.5s ease-out infinite;
+          "></div>
+          <!-- Inner solid blue dot -->
+          <div style="
+            width: 16px; height: 16px;
+            border-radius: 50%;
+            background: #3B82F6;
+            border: 3px solid #FFFFFF;
+            box-shadow: 0 0 12px rgba(59, 130, 246, 0.9), 0 2px 8px rgba(0,0,0,0.5);
+            position: relative; z-index: 1;
+          "></div>
+        </div>
+      `,
+      iconSize: [24, 24],
+      iconAnchor: [12, 12],
+    });
+
+    if (userLocationMarkerRef.current) {
+      userLocationMarkerRef.current.setLatLng([lat, lng]);
+      userLocationMarkerRef.current.setIcon(blueDotIcon);
+    } else {
+      const marker = L.marker([lat, lng], {
+        icon: blueDotIcon,
+        pane: 'userLocationPane',
+        interactive: true,
+        title: 'Your live location',
+        zIndexOffset: 1000,
+      }).bindTooltip('📍 Your live location', {
+        direction: 'top',
+        className: 'custom-leaflet-tooltip font-bold text-blue-300',
+        offset: [0, -12],
+      });
+      marker.addTo(mapInstanceRef.current);
+      userLocationMarkerRef.current = marker;
+    }
+  }, [userLocation]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // LIVE & SIMULATED TOMTOM TRAFFIC OVERLAY
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+    let isCancelled = false;
+
+    // A. Handle TomTom Live Raster Flow Tiles
+    const shouldUseTomTomTiles = showTrafficLayer && trafficMode === 'live' && Boolean(trafficTileUrl);
+    if (shouldUseTomTomTiles && trafficTileUrl) {
+      if (!trafficTileLayerRef.current) {
+        trafficTileLayerRef.current = L.tileLayer(trafficTileUrl, {
+          pane: 'trafficPane',
+          opacity: 0.85,
+          maxZoom: 22,
+        });
+      }
+      if (!mapInstanceRef.current.hasLayer(trafficTileLayerRef.current)) {
+        trafficTileLayerRef.current.addTo(mapInstanceRef.current);
+      }
+    } else {
+      if (trafficTileLayerRef.current && mapInstanceRef.current.hasLayer(trafficTileLayerRef.current)) {
+        mapInstanceRef.current.removeLayer(trafficTileLayerRef.current);
+      }
+    }
+
+    // B. Handle Vector Traffic Flow Layer (Peak Monsoon Gridlock or Fallback Live Overlay)
+    const shouldUseVectorTraffic = showTrafficLayer && (trafficMode === 'peak_monsoon' || !trafficTileUrl);
+    if (shouldUseVectorTraffic) {
+      fetchTrafficOverlay(currentCity, trafficMode).then((data) => {
+        if (isCancelled || !mapInstanceRef.current) return;
+        if (trafficVectorLayerRef.current && mapInstanceRef.current.hasLayer(trafficVectorLayerRef.current)) {
+          mapInstanceRef.current.removeLayer(trafficVectorLayerRef.current);
+          trafficVectorLayerRef.current = null;
+        }
+        if (data && data.features && data.features.length > 0) {
+          const tLayer = L.geoJSON(data as any, {
+            pane: 'trafficPane',
+            renderer: L.canvas({ pane: 'trafficPane' }),
+            style: (feature: any) => {
+              const p = feature?.properties || {};
+              const cLevel = p.traffic_congestion_level;
+              const color = p.traffic_color || (cLevel === 'HEAVY' ? '#EF4444' : cLevel === 'MODERATE' ? '#F59E0B' : '#22C55E');
+              const weight = cLevel === 'HEAVY' ? 4.2 : cLevel === 'MODERATE' ? 3.0 : 2.0;
+              const opacity = cLevel === 'HEAVY' ? 0.95 : cLevel === 'MODERATE' ? 0.85 : 0.70;
+              return { color, weight, opacity, lineCap: 'round', lineJoin: 'round' };
+            },
+            onEachFeature: (feature: any, layer: any) => {
+              const p = feature.properties || {};
+              const name = p.name || 'Arterial Corridor';
+              const cLevel = p.traffic_congestion_level || 'FREE_FLOW';
+              const spd = p.traffic_current_speed_kmh ? `${p.traffic_current_speed_kmh.toFixed(1)} km/h` : 'N/A';
+              const freeSpd = p.traffic_free_flow_speed_kmh ? `${p.traffic_free_flow_speed_kmh.toFixed(1)} km/h` : 'N/A';
+              const delay = p.traffic_delay_factor ? `${p.traffic_delay_factor.toFixed(1)}x slowdown` : '1.0x';
+              const corridor = p.traffic_corridor || 'Study Area Corridor';
+              const badgeColor = cLevel === 'HEAVY' ? '#EF4444' : cLevel === 'MODERATE' ? '#F59E0B' : '#10B981';
+              const badgeBg = cLevel === 'HEAVY' ? 'rgba(239, 68, 68, 0.2)' : cLevel === 'MODERATE' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)';
+
+              layer.bindPopup(`
+                <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; min-width: 210px;">
+                  <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+                    <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
+                      ${cLevel.replace('_', ' ')}
+                    </span>
+                    <span style="font-size: 9px; font-family: monospace; color: #94A3B8;">${p.traffic_mode === 'peak_monsoon' ? 'MONSOON PEAK' : 'TOMTOM LIVE'}</span>
+                  </div>
+                  <div style="font-weight: 700; font-size: 13px; color: #F8FAFC; margin-bottom: 2px;">${name}</div>
+                  <div style="font-size: 10px; color: #38BDF8; margin-bottom: 6px;">${corridor}</div>
+                  <div style="background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 6px; font-size: 11px;">
+                    <div style="display: flex; justify-content: space-between; color: #CBD5E1; margin-bottom: 3px;">
+                      <span>Current Speed:</span>
+                      <strong style="color: ${badgeColor};">${spd}</strong>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #94A3B8; margin-bottom: 3px;">
+                      <span>Free-Flow Speed:</span>
+                      <span style="color: #E2E8F0;">${freeSpd}</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; color: #94A3B8;">
+                      <span>Traffic Delay:</span>
+                      <strong style="color: #FCD34D;">${delay}</strong>
+                    </div>
+                  </div>
+                </div>
+              `);
+
+              layer.on({
+                mouseover: (e: any) => {
+                  e.target.setStyle({ weight: 6.0, opacity: 1.0 });
+                },
+                mouseout: (e: any) => {
+                  tLayer.resetStyle(e.target);
+                },
+              });
+            },
+          } as any);
+          if (mapInstanceRef.current && showTrafficLayer) {
+            tLayer.addTo(mapInstanceRef.current);
+            trafficVectorLayerRef.current = tLayer;
+          }
+        }
+      });
+    } else {
+      if (trafficVectorLayerRef.current && mapInstanceRef.current.hasLayer(trafficVectorLayerRef.current)) {
+        mapInstanceRef.current.removeLayer(trafficVectorLayerRef.current);
+        trafficVectorLayerRef.current = null;
+      }
+    }
+
+    return () => {
+      isCancelled = true;
+    };
+  }, [showTrafficLayer, trafficTileUrl, trafficMode, currentCity]);
+
+  // ─────────────────────────────────────────────────────────────────────────
+  // TURN-BY-TURN NAVIGATION HUD & VEHICLE TRACKER
+  // ─────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    if (!mapInstanceRef.current) return;
+
+    if (!navLayerRef.current) {
+      navLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+    }
+    navLayerRef.current.clearLayers();
+
+    if (!isNavigating || !navLocation) {
+      if (prevNavigatingRef.current && mapInstanceRef.current) {
+        prevNavigatingRef.current = false;
+        mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
+      }
+      return;
+    }
+
+    const [vLng, vLat] = navLocation;
+    const justStartedNav = isNavigating && !prevNavigatingRef.current;
+    prevNavigatingRef.current = true;
+
+    // A. Render Traversed Route Path (Subtle muted slate trace behind the car)
+    if (navTraversedCoords && navTraversedCoords.length >= 2) {
+      const latLngs = navTraversedCoords.map(([lng, lat]) => [lat, lng] as [number, number]);
+      L.polyline(latLngs, {
+        pane: 'navPane',
+        color: '#475569',
+        weight: 6,
+        opacity: 0.6,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(navLayerRef.current);
+    }
+
+    // B. Render Remaining Active Navigation Path (Google Maps Real-Time Traffic Color Coded)
+    if (navRemainingCoords && navRemainingCoords.length >= 2) {
+      const activeRoute = activeRouteIndex === 0 ? routeResult : alternatives[activeRouteIndex - 1] || routeResult;
+      const trafficSegments = activeRoute?.traffic_segments;
+
+      // Base high-contrast under-glow
+      const fullLatLngs = navRemainingCoords.map(([lng, lat]) => [lat, lng] as [number, number]);
+      L.polyline(fullLatLngs, {
+        pane: 'navPane',
+        color: '#0F172A',
+        weight: 11,
+        opacity: 0.85,
+        lineCap: 'round',
+        lineJoin: 'round',
+      }).addTo(navLayerRef.current);
+
+      if (trafficSegments && trafficSegments.length > 0) {
+        // Render each traffic segment with Google Maps colors directly on top of navPane
+        trafficSegments.forEach((tseg) => {
+          const tColor =
+            tseg.congestion_level === 'HEAVY'
+              ? '#EF4444' // Red (Heavy Traffic)
+              : tseg.congestion_level === 'MODERATE'
+              ? '#F59E0B' // Amber / Orange (Moderate Congestion)
+              : tseg.is_flood_affected
+              ? '#06B6D4' // Cyan (Flood-avoidance detour corridor)
+              : '#22C55E'; // Green (Free Flow)
+
+          const pts = tseg.coordinates.map(([lng, lat]) => [lat, lng] as [number, number]);
+          if (pts.length >= 2) {
+            L.polyline(pts, {
+              pane: 'navPane',
+              color: tColor,
+              weight: 6.5,
+              opacity: 0.98,
+              lineCap: 'round',
+              lineJoin: 'round',
+            }).addTo(navLayerRef.current!);
+          }
+        });
+      } else {
+        // Fallback if no segments: crisp green
+        L.polyline(fullLatLngs, {
+          pane: 'navPane',
+          color: '#22C55E',
+          weight: 6.5,
+          opacity: 0.98,
+          lineCap: 'round',
+          lineJoin: 'round',
+        }).addTo(navLayerRef.current);
+      }
+    }
+
+    // C. Render 3D Google Maps Vehicle Avatar (Headlight Beam + Ground Drop Shadow + 3D Puck)
+    const heading = Math.round(navBearing || 0);
+    const vehicleIcon = L.divIcon({
+      className: 'custom-nav-vehicle-marker-3d',
+      html: `
+        <div style="position: relative; width: 72px; height: 72px; display: flex; align-items: center; justify-content: center; transform: rotate(${heading}deg); transform-style: preserve-3d; transition: transform 0.25s cubic-bezier(0.2, 0.8, 0.2, 1); pointer-events: none;">
+          
+          <!-- Forward Headlight / Field-of-View Cone -->
+          <div style="
+            position: absolute;
+            bottom: 36px;
+            left: calc(50% - 28px);
+            width: 56px;
+            height: 64px;
+            background: linear-gradient(to top, rgba(56, 189, 248, 0.65), rgba(56, 189, 248, 0.2) 55%, transparent 100%);
+            clip-path: polygon(30% 100%, 70% 100%, 100% 0%, 0% 0%);
+            pointer-events: none;
+            filter: drop-shadow(0 0 10px rgba(56, 189, 248, 0.65));
+          "></div>
+
+          <!-- Asphalt Drop Shadow -->
+          <div style="
+            position: absolute;
+            width: 34px;
+            height: 34px;
+            border-radius: 50%;
+            background: rgba(0, 0, 0, 0.75);
+            filter: blur(4px);
+            transform: translateY(6px);
+          "></div>
+
+          <!-- Outer Radar Pulse Wave -->
+          <div style="
+            position: absolute;
+            inset: 16px;
+            border-radius: 50%;
+            background: rgba(14, 165, 233, 0.45);
+            animation: ping 1.8s cubic-bezier(0, 0, 0.2, 1) infinite;
+          "></div>
+
+          <!-- 3D Vehicle Puck (Google Maps Navigation Chevron Style) -->
+          <div style="
+            position: relative;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: radial-gradient(circle at 35% 35%, #38BDF8, #0284C7 70%, #0369A1 100%);
+            border: 3px solid #FFFFFF;
+            box-shadow: 0 4px 14px rgba(0, 0, 0, 0.7), 0 0 18px rgba(56, 189, 248, 0.95);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+          ">
+            <!-- Forward Chevron Arrow -->
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="#FFFFFF" style="filter: drop-shadow(0 1px 2px rgba(0,0,0,0.6));">
+              <path d="M12 2L21 19L19.5 20.5L12 17L4.5 20.5L3 19L12 2Z"/>
+            </svg>
+          </div>
+        </div>
+      `,
+      iconSize: [72, 72],
+      iconAnchor: [36, 36],
+    });
+
+    L.marker([vLat, vLng], { icon: vehicleIcon, pane: 'navPane' })
+      .bindTooltip('🚗 Live Vehicle Position', {
+        direction: 'top',
+        className: 'custom-leaflet-tooltip font-bold text-cyan-300',
+        offset: [0, -14],
+      })
+      .addTo(navLayerRef.current);
+
+    // 🚀 AUTOMATIC CAMERA ZOOM:
+    // When navigation is launched, fly and zoom directly into the pointer at street level (zoom 17)!
+    if (justStartedNav && mapInstanceRef.current) {
+      mapInstanceRef.current.flyTo([vLat, vLng], 17, {
+        animate: true,
+        duration: 1.2,
+      });
+    } else if (isFollowMode && mapInstanceRef.current) {
+      const currentZoom = mapInstanceRef.current.getZoom();
+      if (currentZoom < 16) {
+        mapInstanceRef.current.setView([vLat, vLng], 17, { animate: true });
+      } else {
+        mapInstanceRef.current.panTo([vLat, vLng], { animate: true, duration: 0.4 });
+      }
+    }
+  }, [isNavigating, navLocation, navBearing, navTraversedCoords, navRemainingCoords, isFollowMode]);
 
   // Helper: Scientific continuous hydrodynamic colormap (Punchy, GIS-Publication Grade)
   // Kolkata max ~27cm, Mumbai max ~0.7m — colormap is vivid and clear for BOTH scales.
@@ -663,8 +1223,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     const getElev = (canvasR: number, canvasC: number) => {
       const cr = Math.max(0, Math.min(rows - 1, canvasR));
       const cc = Math.max(0, Math.min(cols - 1, canvasC));
-      const actualR = isKolkata ? (rows - 1 - cr) : cr;
-      return demGrid[actualR] ? (demGrid[actualR][cc] ?? minElev) : minElev;
+      return demGrid[cr] ? (demGrid[cr][cc] ?? minElev) : minElev;
     };
 
     for (let r = 0; r < rows; r++) {
@@ -823,9 +1382,7 @@ export const GisMap: React.FC<GisMapProps> = ({
 
       for (let r = 0; r < numRows; r++) {
         for (let c = 0; c < numCols; c++) {
-          // Ensure correct North-at-top canvas row mapping for Kolkata (which has row 0 at South)
-          const gridR = isKolkata ? (numRows - 1 - r) : r;
-          const depth = depth_grid[gridR] ? depth_grid[gridR][c] || 0 : 0;
+          const depth = depth_grid[r] ? depth_grid[r][c] || 0 : 0;
           const idx = (r * numCols + c) * 4;
           const [red, green, blue, alpha] = getFloodColor(depth);
           data[idx] = red;
@@ -851,15 +1408,16 @@ export const GisMap: React.FC<GisMapProps> = ({
       smoothCtx.drawImage(baseCanvas, 0, 0, targetW, targetH);
 
       const dataUrl = smoothCanvas.toDataURL();
+      const floodBounds = (gridResponse as any).bounds || simulationBounds;
 
       if (floodRasterLayerRef.current) {
         floodRasterLayerRef.current.setUrl(dataUrl);
-        floodRasterLayerRef.current.setBounds(L.latLngBounds(simulationBounds as any));
+        floodRasterLayerRef.current.setBounds(L.latLngBounds(floodBounds as any));
         if (showFloodHeatmap && mapInstanceRef.current && !mapInstanceRef.current.hasLayer(floodRasterLayerRef.current)) {
           mapInstanceRef.current.addLayer(floodRasterLayerRef.current);
         }
       } else {
-        const overlay = L.imageOverlay(dataUrl, simulationBounds, {
+        const overlay = L.imageOverlay(dataUrl, floodBounds as L.LatLngBoundsExpression, {
           opacity: 0.95,
           interactive: false,
           pane: 'floodPane',
@@ -872,7 +1430,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     };
 
     loadFloodRaster();
-  }, [currentTimeStep, currentCity, simulationKey]);
+  }, [currentTimeStep, currentCity, simulationKey, mapReadyKey]);
 
   // 2b. Load & Render DEM Elevation Terrain Raster
   useEffect(() => {
@@ -898,9 +1456,9 @@ export const GisMap: React.FC<GisMapProps> = ({
       );
       if (!dataUrl || !isMounted) return;
 
-      const bounds = isKolkata
+      const bounds = demRes.bounds || (isKolkata
         ? [[22.5050, 88.3850], [22.6020, 88.4380]]
-        : simulationBounds;
+        : simulationBounds);
 
       if (demRasterLayerRef.current) {
         demRasterLayerRef.current.setUrl(dataUrl);
@@ -929,7 +1487,7 @@ export const GisMap: React.FC<GisMapProps> = ({
     return () => {
       isMounted = false;
     };
-  }, [currentCity]);
+  }, [currentCity, mapReadyKey]);
 
   // Handle DEM Layer Visibility
   useEffect(() => {
@@ -1147,13 +1705,15 @@ export const GisMap: React.FC<GisMapProps> = ({
         iconAnchor: [17, 17],
       });
 
-      L.marker(originCoords, { icon: iconA })
-        .bindTooltip(`📍 ORIGIN (A): ${originName || 'Point A'}`, {
+      const markerA = L.marker(originCoords, { icon: iconA });
+      if (!isNavigating) {
+        markerA.bindTooltip(`📍 A · ${originName || 'Origin'}`, {
           direction: 'top',
-          permanent: true,
+          permanent: false,
           className: 'custom-leaflet-tooltip font-bold text-emerald-300',
-        })
-        .addTo(waypointsLayerRef.current);
+        });
+      }
+      markerA.addTo(waypointsLayerRef.current);
     }
 
     // Destination Pin (Point B - Vivid Crimson)
@@ -1177,21 +1737,17 @@ export const GisMap: React.FC<GisMapProps> = ({
         iconAnchor: [17, 17],
       });
 
-      L.marker(destinationCoords, { icon: iconB })
-        .bindTooltip(`🎯 DESTINATION (B): ${destinationName || 'Point B'}`, {
+      const markerB = L.marker(destinationCoords, { icon: iconB });
+      if (!isNavigating) {
+        markerB.bindTooltip(`🎯 B · ${destinationName || 'Destination'}`, {
           direction: 'top',
-          permanent: true,
+          permanent: false,
           className: 'custom-leaflet-tooltip font-bold text-red-300',
-        })
-        .addTo(waypointsLayerRef.current);
+        });
+      }
+      markerB.addTo(waypointsLayerRef.current);
     }
-
-    // If both waypoints exist but no route yet, gently fit map to encompass both
-    if (originCoords && destinationCoords && (!routeResult || !routeResult.geojson)) {
-      const bounds = L.latLngBounds([originCoords, destinationCoords]);
-      mapInstanceRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 15 });
-    }
-  }, [originCoords, destinationCoords, originName, destinationName, routeResult]);
+  }, [originCoords, destinationCoords, originName, destinationName, routeResult, isNavigating]);
 
   // 4. ROUTE RENDERING: Primary Safest Route & Alternative Detours
   useEffect(() => {
@@ -1348,12 +1904,41 @@ export const GisMap: React.FC<GisMapProps> = ({
       mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
     }
   };
+  const handleCenterOnUser = () => {
+    if (mapInstanceRef.current && userLocation) {
+      mapInstanceRef.current.setView(userLocation, 16, { animate: true });
+    }
+  };
+
+  // Invalidate Leaflet size when entering/exiting navigation or switching 3D/2D
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (mapInstanceRef.current) {
+        mapInstanceRef.current.invalidateSize();
+      }
+    }, 150);
+    return () => clearTimeout(timer);
+  }, [isNavigating, navViewMode]);
 
   return (
-    <div className="relative w-full h-full overflow-hidden">
+    <div className="relative w-full h-full overflow-hidden" style={{ perspective: '1200px' }}>
       
-      {/* Map DOM Container */}
-      <div ref={mapContainerRef} className="w-full h-full z-0" />
+      {/* Map DOM Container - Driver 3D Tilt in Navigation Mode */}
+      <div
+        ref={mapContainerRef}
+        className="w-full h-full z-0"
+        style={{
+          transform:
+            isNavigating && navViewMode === '3d'
+              ? `rotateX(26deg) rotateZ(${-(navBearing || 0)}deg) scale(1.28) translateY(-5%)`
+              : 'none',
+          transformOrigin: '50% 75%',
+          transition: isNavigating && navViewMode === '3d'
+            ? 'transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1)'
+            : 'transform 0.6s cubic-bezier(0.25, 1, 0.5, 1)',
+          willChange: 'transform',
+        }}
+      />
 
       {/* Loading Overlay Badge */}
       {isLoading && (
@@ -1380,6 +1965,20 @@ export const GisMap: React.FC<GisMapProps> = ({
                 <span>Forecast +{currentTimeStep}m</span>
                 <span className="text-slate-600">·</span>
                 <span>Peak depth <strong className={activePeakDepth > 0.3 ? 'text-rose-400' : activePeakDepth > 0.15 ? 'text-amber-400' : 'text-cyan-300'}>{activePeakDepth.toFixed(2)}m</strong></span>
+                {passabilityStats && (
+                  <>
+                    <span className="text-slate-600">·</span>
+                    <span className="inline-flex items-center space-x-1 font-mono text-[10px]">
+                      <span className="text-emerald-400 font-bold">● {passabilityStats.open}</span>
+                      {passabilityStats.restricted > 0 && (
+                        <span className="text-amber-400 font-bold">● {passabilityStats.restricted}</span>
+                      )}
+                      {passabilityStats.closed > 0 && (
+                        <span className="text-rose-400 font-bold">● {passabilityStats.closed}</span>
+                      )}
+                    </span>
+                  </>
+                )}
                 {showDrainagePipes && (
                   <>
                     <span className="text-slate-600">·</span>
@@ -1462,6 +2061,19 @@ export const GisMap: React.FC<GisMapProps> = ({
               </div>
             </div>
 
+            {userLocation && (
+              <>
+                <div className="h-px bg-slate-800" />
+                <div className="flex items-center justify-between">
+                  <span className="flex items-center space-x-2">
+                    <span className="h-3.5 w-3.5 rounded-full bg-blue-500 border-2 border-white shadow-[0_0_6px_#3B82F6]" />
+                    <span>Your Live Location</span>
+                  </span>
+                  <span className="text-blue-400 font-bold animate-pulse">GPS LIVE</span>
+                </div>
+              </>
+            )}
+
             {/* DEM Elevation Scale (Shown when DEM is active) */}
             {showDemTerrain && (
               <>
@@ -1522,8 +2134,21 @@ export const GisMap: React.FC<GisMapProps> = ({
         </button>
       </div>
 
+
+
       {/* Floating HUD Map Control Buttons (Bottom Right) */}
       <div className="absolute bottom-6 right-6 z-20 flex flex-col space-y-2">
+        {/* Live Location Button — only shown when GPS is active */}
+        {userLocation && (
+          <button
+            onClick={handleCenterOnUser}
+            title="Center on your live location"
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-600/90 border border-blue-400/60 text-white hover:bg-blue-500 transition-all shadow-xl shadow-blue-900/50 backdrop-blur-md cursor-pointer active:scale-95 animate-pulse"
+          >
+            <span className="text-base leading-none">📍</span>
+          </button>
+        )}
+
         <button
           onClick={handleRecenter}
           title={`Recenter ${currentCity} Bounds`}

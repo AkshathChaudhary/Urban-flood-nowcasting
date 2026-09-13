@@ -235,11 +235,21 @@ class DrainageGraph:
             if surface_depth_m <= 1e-6:
                 continue
 
-            available_vol_m3 = surface_depth_m * self.cell_area_m2
-            max_intake_vol_m3 = node["capacity_m3s"] * dt
+            # Realistic gully pit orifice intake capacity:
+            # A standard street curb inlet/grate has intake limit between 0.04 and 0.10 m³/s.
+            # For dense regional networks (e.g. Kolkata with 4,302 inlets), calibrate to 0.05 m³/s
+            # so total municipal absorption matches real KMC combined pumping capacity (~215 m³/s).
+            nominal_cap = float(node["capacity_m3s"])
+            effective_cap = min(nominal_cap, 0.05) if len(self.node_data) > 1000 else nominal_cap
 
-            # Siphon the smaller of available water or inlet conveyance capacity, scaled by blockage factor
-            absorbed_vol_m3 = min(available_vol_m3, max_intake_vol_m3) * b_factor
+            # Inlet intake is limited by available headroom in the subterranean node/pipe:
+            # If the pipe is already full or surcharging, surface water cannot enter.
+            node_current_vol = self.current_water_m3.get(node_id, 0.0)
+            max_intake_vol_m3 = effective_cap * dt
+            headroom_m3 = max(0.0, max_intake_vol_m3 - node_current_vol)
+
+            available_vol_m3 = surface_depth_m * self.cell_area_m2
+            absorbed_vol_m3 = min(available_vol_m3, headroom_m3) * b_factor
             absorbed_depth_m = absorbed_vol_m3 / self.cell_area_m2
 
             absorption_grid[r, c] += absorbed_depth_m

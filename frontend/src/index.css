@@ -133,3 +133,51 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(100, 116, 139, 0.9);
 }
+
+/* ── Live User Location Blue Dot (Google Maps style) ───────────────────── */
+@keyframes user-loc-pulse {
+  0% {
+    transform: translate(-50%, -50%) scale(0.6);
+    opacity: 0.9;
+  }
+  70% {
+    transform: translate(-50%, -50%) scale(1.6);
+    opacity: 0.15;
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(2.0);
+    opacity: 0;
+  }
+}
+
+/* Strip Leaflet's default padding/background from our custom marker */
+.user-location-dot {
+  background: transparent !important;
+  border: none !important;
+}
+
+/* Universal Sleek Leaflet Tooltips - Zero White Rectangles, Dark Cyber Glass Pill */
+.leaflet-tooltip,
+.leaflet-tooltip.custom-leaflet-tooltip {
+  background: rgba(10, 15, 30, 0.94) !important;
+  color: #F8FAFC !important;
+  border: 1px solid rgba(56, 189, 248, 0.35) !important;
+  border-radius: 9999px !important;
+  padding: 3px 9px !important;
+  font-size: 11px !important;
+  font-weight: 600 !important;
+  font-family: 'Inter', sans-serif !important;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.75), 0 0 10px rgba(56, 189, 248, 0.15) !important;
+  backdrop-filter: blur(12px) !important;
+  -webkit-backdrop-filter: blur(12px) !important;
+  pointer-events: none !important;
+}
+
+/* Hide bulky leaflet tooltip arrow wedges that cause sharp white or mismatched triangles */
+.leaflet-tooltip::before,
+.leaflet-tooltip-top::before,
+.leaflet-tooltip-bottom::before,
+.leaflet-tooltip-left::before,
+.leaflet-tooltip-right::before {
+  display: none !important;
+}

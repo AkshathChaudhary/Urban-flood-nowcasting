@@ -140,21 +140,31 @@ def get_all_nodes(
     Returns all drainage nodes formatted as a GeoJSON FeatureCollection,
     including current water volume and physical properties.
     """
-    c = (city or "mumbai").lower().strip()
-    if node_type is None and c in _nodes_cache:
+    c = str(getattr(city, "default", city) or "mumbai").lower().strip()
+    nt_val = getattr(node_type, "default", node_type)
+    nt_clean = str(nt_val).lower().strip() if isinstance(nt_val, str) and nt_val.strip() else None
+
+    if nt_clean is None and c in _nodes_cache:
         return _nodes_cache[c]
 
     graph = get_drainage_graph(c)
     features = []
 
-    for node_id, node in graph.node_data.items():
-        if node_type and node["type"] != node_type:
+    items = list(graph.node_data.items())
+    for i, (node_id, node) in enumerate(items):
+        if nt_clean and node.get("type", "").lower() != nt_clean:
             continue
 
         water_vol = graph.current_water_m3.get(node_id, 0.0)
         # Surcharge threshold over 300s
         max_cap = node["capacity_m3s"] * 300.0
         stress_ratio = round(water_vol / max_cap, 3) if max_cap > 0 else 0.0
+        is_over = water_vol >= max_cap and node.get("type") != "outfall"
+
+        # For Kolkata, preserve all outfalls, surcharging nodes, and representative junctions/inlets
+        if c == "kolkata":
+            if not (is_over or node.get("type") == "outfall" or i % 5 == 0):
+                continue
 
         features.append({
             "type": "Feature",
@@ -162,7 +172,7 @@ def get_all_nodes(
                 **node,
                 "current_water_m3": round(water_vol, 3),
                 "stress_ratio": stress_ratio,
-                "is_overflowing": water_vol >= max_cap and node["type"] != "outfall",
+                "is_overflowing": is_over,
             },
             "geometry": {
                 "type": "Point",
@@ -171,7 +181,7 @@ def get_all_nodes(
         })
 
     result = {"type": "FeatureCollection", "features": features}
-    if node_type is None:
+    if nt_clean is None:
         _nodes_cache[c] = result
     return result
 
@@ -182,7 +192,8 @@ def get_single_node(node_id: str, city: Optional[str] = Query("mumbai")):
     Returns detailed properties and real-time hydraulic state of a single node.
     Supports canonical IDs ('DN-0001') and common variants ('DN-1', 'DN-001', 'dn-0001').
     """
-    graph = get_drainage_graph(city or "mumbai")
+    c = str(getattr(city, "default", city) or "mumbai").lower().strip()
+    graph = get_drainage_graph(c)
     resolved_id = _resolve_node_id(node_id, graph)
     try:
         return graph.get_node(resolved_id)
@@ -196,14 +207,19 @@ def get_all_edges(city: Optional[str] = Query("mumbai")):
     Returns all drainage pipes formatted as a GeoJSON FeatureCollection,
     including pipe diameter, slope, Manning's roughness, effective capacity, and blockage.
     """
-    c = (city or "mumbai").lower().strip()
+    c = str(getattr(city, "default", city) or "mumbai").lower().strip()
     if c in _edges_cache:
         return _edges_cache[c]
 
     graph = get_drainage_graph(c)
     features = []
 
-    for edge_id, edge in graph.edge_data.items():
+    items = list(graph.edge_data.items())
+    if c == "kolkata":
+        # Retain major stormwater conduits and blocked conduits (~2,500 pipes)
+        items = [item for i, item in enumerate(items) if i % 4 == 0 or item[1].get("blockage_pct", 0) > 0.2]
+
+    for edge_id, edge in items:
         eff_cap = graph.compute_pipe_capacity(edge_id)
         features.append({
             "type": "Feature",
@@ -237,30 +253,44 @@ def get_single_edge(edge_id: str, city: Optional[str] = Query("mumbai")):
 
 
 @router.post("/blockage")
-def update_blockage(payload: BlockageUpdateRequest, city: Optional[str] = Query("mumbai")):
+@router.post("/apply-blockage")
+def update_blockage(
+    payload: Optional[BlockageUpdateRequest] = None,
+    city: Optional[str] = Query("mumbai"),
+    blockage_pct: Optional[float] = Query(None),
+    edge_id: Optional[str] = Query(None),
+):
     """
     Updates the blockage percentage for an individual pipe, or across all pipes
     in the network if edge_id is omitted (e.g. for Scenario 5 testing).
+    Supports both JSON body and query parameters.
     """
     c = (city or "mumbai").lower().strip()
     graph = get_drainage_graph(c)
     invalidate_drainage_cache(c)
-    if payload.edge_id:
-        resolved_id = _resolve_edge_id(payload.edge_id, graph)
+
+    eff_blockage = blockage_pct if blockage_pct is not None else (payload.blockage_pct if payload else 0.0)
+    eff_edge_id = edge_id or (payload.edge_id if payload else None)
+
+    if eff_edge_id:
+        resolved_id = _resolve_edge_id(eff_edge_id, graph)
         try:
-            graph.set_blockage(resolved_id, payload.blockage_pct)
+            graph.set_blockage(resolved_id, eff_blockage)
             return {
                 "status": "success",
-                "message": f"Blockage for edge {resolved_id} updated to {payload.blockage_pct * 100:.1f}%.",
+                "message": f"Blockage for edge {resolved_id} updated to {eff_blockage * 100:.1f}%.",
                 "edge": graph.get_edge(resolved_id),
+                "blocked_pipes_count": 1 if eff_blockage > 0.05 else 0,
             }
         except KeyError:
-            raise HTTPException(status_code=404, detail=f"Edge '{payload.edge_id}' not found.")
+            raise HTTPException(status_code=404, detail=f"Edge '{eff_edge_id}' not found.")
     else:
-        graph.set_global_blockage(payload.blockage_pct)
+        graph.set_global_blockage(eff_blockage)
+        blocked_count = sum(1 for e in graph.edge_data.values() if e.get("blockage_pct", 0) > 0.05)
         return {
             "status": "success",
-            "message": f"Global blockage across all {len(graph.edge_data)} pipes updated to {payload.blockage_pct * 100:.1f}%.",
+            "message": f"Global blockage across all {len(graph.edge_data)} pipes updated to {eff_blockage * 100:.1f}%.",
+            "blocked_pipes_count": blocked_count,
         }
 
 

@@ -13,6 +13,7 @@ import {
 import type { DrainageSummary } from '../services/api';
 
 interface DrainagePanelProps {
+  city?: string;
   summary: DrainageSummary | null;
   onUpdateBlockage: (pct: number) => void;
   onResetDrainage: () => void;
@@ -23,6 +24,7 @@ interface DrainagePanelProps {
 }
 
 export const DrainagePanel: React.FC<DrainagePanelProps> = ({
+  city = 'mumbai',
   summary,
   onUpdateBlockage,
   onResetDrainage,
@@ -124,7 +126,9 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
               SUBTERRANEAN DRAINAGE
             </h3>
             <span className="text-[10px] font-mono-num text-emerald-400 font-medium">
-              1,316 Conduits • 1,479 Manholes
+              {summary
+                ? `${(summary.total_edges || 0).toLocaleString()} Conduits • ${(summary.total_nodes || ((summary.inlet_nodes || 0) + (summary.junction_nodes || 0) + (summary.outfall_nodes || 0))).toLocaleString()} Manholes`
+                : (city.toLowerCase() === 'kolkata' ? '488 Conduits • 512 Manholes' : '1,316 Conduits • 1,479 Manholes')}
             </span>
           </div>
         </div>
@@ -177,7 +181,7 @@ export const DrainagePanel: React.FC<DrainagePanelProps> = ({
         <div className="p-2.5 rounded-xl bg-slate-950/60 border border-slate-850">
           <div className="text-[10px] text-slate-400 flex items-center">
             <Waves className="h-3 w-3 mr-1 text-blue-400" />
-            MITHI OUTFALLS
+            {city.toLowerCase() === 'kolkata' ? 'CANAL OUTFALLS' : 'MITHI OUTFALLS'}
           </div>
           <div className="text-base font-bold text-cyan-400 mt-0.5">
             {summary ? `${summary.outfall_nodes} Points` : '8 Points'}

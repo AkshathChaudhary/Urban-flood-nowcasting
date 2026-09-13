@@ -6,7 +6,7 @@ Supports Live Doppler Radar Nowcasting, Real Historical Storm Replays, and Stres
 
 import logging
 from typing import Any, Dict, List, Optional
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Query, Body
 import numpy as np
 
 from backend.app.config import DATA_DIR
@@ -116,21 +116,36 @@ HISTORICAL_PRESETS = {
         {
             "id": "kolkata_2020_amphan",
             "date_str": "2020-05-20",
-            "start_hour": 15,
+            "start_hour": 17,
             "title": "May 20, 2020 Super Cyclone Amphan",
-            "description": "Extreme cyclone landfall with intense precipitation, storm surge, and drainage backflow.",
+            "description": "Landfall peak eyewall gale with intense precipitation, storm surge, and drainage canal backflow (17:00-21:00 IST).",
             "peak_mmh": 80.0,
         },
         {
             "id": "kolkata_2021_depression",
-            "date_str": "2021-06-17",
-            "start_hour": 6,
-            "title": "June 17, 2021 Pre-Monsoon Deluge",
-            "description": "100mm+ in 4 hours leading to major bottlenecks across VIP Road, Ultadanga, and Ruby.",
-            "peak_mmh": 40.0,
+            "date_str": "2021-09-29",
+            "start_hour": 0,
+            "title": "Sept 29, 2021 Cyclone Gulab Depression",
+            "description": "140mm+ overnight deluge from remnant deep depression flooding Ultadanga, VIP Road, and EM Bypass.",
+            "peak_mmh": 48.0,
         },
     ],
 }
+
+# Fast lookup for preset definitions by id
+HISTORICAL_PRESETS_BY_ID: Dict[str, Dict[str, Any]] = {}
+for city_key, p_list in HISTORICAL_PRESETS.items():
+    for p in p_list:
+        HISTORICAL_PRESETS_BY_ID[p["id"]] = {**p, "city": city_key}
+
+# Add all preset IDs into SUPPORTED_SCENARIOS so clients can pass scenario="kolkata_2020_amphan" directly
+for p_id, p_info in HISTORICAL_PRESETS_BY_ID.items():
+    SUPPORTED_SCENARIOS[p_id] = {
+        "title": p_info["title"],
+        "description": p_info["description"],
+        "peak_intensity_mmh": p_info["peak_mmh"],
+        "mode": "historical",
+    }
 
 
 @router.get("/scenarios")
@@ -148,24 +163,73 @@ def get_supported_scenarios():
 
 
 @router.post("/simulate", response_model=FloodForecastOverview)
-def run_simulation(req: SimulateRequest):
+@router.get("/simulate", response_model=FloodForecastOverview)
+@router.post("/flood/run-simulation", response_model=FloodForecastOverview)
+@router.get("/flood/run-simulation", response_model=FloodForecastOverview)
+def run_simulation(
+    req: Optional[SimulateRequest] = Body(None),
+    city: Optional[str] = Query(None),
+    scenario: Optional[str] = Query(None),
+    preset: Optional[str] = Query(None),
+    date_str: Optional[str] = Query(None),
+    start_hour: Optional[int] = Query(None),
+):
     """
     Triggers an on-demand flood simulation run for either Mumbai or Kolkata.
     Recomputes water accumulation, overland flow routing, and nowcast snapshots.
     Updates the active server state with the new forecast.
     """
-    if req.scenario not in SUPPORTED_SCENARIOS:
+    if req is None:
+        req = SimulateRequest(
+            city=city or "mumbai",
+            scenario=scenario or "moderate",
+            preset=preset,
+            date_str=date_str,
+            start_hour=start_hour,
+        )
+    else:
+        if city:
+            req.city = city
+        if scenario:
+            req.scenario = scenario
+        if preset:
+            req.preset = preset
+        if date_str:
+            req.date_str = date_str
+        if start_hour is not None:
+            req.start_hour = start_hour
+
+    # 0. Check and resolve historical preset if passed as scenario or in req.preset
+    scenario_raw = (req.scenario or "moderate").strip()
+    preset_id = req.preset or (scenario_raw if scenario_raw in HISTORICAL_PRESETS_BY_ID else None)
+    preset_info = HISTORICAL_PRESETS_BY_ID.get(preset_id) if preset_id else None
+
+    if preset_info:
+        effective_scenario = "historical"
+        scenario_title = preset_info["title"]
+        active_preset = preset_info["id"]
+        city = (req.city or preset_info["city"]).lower().strip()
+        date_str = req.date_str or preset_info["date_str"]
+        start_hour = req.start_hour if req.start_hour is not None else preset_info["start_hour"]
+    else:
+        effective_scenario = scenario_raw
+        scenario_title = SUPPORTED_SCENARIOS.get(effective_scenario, {}).get("title", effective_scenario.capitalize())
+        active_preset = None
+        city = (req.city or "mumbai").lower().strip()
+        date_str = req.date_str
+        start_hour = req.start_hour
+
+    if effective_scenario not in SUPPORTED_SCENARIOS and scenario_raw not in SUPPORTED_SCENARIOS:
         raise HTTPException(
             status_code=400,
             detail=f"Invalid scenario '{req.scenario}'. Supported scenarios: {sorted(SUPPORTED_SCENARIOS.keys())}",
         )
 
-    city = (req.city or "mumbai").lower().strip()
     is_kolkata = city == "kolkata"
 
     try:
         # 1. Resolve Rainfall Provider (Live, Historical, or Synthetic Demo)
-        if req.scenario == "live":
+        if effective_scenario == "live":
             default_lat = 22.5535 if is_kolkata else 19.0700
             default_lon = 88.4115 if is_kolkata else 72.8500
             grid_shape = (300, 160) if is_kolkata else (200, 200)
@@ -178,7 +242,7 @@ def run_simulation(req: SimulateRequest):
                 grid_shape=grid_shape,
                 cell_size_m=cell_size,
             )
-        elif req.scenario == "historical":
+        elif effective_scenario == "historical":
             default_lat = 22.5535 if is_kolkata else 19.0700
             default_lon = 88.4115 if is_kolkata else 72.8500
             default_date = "2021-09-20" if is_kolkata else "2023-07-26"
@@ -190,8 +254,8 @@ def run_simulation(req: SimulateRequest):
                 mode="historical",
                 lat=req.lat or default_lat,
                 lon=req.lon or default_lon,
-                date_str=req.date_str or default_date,
-                start_hour=req.start_hour if req.start_hour is not None else default_start_hr,
+                date_str=date_str or default_date,
+                start_hour=start_hour if start_hour is not None else default_start_hr,
                 grid_shape=grid_shape,
                 cell_size_m=cell_size,
             )
@@ -211,7 +275,7 @@ def run_simulation(req: SimulateRequest):
             if hasattr(drainage_graph, "reset_state"):
                 drainage_graph.reset_state(reset_blockage=False)
             if hasattr(drainage_graph, "set_global_blockage"):
-                if req.scenario in ("extreme_blocked", "blocked_drainage"):
+                if effective_scenario in ("extreme_blocked", "blocked_drainage"):
                     drainage_graph.set_global_blockage(0.40)  # 40% pipe capacity reduction
                     invalidate_drainage_cache(city)
 
@@ -222,12 +286,14 @@ def run_simulation(req: SimulateRequest):
             if blockages:
                 avg_blockage = float(np.mean(blockages))
 
-        if req.scenario in ("extreme_blocked", "blocked_drainage"):
+        if effective_scenario in ("extreme_blocked", "blocked_drainage"):
             drain_blockage = 0.50
         elif avg_blockage > 0.0:
             drain_blockage = max(0.05, 1.0 - avg_blockage)
         else:
             drain_blockage = 1.0
+
+        active_scenario_label = active_preset or effective_scenario
 
         # 3. Instantiate Engine & Run Forecast
         if is_kolkata:
@@ -244,20 +310,21 @@ def run_simulation(req: SimulateRequest):
                 drain_blockage_factor=drain_blockage,
             )
             grids = engine.run_forecast(
-                scenario=req.scenario,
+                scenario=effective_scenario,
                 horizon_minutes=req.horizon_minutes,
                 dt=req.dt_seconds,
             )
-            set_kolkata_engine(engine, grids, scenario=req.scenario)
+            set_kolkata_engine(engine, grids, scenario=active_scenario_label, scenario_title=scenario_title)
             invalidate_drainage_cache(city)
 
             horizons = sorted(grids.keys())
             summaries = {
-                h: compute_summary(grids[h], h) for h in horizons
+                h: compute_summary(grids[h], h, cell_size_m=35.0) for h in horizons
             }
 
             return FloodForecastOverview(
-                scenario=req.scenario,
+                scenario=active_scenario_label,
+                scenario_title=scenario_title,
                 horizons=horizons,
                 summaries=summaries,
                 total_rain_volume_m3=round(engine.total_rain_volume_m3, 1),
@@ -274,12 +341,12 @@ def run_simulation(req: SimulateRequest):
                 drain_blockage_factor=drain_blockage,
             )
             engine.run_forecast(
-                scenario=req.scenario,
+                scenario=effective_scenario,
                 horizon_minutes=req.horizon_minutes,
                 dt=req.dt_seconds,
             )
 
-            set_engine(engine, scenario=req.scenario)
+            set_engine(engine, scenario=active_scenario_label)
             invalidate_drainage_cache(city)
 
             horizons = sorted(engine.forecast_grids.keys())
@@ -288,7 +355,8 @@ def run_simulation(req: SimulateRequest):
             }
 
             return FloodForecastOverview(
-                scenario=req.scenario,
+                scenario=active_scenario_label,
+                scenario_title=scenario_title,
                 horizons=horizons,
                 summaries=summaries,
                 total_rain_volume_m3=round(engine.total_rain_volume_m3, 1),
