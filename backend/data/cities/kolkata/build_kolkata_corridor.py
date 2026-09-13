@@ -42,17 +42,17 @@ DRAINAGE_DIR = BASE_DIR / "drainage"
 
 
 def latlon_to_grid(lat: float, lon: float) -> Tuple[int, int]:
-    """Maps WGS84 lat/lon to raster grid indices [row, col]."""
-    norm_y = (lat - MIN_LAT) / (MAX_LAT - MIN_LAT + 1e-10)
+    """Maps WGS84 lat/lon to raster grid indices [row, col] (Row 0 = North, MAX_LAT)."""
+    norm_y = (MAX_LAT - lat) / (MAX_LAT - MIN_LAT + 1e-10)
     norm_x = (lon - MIN_LON) / (MAX_LON - MIN_LON + 1e-10)
-    row = int(norm_y * (GRID_ROWS - 1))
-    col = int(norm_x * (GRID_COLS - 1))
+    row = int(round(norm_y * (GRID_ROWS - 1)))
+    col = int(round(norm_x * (GRID_COLS - 1)))
     return max(0, min(GRID_ROWS - 1, row)), max(0, min(GRID_COLS - 1, col))
 
 
 def grid_to_latlon(row: int, col: int) -> Tuple[float, float]:
-    """Maps raster grid indices to center WGS84 lat/lon."""
-    lat = MIN_LAT + (row / (GRID_ROWS - 1)) * (MAX_LAT - MIN_LAT)
+    """Maps raster grid indices to center WGS84 lat/lon (Row 0 = North, MAX_LAT)."""
+    lat = MAX_LAT - (row / (GRID_ROWS - 1)) * (MAX_LAT - MIN_LAT)
     lon = MIN_LON + (col / (GRID_COLS - 1)) * (MAX_LON - MIN_LON)
     return round(lat, 6), round(lon, 6)
 
@@ -70,23 +70,46 @@ def haversine_m(lon1: float, lat1: float, lon2: float, lat2: float) -> float:
 def build_hydroconditioned_dem() -> np.ndarray:
     """
     Constructs a hydro-conditioned elevation model for the Kolkata corridor:
-    1. Base slope from west (Hooghly ridge ~7.5m) to east (East Kolkata Wetlands ~3.5m).
-    2. Burns real OSM waterways (Kestopur canal, Circular canal, Eastern drainage channel).
-    3. Adds known underpass depressions (Ultadanga, Science City, Kasba/Ruby).
+    1. Base slope from west (Hooghly natural levee ~7.2m) to east (East Kolkata Wetlands ~3.0m).
+    2. Salt Lake City (Bidhannagar): Reclaimed elevated silt fill (~4.8m to 5.4m MSL) in the North-East.
+    3. East Kolkata Wetlands: Natural saucer basin and intertidal bheris (~2.8m to 3.2m MSL) in South-East.
+    4. Burns real OSM waterways (Kestopur canal, Circular canal, Eastern drainage channel) to bed level ~2.0m.
+    5. Calibrates known historical underpass & apron depressions (Ultadanga, Science City, Chingrighata, Ruby).
     """
     print("[1/4] Building hydro-conditioned DEM for Kolkata...")
     DEM_DIR.mkdir(parents=True, exist_ok=True)
     (DEM_DIR / "raw").mkdir(parents=True, exist_ok=True)
 
-    # Base elevation plane: west to east gradient + slight north-south gradient
     dem = np.zeros((GRID_ROWS, GRID_COLS), dtype=np.float32)
     for r in range(GRID_ROWS):
+        lat = MAX_LAT - (r / (GRID_ROWS - 1)) * (MAX_LAT - MIN_LAT)
         for c in range(GRID_COLS):
-            # West (c=0) ~7.5m, East (c=cols-1) ~3.8m
-            elev_x = 7.5 - (c / (GRID_COLS - 1)) * 3.7
-            # Slight north-south variation
-            elev_y = math.sin((r / GRID_ROWS) * math.pi) * 0.6
-            dem[r, c] = elev_x + elev_y
+            lon = MIN_LON + (c / (GRID_COLS - 1)) * (MAX_LON - MIN_LON)
+
+            # Base regional slope: Hooghly natural levee in the west (~7.2m)
+            # sloping down towards the East Kolkata Wetlands saucer (~3.4m)
+            norm_x = c / (GRID_COLS - 1)  # 0 (West) to 1 (East)
+            base_elev = 7.2 - norm_x * 3.8
+
+            # Salt Lake City (Bidhannagar): Reclaimed elevated silt fill (lat >= 22.555, lon >= 88.402)
+            # Reclaimed ground level is an elevated plateau: ~5.0m to 5.3m MSL with underground drainage
+            if lat >= 22.555 and lon >= 88.402:
+                sl_factor_x = min(1.0, (lon - 88.402) / 0.012)
+                sl_factor_y = min(1.0, (lat - 22.555) / 0.012)
+                t = sl_factor_x * sl_factor_y
+                target_sl = 5.1 + 0.15 * math.sin(r * 0.2) * math.cos(c * 0.2)
+                base_elev = (1.0 - t) * base_elev + t * target_sl
+
+            # East Kolkata Wetlands (EKW) natural saucer basin (lat < 22.550, lon >= 88.405)
+            # Low lying natural intertidal bheris and water bodies: ~2.8m to 3.2m MSL
+            elif lat < 22.550 and lon >= 88.405:
+                ekw_t = min(1.0, (lon - 88.405) / 0.015)
+                target_ekw = 3.0 + 0.15 * math.sin(r * 0.2) * math.cos(c * 0.2)
+                base_elev = (1.0 - ekw_t) * base_elev + ekw_t * target_ekw
+
+            # Micro-topography variation (±0.04m)
+            noise = 0.04 * math.sin(r * 0.3) * math.cos(c * 0.3)
+            dem[r, c] = base_elev + noise
 
     # Burn real OSM waterways
     waterways_file = DEM_DIR / "raw" / "osm_waterways_kolkata.json"
@@ -111,7 +134,7 @@ def build_hydroconditioned_dem() -> np.ndarray:
                                 burned_cells.add((nr, nc))
 
         for r, c in burned_cells:
-            dem[r, c] = max(1.8, dem[r, c] - 2.2)  # Canal depth ~2.2m below ground
+            dem[r, c] = max(1.9, dem[r, c] - 2.2)  # Canal depth ~2.2m below ground, min 1.9m MSL
 
     # Enforce specific historical waterlogging depressions:
     # 1. Ultadanga underpass depression (~lat 22.589, lon 88.396)
@@ -119,16 +142,23 @@ def build_hydroconditioned_dem() -> np.ndarray:
     for dr in range(-3, 4):
         for dc in range(-3, 4):
             if 0 <= r_u + dr < GRID_ROWS and 0 <= c_u + dc < GRID_COLS:
-                dem[r_u + dr, c_u + dc] = min(dem[r_u + dr, c_u + dc], 2.8)
+                dem[r_u + dr, c_u + dc] = min(dem[r_u + dr, c_u + dc], 2.6)
 
-    # 2. Science City / Parama junction depression (~lat 22.540, lon 88.396)
+    # 2. Chingrighata EM Bypass Canal Crossing (~lat 22.565, lon 88.405)
+    r_c, c_c = latlon_to_grid(22.5650, 88.4050)
+    for dr in range(-3, 4):
+        for dc in range(-3, 4):
+            if 0 <= r_c + dr < GRID_ROWS and 0 <= c_c + dc < GRID_COLS:
+                dem[r_c + dr, c_c + dc] = min(dem[r_c + dr, c_c + dc], 3.0)
+
+    # 3. Science City / Parama junction depression (~lat 22.540, lon 88.396)
     r_s, c_s = latlon_to_grid(22.5400, 88.3960)
     for dr in range(-3, 4):
         for dc in range(-3, 4):
             if 0 <= r_s + dr < GRID_ROWS and 0 <= c_s + dc < GRID_COLS:
                 dem[r_s + dr, c_s + dc] = min(dem[r_s + dr, c_s + dc], 3.2)
 
-    # 3. Kasba / Ruby Hospital low-lying approach (~lat 22.5135, lon 88.4010)
+    # 4. Kasba / Ruby Hospital low-lying approach (~lat 22.5135, lon 88.4010)
     r_r, c_r = latlon_to_grid(22.5135, 88.4010)
     for dr in range(-3, 4):
         for dc in range(-3, 4):
@@ -385,7 +415,7 @@ def build_drainage(dem: np.ndarray, road_graph: Dict[str, Any]):
                 "elevation_m": elev,
                 "grid_row": r,
                 "grid_col": c,
-                "capacity_m3s": 2.5 if ntype == "inlet" else 4.0,
+                "capacity_m3s": 0.05 if ntype == "inlet" else (2.0 if ntype == "outfall" else 0.5),
             }
         })
         node_idx += 1

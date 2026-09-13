@@ -21,6 +21,7 @@ import logging
 from typing import Dict, Any, Optional, Tuple, List
 import urllib.request
 import json
+import concurrent.futures
 from dotenv import load_dotenv
 
 # Load .env file from project root
@@ -56,18 +57,103 @@ class TomTomTrafficService:
             return None
         return f"https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{{z}}/{{x}}/{{y}}.png?key={self.api_key}"
 
+    def _fetch_single_live_point(self, lat: float, lon: float, maxspeed_kmh: float = 40.0) -> Dict[str, Any]:
+        """Performs a single HTTP call to TomTom flowSegmentData with tight timeout."""
+        cache_key = (round(lat, 3), round(lon, 3))
+        now = time.time()
+        if cache_key in _TRAFFIC_CACHE:
+            ts, cached_data = _TRAFFIC_CACHE[cache_key]
+            if now - ts < CACHE_TTL_SECONDS:
+                return cached_data
+
+        if not self.is_api_key_configured():
+            sim_data = self._generate_monsoon_traffic(lat, lon, maxspeed_kmh)
+            _TRAFFIC_CACHE[cache_key] = (now, sim_data)
+            return sim_data
+
+        try:
+            url = f"{self.base_url}?point={lat:.6f},{lon:.6f}&unit=KMPH&key={self.api_key}"
+            req = urllib.request.Request(
+                url,
+                headers={"User-Agent": "UrbanFloodNowcasting/1.0", "Accept": "application/json"}
+            )
+            with urllib.request.urlopen(req, timeout=1.5) as resp:
+                if resp.status == 200:
+                    data = json.loads(resp.read().decode("utf-8"))
+                    flow = data.get("flowSegmentData", {})
+                    curr_spd = float(flow.get("currentSpeed", maxspeed_kmh))
+                    free_spd = max(10.0, float(flow.get("freeFlowSpeed", maxspeed_kmh)))
+                    closed = bool(flow.get("roadClosure", False))
+
+                    ratio = max(0.05, curr_spd / free_spd)
+                    level = self._classify_ratio(ratio, closed)
+
+                    result = {
+                        "current_speed_kmh": round(curr_spd, 1),
+                        "free_flow_speed_kmh": round(free_spd, 1),
+                        "congestion_ratio": round(ratio, 2),
+                        "congestion_level": level,
+                        "delay_factor": round(max(1.0, 1.0 / ratio), 2),
+                        "is_closed": closed,
+                        "source": "tomtom_live",
+                        "traffic_mode": "live",
+                    }
+                    _TRAFFIC_CACHE[cache_key] = (now, result)
+                    return result
+        except Exception as e:
+            logger.debug(f"TomTom API live call failed for ({lat}, {lon}): {e}. Using fallback.")
+
+        sim_data = self._generate_monsoon_traffic(lat, lon, maxspeed_kmh)
+        # Cache fallback with shorter TTL (60s) to allow recovery without spamming
+        _TRAFFIC_CACHE[cache_key] = (now - CACHE_TTL_SECONDS + 60, sim_data)
+        return sim_data
+
+    def prefetch_flow_for_points(
+        self,
+        points: List[Tuple[float, float]],
+        max_points: int = 8,
+        maxspeed_kmh: float = 40.0
+    ) -> None:
+        """
+        Concurrently prefetches live traffic flow for key corridor or route coordinates.
+        Runs up to `max_points` in parallel using a ThreadPoolExecutor so network latency
+        is bounded to ~0.5s instead of sequential blocking.
+        """
+        if not self.is_api_key_configured() or not points:
+            return
+
+        now = time.time()
+        uncached_points = []
+        for lat, lon in points:
+            cache_key = (round(lat, 3), round(lon, 3))
+            if cache_key not in _TRAFFIC_CACHE or (now - _TRAFFIC_CACHE[cache_key][0] >= CACHE_TTL_SECONDS):
+                if (lat, lon) not in uncached_points:
+                    uncached_points.append((lat, lon))
+
+        to_fetch = uncached_points[:max_points]
+        if not to_fetch:
+            return
+
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(to_fetch), 8)) as executor:
+            futures = [
+                executor.submit(self._fetch_single_live_point, lat, lon, maxspeed_kmh)
+                for lat, lon in to_fetch
+            ]
+            concurrent.futures.wait(futures, timeout=1.2)
+
     def get_flow_for_point(
         self,
         lat: float,
         lon: float,
         maxspeed_kmh: float = 40.0,
-        traffic_mode: str = "live"
+        traffic_mode: str = "live",
+        allow_network: bool = True
     ) -> Dict[str, Any]:
         """
         Retrieves traffic flow for a given coordinate.
-        - 'peak_monsoon': returns calibrated historical heavy-rain rush hour conditions
-          with bottleneck gridlocks on LBS Marg, Kurla Station, CST Road / SCLR, and BKC.
-        - 'live': queries TomTom live API with spatial caching (falls back to monsoon cycle).
+        - 'peak_monsoon': returns calibrated historical heavy-rain rush hour conditions.
+        - 'live': returns cached TomTom live telemetry if available; if un-cached and
+          allow_network=False, instantly falls back to smart rush-hour traffic model (0ms).
         """
         if traffic_mode == "peak_monsoon":
             return self._generate_peak_monsoon_traffic(lat, lon, maxspeed_kmh)
@@ -80,46 +166,13 @@ class TomTomTrafficService:
             if now - ts < CACHE_TTL_SECONDS:
                 return cached_data
 
-        # Attempt live API call if key configured
-        if self.is_api_key_configured():
-            try:
-                url = f"{self.base_url}?point={lat:.6f},{lon:.6f}&unit=KMPH&key={self.api_key}"
-                req = urllib.request.Request(
-                    url,
-                    headers={"User-Agent": "UrbanFloodNowcasting/1.0", "Accept": "application/json"}
-                )
-                with urllib.request.urlopen(req, timeout=3.0) as resp:
-                    if resp.status == 200:
-                        data = json.loads(resp.read().decode("utf-8"))
-                        flow = data.get("flowSegmentData", {})
-                        curr_spd = float(flow.get("currentSpeed", maxspeed_kmh))
-                        free_spd = max(10.0, float(flow.get("freeFlowSpeed", maxspeed_kmh)))
-                        curr_time = float(flow.get("currentTravelTime", 0))
-                        free_time = float(flow.get("freeFlowTravelTime", 0))
-                        closed = bool(flow.get("roadClosure", False))
+        if not allow_network:
+            # Instant non-blocking fallback for bulk graph/road evaluations
+            sim_data = self._generate_monsoon_traffic(lat, lon, maxspeed_kmh)
+            return sim_data
 
-                        ratio = max(0.05, curr_spd / free_spd)
-                        level = self._classify_ratio(ratio, closed)
-
-                        result = {
-                            "current_speed_kmh": round(curr_spd, 1),
-                            "free_flow_speed_kmh": round(free_spd, 1),
-                            "congestion_ratio": round(ratio, 2),
-                            "congestion_level": level,
-                            "delay_factor": round(max(1.0, 1.0 / ratio), 2),
-                            "is_closed": closed,
-                            "source": "tomtom_live",
-                            "traffic_mode": "live",
-                        }
-                        _TRAFFIC_CACHE[cache_key] = (now, result)
-                        return result
-            except Exception as e:
-                logger.debug(f"TomTom API live call failed for ({lat}, {lon}): {e}. Using monsoon model.")
-
-        # Graceful Fallback: Intelligent Monsoon Peak Congestion Model
-        sim_data = self._generate_monsoon_traffic(lat, lon, maxspeed_kmh)
-        _TRAFFIC_CACHE[cache_key] = (now, sim_data)
-        return sim_data
+        # Single-point on-demand fetch
+        return self._fetch_single_live_point(lat, lon, maxspeed_kmh)
 
     def _classify_ratio(self, ratio: float, is_closed: bool = False) -> str:
         if is_closed:
@@ -270,7 +323,7 @@ class TomTomTrafficService:
                 mid_lon = float(props.get("lon", 72.865))
                 mid_lat = float(props.get("lat", 19.068))
 
-            flow = self.get_flow_for_point(mid_lat, mid_lon, maxspeed, traffic_mode=traffic_mode)
+            flow = self.get_flow_for_point(mid_lat, mid_lon, maxspeed, traffic_mode=traffic_mode, allow_network=False)
             c_level = flow["congestion_level"]
             props["traffic_current_speed_kmh"] = flow["current_speed_kmh"]
             props["traffic_free_flow_speed_kmh"] = flow["free_flow_speed_kmh"]

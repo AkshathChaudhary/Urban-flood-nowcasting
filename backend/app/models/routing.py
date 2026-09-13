@@ -340,7 +340,7 @@ class RoutingEngine:
                 mid_lon = (u_pt[0] + v_pt[0]) / 2.0
                 mid_lat = (u_pt[1] + v_pt[1]) / 2.0
                 flow = traffic_service.get_flow_for_point(
-                    mid_lat, mid_lon, edge.get("maxspeed_kmh", 40.0), traffic_mode=traffic_mode
+                    mid_lat, mid_lon, edge.get("maxspeed_kmh", 40.0), traffic_mode=traffic_mode, allow_network=False
                 )
                 delay_factor = flow.get("delay_factor", 1.0)
                 if is_bike:
@@ -357,7 +357,7 @@ class RoutingEngine:
         depth_grid: Optional[np.ndarray] = None,
         vehicle_type: str = "car",
         blocked_road_ids: Optional[List[str]] = None,
-        traffic_mode: str = "peak_monsoon",
+        traffic_mode: Optional[str] = None,
     ) -> Dict[str, Any]:
         """
         Maintains backward compatibility by evaluating weights and updating graph attributes.
@@ -419,6 +419,17 @@ class RoutingEngine:
         """
         Zero-copy, thread-safe shortest path computation using NetworkX subgraph views.
         """
+        # Prefetch live TomTom telemetry for corridor coordinates between src and dst
+        if traffic_mode == "live" and traffic_service.is_api_key_configured():
+            corridor_pts = []
+            steps = 4
+            for s in range(steps + 1):
+                frac = s / float(steps)
+                c_lon = src[0] + frac * (dst[0] - src[0])
+                c_lat = src[1] + frac * (dst[1] - src[1])
+                corridor_pts.append((c_lat, c_lon))
+            traffic_service.prefetch_flow_for_points(corridor_pts, max_points=5)
+
         # 1. Compute dynamic weights for this specific query
         weights, depths, statuses, blocked_roads = self.evaluate_query_weights(
             depth_grid=depth_grid,
@@ -618,6 +629,18 @@ class RoutingEngine:
         v_thresh = VEHICLE_THRESHOLDS.get(v_mode, 0.30)
         nom_spd = MODE_NOMINAL_SPEEDS_KMH.get(v_mode, 35.0)
 
+        # Prefetch live TomTom telemetry in parallel for traversed route segments (sampled along corridor)
+        if traffic_mode == "live" and traffic_service.is_api_key_configured():
+            route_midpoints = []
+            step = max(1, (len(path_nodes) - 1) // 6)
+            for i in range(0, len(path_nodes) - 1, step):
+                u_node = path_nodes[i]
+                v_node = path_nodes[i + 1]
+                u_coord = self.node_positions.get(u_node, (0.0, 0.0))
+                v_coord = self.node_positions.get(v_node, (0.0, 0.0))
+                route_midpoints.append(((u_coord[1] + v_coord[1]) / 2.0, (u_coord[0] + v_coord[0]) / 2.0))
+            traffic_service.prefetch_flow_for_points(route_midpoints, max_points=6)
+
         for i in range(len(path_nodes) - 1):
             u = path_nodes[i]
             v = path_nodes[i + 1]
@@ -644,7 +667,7 @@ class RoutingEngine:
             mid_lat = (u_pt[1] + v_pt[1]) / 2.0
             maxspd = edge_data.get("maxspeed_kmh", 40.0)
 
-            flow = traffic_service.get_flow_for_point(mid_lat, mid_lon, maxspd, traffic_mode=traffic_mode)
+            flow = traffic_service.get_flow_for_point(mid_lat, mid_lon, maxspd, traffic_mode=traffic_mode, allow_network=False)
             curr_spd = flow["current_speed_kmh"]
             free_spd = flow["free_flow_speed_kmh"]
             c_level = flow["congestion_level"]
@@ -733,7 +756,7 @@ class RoutingEngine:
             )
 
         return {
-            "route_found": True,
+            "route_found": not compromised_state,
             "is_compromised": compromised_state,
             "advisory": advisory,
             "vehicle_type": vehicle_type,

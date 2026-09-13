@@ -103,6 +103,7 @@ export const GisMap: React.FC<GisMapProps> = ({
   const navLayerRef = useRef<L.LayerGroup | null>(null);
   const trafficTileLayerRef = useRef<L.TileLayer | null>(null);
   const trafficVectorLayerRef = useRef<L.GeoJSON | null>(null);
+  const trafficBottleneckMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const prevNavigatingRef = useRef<boolean>(false);
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -310,6 +311,9 @@ export const GisMap: React.FC<GisMapProps> = ({
     waypointsLayerRef.current = null;
     inspectMarkerRef.current = null;
     userLocationMarkerRef.current = null;
+    trafficTileLayerRef.current = null;
+    trafficVectorLayerRef.current = null;
+    trafficBottleneckMarkersLayerRef.current = null;
 
     const map = L.map(mapContainerRef.current, {
       center: [centerLat, centerLon],
@@ -337,7 +341,11 @@ export const GisMap: React.FC<GisMapProps> = ({
 
     // TomTom Live Traffic Raster Flow Pane: Sits directly above roads
     map.createPane('trafficPane');
-    map.getPane('trafficPane')!.style.zIndex = '460';
+    map.getPane('trafficPane')!.style.zIndex = '455';
+
+    // Monsoon Peak Bottlenecks Vector Pane: Sits above TomTom raster tiles but under hotspots/routes
+    map.createPane('trafficVectorPane');
+    map.getPane('trafficVectorPane')!.style.zIndex = '465';
 
     map.createPane('hotspotsPane');
     map.getPane('hotspotsPane')!.style.zIndex = '480';
@@ -830,8 +838,8 @@ export const GisMap: React.FC<GisMapProps> = ({
     if (!mapInstanceRef.current) return;
     let isCancelled = false;
 
-    // A. Handle TomTom Live Raster Flow Tiles
-    const shouldUseTomTomTiles = showTrafficLayer && trafficMode === 'live' && Boolean(trafficTileUrl);
+    // A. Handle TomTom Live Raster Flow Tiles (Active city-wide whenever traffic layer is toggled ON)
+    const shouldUseTomTomTiles = showTrafficLayer && Boolean(trafficTileUrl);
     if (shouldUseTomTomTiles && trafficTileUrl) {
       if (!trafficTileLayerRef.current) {
         trafficTileLayerRef.current = L.tileLayer(trafficTileUrl, {
@@ -849,7 +857,13 @@ export const GisMap: React.FC<GisMapProps> = ({
       }
     }
 
-    // B. Handle Vector Traffic Flow Layer (Peak Monsoon Gridlock or Fallback Live Overlay)
+    // Initialize or clear bottleneck callout markers layer group
+    if (!trafficBottleneckMarkersLayerRef.current) {
+      trafficBottleneckMarkersLayerRef.current = L.layerGroup().addTo(mapInstanceRef.current);
+    }
+    trafficBottleneckMarkersLayerRef.current.clearLayers();
+
+    // B. Handle Vector Traffic Flow Layer (Peak Monsoon Gridlock Bottlenecks or Fallback Live Overlay)
     const shouldUseVectorTraffic = showTrafficLayer && (trafficMode === 'peak_monsoon' || !trafficTileUrl);
     if (shouldUseVectorTraffic) {
       fetchTrafficOverlay(currentCity, trafficMode).then((data) => {
@@ -859,15 +873,15 @@ export const GisMap: React.FC<GisMapProps> = ({
           trafficVectorLayerRef.current = null;
         }
         if (data && data.features && data.features.length > 0) {
+          const isPeak = trafficMode === 'peak_monsoon';
           const tLayer = L.geoJSON(data as any, {
-            pane: 'trafficPane',
-            renderer: L.canvas({ pane: 'trafficPane' }),
+            pane: 'trafficVectorPane',
             style: (feature: any) => {
               const p = feature?.properties || {};
               const cLevel = p.traffic_congestion_level;
               const color = p.traffic_color || (cLevel === 'HEAVY' ? '#EF4444' : cLevel === 'MODERATE' ? '#F59E0B' : '#22C55E');
-              const weight = cLevel === 'HEAVY' ? 4.2 : cLevel === 'MODERATE' ? 3.0 : 2.0;
-              const opacity = cLevel === 'HEAVY' ? 0.95 : cLevel === 'MODERATE' ? 0.85 : 0.70;
+              const weight = cLevel === 'HEAVY' ? (isPeak ? 5.5 : 4.2) : cLevel === 'MODERATE' ? 3.8 : 2.4;
+              const opacity = cLevel === 'HEAVY' ? 0.98 : cLevel === 'MODERATE' ? 0.88 : 0.70;
               return { color, weight, opacity, lineCap: 'round', lineJoin: 'round' };
             },
             onEachFeature: (feature: any, layer: any) => {
@@ -882,26 +896,26 @@ export const GisMap: React.FC<GisMapProps> = ({
               const badgeBg = cLevel === 'HEAVY' ? 'rgba(239, 68, 68, 0.2)' : cLevel === 'MODERATE' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(16, 185, 129, 0.2)';
 
               layer.bindPopup(`
-                <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; min-width: 210px;">
+                <div style="font-family: 'Inter', sans-serif; padding: 6px; color: #F8FAFC; min-width: 220px;">
                   <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
                     <span style="font-size: 10px; font-weight: 700; text-transform: uppercase; padding: 2px 6px; border-radius: 6px; background: ${badgeBg}; color: ${badgeColor}; border: 1px solid ${badgeColor}40;">
                       ${cLevel.replace('_', ' ')}
                     </span>
-                    <span style="font-size: 9px; font-family: monospace; color: #94A3B8;">${p.traffic_mode === 'peak_monsoon' ? 'MONSOON PEAK' : 'TOMTOM LIVE'}</span>
+                    <span style="font-size: 9px; font-family: monospace; color: #F59E0B; font-weight: 600;">${p.traffic_mode === 'peak_monsoon' ? '⚡ MONSOON PEAK GRIDLOCK' : 'TOMTOM LIVE'}</span>
                   </div>
                   <div style="font-weight: 700; font-size: 13px; color: #F8FAFC; margin-bottom: 2px;">${name}</div>
-                  <div style="font-size: 10px; color: #38BDF8; margin-bottom: 6px;">${corridor}</div>
-                  <div style="background: rgba(15, 23, 42, 0.6); border-radius: 8px; padding: 6px; font-size: 11px;">
+                  <div style="font-size: 11px; color: #38BDF8; margin-bottom: 6px; font-weight: 500;">${corridor}</div>
+                  <div style="background: rgba(15, 23, 42, 0.7); border-radius: 8px; padding: 7px; font-size: 11px; border: 1px solid rgba(255,255,255,0.08);">
                     <div style="display: flex; justify-content: space-between; color: #CBD5E1; margin-bottom: 3px;">
-                      <span>Current Speed:</span>
-                      <strong style="color: ${badgeColor};">${spd}</strong>
+                      <span>Simulated Speed:</span>
+                      <strong style="color: ${badgeColor}; font-weight: 700;">${spd}</strong>
                     </div>
                     <div style="display: flex; justify-content: space-between; color: #94A3B8; margin-bottom: 3px;">
-                      <span>Free-Flow Speed:</span>
+                      <span>Free-Flow Baseline:</span>
                       <span style="color: #E2E8F0;">${freeSpd}</span>
                     </div>
                     <div style="display: flex; justify-content: space-between; color: #94A3B8;">
-                      <span>Traffic Delay:</span>
+                      <span>Congestion Delay:</span>
                       <strong style="color: #FCD34D;">${delay}</strong>
                     </div>
                   </div>
@@ -910,7 +924,7 @@ export const GisMap: React.FC<GisMapProps> = ({
 
               layer.on({
                 mouseover: (e: any) => {
-                  e.target.setStyle({ weight: 6.0, opacity: 1.0 });
+                  e.target.setStyle({ weight: 7.0, opacity: 1.0 });
                 },
                 mouseout: (e: any) => {
                   tLayer.resetStyle(e.target);
@@ -918,9 +932,56 @@ export const GisMap: React.FC<GisMapProps> = ({
               });
             },
           } as any);
+
           if (mapInstanceRef.current && showTrafficLayer) {
             tLayer.addTo(mapInstanceRef.current);
             trafficVectorLayerRef.current = tLayer;
+
+            // Render prominent Bottleneck Callout Badges on the map for Peak Monsoon simulation
+            if (isPeak && trafficBottleneckMarkersLayerRef.current) {
+              const bottlenecks = currentCity.toLowerCase() === 'kolkata' ? [
+                { lat: 22.560, lng: 88.405, title: 'Chingrighata EM Bypass', speed: '8.2 km/h', delay: '4.5x' },
+                { lat: 22.595, lng: 88.395, title: 'Ultadanga HUDCO Bottleneck', speed: '9.5 km/h', delay: '4.0x' },
+                { lat: 22.542, lng: 88.397, title: 'Science City Connector', speed: '14.0 km/h', delay: '2.8x' },
+              ] : [
+                { lat: 19.068, lng: 72.875, title: 'LBS Marg / Kurla Bottleneck', speed: '6.2 km/h', delay: '5.5x' },
+                { lat: 19.073, lng: 72.865, title: 'CST Road / SCLR Corridor', speed: '11.4 km/h', delay: '3.6x' },
+                { lat: 19.061, lng: 72.863, title: 'BKC Financial Core Crawl', speed: '16.8 km/h', delay: '2.4x' },
+              ];
+
+              bottlenecks.forEach((b) => {
+                const bIcon = L.divIcon({
+                  className: 'custom-traffic-bottleneck-badge',
+                  html: `
+                    <div style="
+                      display: inline-flex; align-items: center;
+                      background: rgba(15, 23, 42, 0.94);
+                      border: 1.5px solid rgba(239, 68, 68, 0.85);
+                      box-shadow: 0 0 14px rgba(239, 68, 68, 0.6), inset 0 0 6px rgba(239, 68, 68, 0.2);
+                      border-radius: 9999px;
+                      padding: 2px 8px;
+                      color: #F8FAFC;
+                      font-size: 10px;
+                      font-family: monospace;
+                      font-weight: 700;
+                      white-space: nowrap;
+                      cursor: pointer;
+                      backdrop-filter: blur(4px);
+                    ">
+                      <span style="display: inline-block; width: 6px; height: 6px; border-radius: 50%; background: #EF4444; margin-right: 5px; box-shadow: 0 0 6px #EF4444; animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite;"></span>
+                      <span>${b.title}: <strong style="color: #FCA5A5;">${b.speed}</strong> <span style="color: #FCD34D;">(${b.delay})</span></span>
+                    </div>
+                  `,
+                  iconSize: [160, 24],
+                  iconAnchor: [80, 12],
+                });
+
+                L.marker([b.lat, b.lng], {
+                  icon: bIcon,
+                  pane: 'trafficVectorPane',
+                }).addTo(trafficBottleneckMarkersLayerRef.current!);
+              });
+            }
           }
         }
       });
@@ -929,12 +990,15 @@ export const GisMap: React.FC<GisMapProps> = ({
         mapInstanceRef.current.removeLayer(trafficVectorLayerRef.current);
         trafficVectorLayerRef.current = null;
       }
+      if (trafficBottleneckMarkersLayerRef.current) {
+        trafficBottleneckMarkersLayerRef.current.clearLayers();
+      }
     }
 
     return () => {
       isCancelled = true;
     };
-  }, [showTrafficLayer, trafficTileUrl, trafficMode, currentCity]);
+  }, [showTrafficLayer, trafficTileUrl, trafficMode, currentCity, mapReadyKey]);
 
   // ─────────────────────────────────────────────────────────────────────────
   // TURN-BY-TURN NAVIGATION HUD & VEHICLE TRACKER
@@ -2040,6 +2104,35 @@ export const GisMap: React.FC<GisMapProps> = ({
               </span>
               <span className="text-amber-400 font-semibold text-[10px]">Ghost line</span>
             </div>
+
+            {/* Traffic Flow Congestion Telemetry Scale */}
+            {showTrafficLayer && (
+              <>
+                <div className="h-px bg-slate-800" />
+                <div className="space-y-1.5">
+                  <div className="flex items-center justify-between text-[10px] text-slate-400">
+                    <span className="uppercase tracking-wider font-bold text-amber-400 flex items-center space-x-1">
+                      <span>Traffic Flow ({trafficMode === 'peak_monsoon' ? 'Monsoon Rush Sim' : 'TomTom Live'})</span>
+                    </span>
+                    <span className="text-amber-400/90 font-mono text-[9px]">Speed Telemetry</span>
+                  </div>
+                  <div className="grid grid-cols-3 gap-1 text-[9px]">
+                    <div className="flex items-center space-x-1 p-1 rounded bg-emerald-950/40 border border-emerald-500/30 text-emerald-300">
+                      <span className="h-2 w-2 rounded-full bg-emerald-400 shrink-0" />
+                      <span>Free Flow</span>
+                    </div>
+                    <div className="flex items-center space-x-1 p-1 rounded bg-amber-950/40 border border-amber-500/30 text-amber-300">
+                      <span className="h-2 w-2 rounded-full bg-amber-400 shrink-0" />
+                      <span>Moderate</span>
+                    </div>
+                    <div className="flex items-center space-x-1 p-1 rounded bg-red-950/40 border border-red-500/30 text-red-300">
+                      <span className="h-2 w-2 rounded-full bg-red-500 shrink-0 animate-pulse" />
+                      <span>Heavy Gridlock</span>
+                    </div>
+                  </div>
+                </div>
+              </>
+            )}
 
             <div className="h-px bg-slate-800" />
 

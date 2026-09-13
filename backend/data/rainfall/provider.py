@@ -751,17 +751,74 @@ class SpatialDemoProvider(DemoRainfallProvider):
         return super().generate_nowcast(scenario=scenario, horizon_minutes=horizon_minutes)
 
 
+class KolkataMonsoonProvider(RainfallProvider):
+    """
+    Calibrated rainfall provider for the Kolkata metropolitan corridor.
+    Models typical Gangetic Bengal convective thunder squalls (Kalbaishakhi)
+    and Bay of Bengal monsoon depressions (e.g. Sept 2021, July 2013, Amphan).
+
+    Unlike localized point-bells, Kolkata monsoon systems feature widespread
+    corridor rainfall with a strong convective storm core along the urban axis.
+    """
+    def __init__(self, grid_shape: Tuple[int, int] = (300, 160), cell_size_m: float = 35.0):
+        super().__init__(grid_shape=grid_shape, cell_size_m=cell_size_m)
+
+    def get_rain_rate_grid(self, minute: float, scenario: str = "heavy") -> Optional[np.ndarray]:
+        t = minute
+        y, x = np.ogrid[:self.rows, :self.cols]
+
+        if scenario == "moderate":
+            # Continuous steady monsoon drizzle/rain across corridor (12-16 mm/hr)
+            time_factor = max(0.0, 1.0 - abs(t - 60) / 120.0)
+            return (14.0 * time_factor * np.ones((self.rows, self.cols), dtype=np.float32))
+
+        elif scenario in ("heavy", "convective"):
+            # Typical severe convective storm: 20 mm/hr corridor baseline + 24 mm/hr convective core
+            time_factor = np.exp(-((t - 45.0) ** 2) / (2.0 * 45.0 ** 2))
+            base = 20.0 * time_factor
+            # Elliptical storm cell oriented along the North-South urban transport corridor
+            dist_sq = ((y - 165.0) / 1.65) ** 2 + (x - 55.0) ** 2
+            convective = 24.0 * time_factor * np.exp(-dist_sq / (2.0 * 75.0 ** 2))
+            return (base + convective).astype(np.float32)
+
+        elif scenario in ("extreme", "cloudburst"):
+            # Extreme monsoon depression / cyclone rainband (60-80 mm/hr peak)
+            time_factor = max(0.0, 1.0 - abs(t - 45) / 90.0)
+            base = 35.0 * time_factor
+            dist_sq = ((y - 150.0) / 1.5) ** 2 + (x - 60.0) ** 2
+            convective = 45.0 * time_factor * np.exp(-dist_sq / (2.0 * 70.0 ** 2))
+            return (base + convective).astype(np.float32)
+
+        # Default fallback
+        time_factor = np.exp(-((t - 45.0) ** 2) / (2.0 * 45.0 ** 2))
+        return (20.0 * time_factor * np.ones((self.rows, self.cols), dtype=np.float32))
+
+    def generate_nowcast(self, scenario: str = "heavy", horizon_minutes: int = 180) -> Dict[int, np.ndarray]:
+        forecast = {}
+        for h in self.horizons:
+            if h <= horizon_minutes:
+                grid = self.get_rain_rate_grid(float(h), scenario=scenario)
+                forecast[h] = grid if grid is not None else np.zeros((self.rows, self.cols), dtype=np.float32)
+        return forecast
+
+
 def get_rainfall_provider(mode: str = "demo", **kwargs) -> RainfallProvider:
     """
     Factory helper to instantiate any provider seamlessly:
       - mode='demo': kwargs -> (scenario='cloudburst', etc.)
+      - mode='kolkata' / 'kolkata_monsoon': KolkataMonsoonProvider
       - mode='live' / 'one_weather' / 'radar': OneWeatherRadarNowcastProvider
       - mode='historical': kwargs -> (lat=19.07, lon=72.85, date_str='2023-07-26', start_hour=11)
       - mode='spatial_historical': kwargs -> (lat, lon, date_str, start_hour, hotspot_row, hotspot_col)
       - mode='spatial_demo': kwargs -> (grid_shape, cell_size_m)
     """
     mode = mode.lower()
-    if mode in ("one_weather", "oneweather", "radar", "radar_nowcast", "high_res", "live"):
+    if mode in ("kolkata", "kolkata_monsoon", "kolkata_demo"):
+        return KolkataMonsoonProvider(
+            grid_shape=kwargs.get("grid_shape", (300, 160)),
+            cell_size_m=kwargs.get("cell_size_m", 35.0),
+        )
+    elif mode in ("one_weather", "oneweather", "radar", "radar_nowcast", "high_res", "live"):
         return OneWeatherRadarNowcastProvider(
             lat=kwargs.get("lat", 19.07),
             lon=kwargs.get("lon", 72.85),

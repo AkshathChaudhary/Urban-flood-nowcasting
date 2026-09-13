@@ -471,10 +471,10 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     }
   };
 
-  // Trigger route recalculation when waypoints, vehicle, or forecast horizon change
+  // Trigger route recalculation when waypoints, vehicle, forecast horizon, or traffic mode change
   useEffect(() => {
     if (hasCalculatedRoute && landmarks.length > 0 && selectedOriginId && selectedDestinationId) {
-      triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep);
+      triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, trafficMode);
     }
   }, [
     hasCalculatedRoute,
@@ -485,6 +485,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
     selectedVehicle,
     currentTimeStep,
     selectedScenario,
+    trafficMode,
   ]);
 
   // Handle Play/Pause Auto-Advance Scrubber Loop
@@ -843,19 +844,57 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
             <span>T+{currentTimeStep}m</span>
           </button>
 
-          {/* Traffic Layer Quick Toggle */}
-          <button
-            onClick={() => setShowTrafficLayer(!showTrafficLayer)}
-            className={`flex items-center space-x-1.5 px-2.5 py-1 rounded-lg border text-xs font-mono transition-all cursor-pointer ${
-              showTrafficLayer
-                ? 'bg-amber-950/40 hover:bg-amber-900/50 border-amber-500/40 text-amber-300 shadow-sm'
-                : 'bg-slate-900/80 hover:bg-slate-800 border-slate-800 text-slate-500'
-            }`}
-            title={showTrafficLayer ? `Traffic Layer Active (${trafficMode === 'peak_monsoon' ? 'Peak Monsoon Rush Hour' : 'TomTom Live'})` : 'Show Traffic Flow Layer'}
-          >
-            <span className={`h-2 w-2 rounded-full ${showTrafficLayer ? 'bg-amber-400 animate-pulse' : 'bg-slate-600'}`} />
-            <span className="font-semibold">Traffic: {trafficMode === 'peak_monsoon' ? 'Peak' : 'Live'}</span>
-          </button>
+          {/* Traffic Layer Quick Toggle & Mode Switcher */}
+          <div className="flex items-center rounded-lg border border-slate-800 bg-slate-900/80 p-0.5 text-xs font-mono">
+            <button
+              onClick={() => setShowTrafficLayer(!showTrafficLayer)}
+              className={`flex items-center space-x-1.5 px-2 py-1 rounded-md transition-all cursor-pointer ${
+                showTrafficLayer
+                  ? 'bg-amber-500/20 text-amber-300 font-semibold shadow-sm'
+                  : 'text-slate-500 hover:text-slate-300'
+              }`}
+              title={showTrafficLayer ? 'Hide Traffic Flow Layer' : 'Show Traffic Flow Layer'}
+            >
+              <span className={`h-2 w-2 rounded-full ${showTrafficLayer ? (trafficMode === 'peak_monsoon' ? 'bg-amber-400 animate-pulse' : 'bg-cyan-400 animate-pulse') : 'bg-slate-600'}`} />
+              <span>Traffic</span>
+            </button>
+            {showTrafficLayer && (
+              <div className="flex items-center space-x-0.5 ml-1 pl-1 border-l border-slate-700/60">
+                <button
+                  onClick={() => {
+                    setTrafficMode('peak_monsoon');
+                    if (routeResult) {
+                      triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, 'peak_monsoon');
+                    }
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[10px] cursor-pointer transition-all ${
+                    trafficMode === 'peak_monsoon'
+                      ? 'bg-amber-500/30 text-amber-300 font-bold border border-amber-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Switch to Monsoon Peak Bottlenecks Simulation"
+                >
+                  Peak
+                </button>
+                <button
+                  onClick={() => {
+                    setTrafficMode('live');
+                    if (routeResult) {
+                      triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, 'live');
+                    }
+                  }}
+                  className={`px-1.5 py-0.5 rounded text-[10px] cursor-pointer transition-all ${
+                    trafficMode === 'live'
+                      ? 'bg-cyan-500/30 text-cyan-300 font-bold border border-cyan-500/40 shadow-xs'
+                      : 'text-slate-400 hover:text-slate-200'
+                  }`}
+                  title="Switch to TomTom Live Real-Time Telemetry"
+                >
+                  Live
+                </button>
+              </div>
+            )}
+          </div>
 
           {/* Drainage HUD Quick Button */}
           <button
@@ -1416,6 +1455,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
               trafficMode={trafficMode}
               onSelectTrafficMode={(mode) => {
                 setTrafficMode(mode);
+                setShowTrafficLayer(true);
                 if (routeResult) {
                   triggerRouteCalculation(selectedOriginId, selectedDestinationId, selectedVehicle, currentTimeStep, mode);
                 }

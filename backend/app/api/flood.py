@@ -25,6 +25,7 @@ from backend.app.engine_state import (
 )
 from backend.app.engine.flood_engine import FloodEngine
 from backend.app.models.drainage import DrainageGraph
+from backend.data.rainfall.provider import KolkataMonsoonProvider
 from backend.app.models.flood import (
     FloodForecastOverview,
     FloodGridResponse,
@@ -58,6 +59,13 @@ def get_kolkata_scenario_title() -> Optional[str]:
     return _kolkata_scenario_title
 
 
+def reset_kolkata_forecast() -> None:
+    """Resets cached Kolkata engine and grids, forcing reload from disk upon next request."""
+    global _kolkata_engine, _kolkata_grids
+    _kolkata_engine = None
+    _kolkata_grids = None
+
+
 def get_kolkata_forecast():
     global _kolkata_engine, _kolkata_grids, _kolkata_scenario
     if _kolkata_grids is not None and _kolkata_engine is not None:
@@ -73,7 +81,25 @@ def get_kolkata_forecast():
         edges_path=edges_path,
         cell_size_m=35.0,
     )
-    engine = FloodEngine(dem=dem, drainage_graph=drainage, cell_size_m=35.0)
+    rainfall_provider = KolkataMonsoonProvider(
+        grid_shape=(int(dem.shape[0]), int(dem.shape[1])),
+        cell_size_m=35.0,
+    )
+    engine = FloodEngine(
+        dem=dem,
+        drainage_graph=drainage,
+        cell_size_m=35.0,
+        boundary_condition="outflow",
+        rainfall_provider=rainfall_provider,
+        # Kolkata monsoon calibration:
+        # KMC drainage is chronically silted/clogged — only ~15% of nominal capacity
+        # functions during heavy convective storms (CPHEEO audit findings)
+        drain_blockage_factor=0.15,
+        # Pre-monsoon soil is already near saturation from June-July cumulative rainfall
+        antecedent_saturation_fraction=0.6,
+        # Hooghly tidal backwater locks outfall discharge during high tide
+        tidal_lock=True,
+    )
     _kolkata_engine = engine
     _kolkata_grids = engine.run_forecast(_kolkata_scenario, 180, 300.0)
     return _kolkata_engine, _kolkata_grids
@@ -198,13 +224,13 @@ def query_point_depth(
         if lat is not None and lon is not None:
             norm_r = (k_max_lat - lat) / max(k_max_lat - k_min_lat, 1e-6)
             norm_c = (lon - k_min_lon) / max(k_max_lon - k_min_lon, 1e-6)
-            r = int(np.clip(norm_r * 300, 0, 299))
-            col_idx = int(np.clip(norm_c * 160, 0, 159))
+            r = int(np.clip(round(norm_r * 299), 0, 299))
+            col_idx = int(np.clip(round(norm_c * 159), 0, 159))
         else:
             r = row if row is not None and row < 300 else 0
             col_idx = col if col is not None and col < 160 else 0
-            lat = k_max_lat - (r / 300.0) * (k_max_lat - k_min_lat)
-            lon = k_min_lon + (col_idx / 160.0) * (k_max_lon - k_min_lon)
+            lat = k_max_lat - (r / 299.0) * (k_max_lat - k_min_lat)
+            lon = k_min_lon + (col_idx / 159.0) * (k_max_lon - k_min_lon)
 
         elevation = float(k_engine.dem[r, col_idx])
         depth_at_horizons = {h: round(float(k_grids[h][r, col_idx]), 3) for h in sorted(k_grids.keys())}

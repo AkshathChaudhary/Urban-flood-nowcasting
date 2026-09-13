@@ -263,7 +263,7 @@ def get_road_network_passability(
         if cache_key in traffic_cache:
             tflow = traffic_cache[cache_key]
         else:
-            tflow = traffic_service.get_flow_for_point(mid_lat, mid_lon, speed_lim, tmode)
+            tflow = traffic_service.get_flow_for_point(mid_lat, mid_lon, speed_lim, tmode, allow_network=False)
             traffic_cache[cache_key] = tflow
 
         roads_status[road_id] = {

@@ -558,6 +558,9 @@ def get_traffic_configuration():
     }
 
 
+_traffic_overlay_cache = {}
+
+
 @router.get("/traffic/overlay")
 def get_traffic_overlay(
     city: Optional[str] = Query("mumbai", description="City context: 'mumbai' or 'kolkata'"),
@@ -573,6 +576,12 @@ def get_traffic_overlay(
     import json
 
     c = (city or "mumbai").lower().strip()
+    mode = traffic_mode or "peak_monsoon"
+    cache_key = f"{c}_{mode}"
+
+    if cache_key in _traffic_overlay_cache:
+        return _traffic_overlay_cache[cache_key]
+
     if c == "kolkata":
         geojson_path = Path("backend/data/cities/kolkata/roads/road_network.geojson")
     else:
@@ -585,10 +594,22 @@ def get_traffic_overlay(
         data = json.load(f)
 
     features = data.get("features", [])
-    mode = traffic_mode or "peak_monsoon"
+    if c == "kolkata":
+        for feat in features:
+            p = feat.setdefault("properties", {})
+            if "highway_type" not in p and "highway" in p:
+                p["highway_type"] = p["highway"]
+        major = [
+            f for f in features
+            if any(t in str(f.get("properties", {}).get("highway_type", "")).lower()
+                   for t in ["primary", "secondary", "tertiary", "trunk", "motorway"])
+        ]
+        if major:
+            features = major
+
     decorated_features = traffic_service.decorate_road_features(features, traffic_mode=mode)
 
-    return {
+    result = {
         "type": "FeatureCollection",
         "metadata": {
             "city": c,
@@ -598,5 +619,9 @@ def get_traffic_overlay(
         },
         "features": decorated_features,
     }
+
+    _traffic_overlay_cache[cache_key] = result
+    return result
+
 
 
