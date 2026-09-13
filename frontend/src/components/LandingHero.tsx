@@ -115,10 +115,10 @@ export const LandingHero: React.FC<LandingHeroProps> = ({
 
           <button
             onClick={onLaunchCommandCenter}
-            className="group relative inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-cyan-400 via-teal-400 to-blue-500 px-7 py-3.5 text-sm font-semibold text-slate-950 shadow-xl shadow-cyan-400/30 hover:shadow-cyan-400/50 hover:brightness-110 active:scale-95 transition-all duration-200 cursor-pointer ring-2 ring-cyan-300/30 font-sans"
+            className="group relative inline-flex items-center justify-center rounded-xl bg-gradient-to-r from-[#0E8B84] via-[#107B85] to-[#1A5B82] hover:from-[#13A39A] hover:via-[#148F9A] hover:to-[#206E9D] px-7 py-3.5 text-sm font-bold text-white shadow-[0_4px_24px_-1px_rgba(14,139,132,0.48)] hover:shadow-[0_4px_28px_2px_rgba(19,163,154,0.60)] border border-[#14A39A]/60 hover:border-[#22D3EE]/80 active:scale-95 transition-all duration-300 cursor-pointer font-sans ring-1 ring-white/15"
           >
-            <span className="font-bold tracking-tight">View Live Dashboard</span>
-            <ArrowRight className="ml-2 h-4 w-4 text-slate-950 transition-transform group-hover:translate-x-1 stroke-[2.5]" />
+            <span className="font-bold tracking-tight text-white drop-shadow-[0_1px_2px_rgba(0,0,0,0.4)]">View Live Dashboard</span>
+            <ArrowRight className="ml-2 h-4 w-4 text-white transition-transform group-hover:translate-x-1 stroke-[2.5]" />
           </button>
         </motion.div>
 

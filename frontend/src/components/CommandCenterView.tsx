@@ -69,8 +69,7 @@ interface CommandCenterViewProps {
 
 export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCity, onCityChange, initialScenario }) => {
   const [isPlaying, setIsPlaying] = useState<boolean>(false);
-  const [currentTimeStep, setCurrentTimeStep] = useState<number>(0); // default to T+0m baseline dry state
-  const [hasCalculatedRoute, setHasCalculatedRoute] = useState<boolean>(false);
+  const [currentTimeStep, setCurrentTimeStep] = useState<number>(60); // default to T+60m
   const [showFloodHeatmap, setShowFloodHeatmap] = useState<boolean>(true);
   const [showDrainagePipes, setShowDrainagePipes] = useState<boolean>(false); // default OFF to avoid cluttered green lines
   const [showRoadGrid, setShowRoadGrid] = useState<boolean>(true);
