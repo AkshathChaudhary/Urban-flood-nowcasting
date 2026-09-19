@@ -802,6 +802,150 @@ class KolkataMonsoonProvider(RainfallProvider):
         return forecast
 
 
+class CorridorRainfallProvider(RainfallProvider):
+    """
+    Universal multi-scenario and real-time radar rainfall provider for any custom corridor.
+    Works for any arbitrary coordinates (lat, lon), grid dimensions (rows, cols),
+    and spatial resolutions (cell_size_m) across India and globally.
+
+    Modes / Scenarios:
+      - 'live': Real-time minutely-15 precipitation nowcast via Open-Meteo & Doppler radar via RainViewer
+      - 'heavy': Convective thunderstorm (peak ~35 mm/hr) centered over corridor sink/depression
+      - 'moderate': Steady regional monsoon rain (12-16 mm/hr)
+      - 'extreme': Deep depression / cyclone rainband (65-80 mm/hr)
+      - 'cloudburst': Ultra-localized convective cloudburst (120 mm/hr, 50-cell core for 30 min)
+      - 'historical': Replay historical precipitation event for that exact GPS location via Open-Meteo Archive API
+    """
+    def __init__(
+        self,
+        lat: float = 19.07,
+        lon: float = 72.85,
+        grid_shape: Tuple[int, int] = (200, 200),
+        cell_size_m: float = 25.0,
+        scenario: str = "heavy",
+        date_str: Optional[str] = None,
+        start_hour: int = 10,
+        hotspot_row: Optional[int] = None,
+        hotspot_col: Optional[int] = None,
+        convective_disaggregation: bool = True,
+        use_radar: bool = True,
+    ):
+        super().__init__(grid_shape=grid_shape, cell_size_m=cell_size_m)
+        self.lat = float(lat)
+        self.lon = float(lon)
+        self.scenario = scenario.lower()
+        self.date_str = date_str
+        self.start_hour = start_hour
+        self.hotspot_row = hotspot_row if hotspot_row is not None else self.rows // 2
+        self.hotspot_col = hotspot_col if hotspot_col is not None else self.cols // 2
+        self.convective_disaggregation = convective_disaggregation
+        self.use_radar = use_radar
+
+        # Live Radar provider delegate
+        self._live_provider = OneWeatherRadarNowcastProvider(
+            lat=self.lat,
+            lon=self.lon,
+            grid_shape=grid_shape,
+            cell_size_m=cell_size_m,
+            use_radar=use_radar,
+            demo_fallback=True,
+        )
+
+        # Historical provider delegate (lazy instantiated when needed)
+        self._historical_provider: Optional[HistoricalRainfallProvider] = None
+
+    def _get_historical_provider(self) -> HistoricalRainfallProvider:
+        if self._historical_provider is None:
+            self._historical_provider = SpatialHistoricalProvider(
+                lat=self.lat,
+                lon=self.lon,
+                date_str=self.date_str or "2023-07-26",
+                start_hour=self.start_hour,
+                grid_shape=(self.rows, self.cols),
+                cell_size_m=self.cell_size_m,
+                hotspot_row=self.hotspot_row,
+                hotspot_col=self.hotspot_col,
+            )
+        return self._historical_provider
+
+    def _compute_synthetic_grid(self, scenario: str, minute: float) -> np.ndarray:
+        t = minute
+        y, x = np.ogrid[:self.rows, :self.cols]
+
+        if scenario == "moderate":
+            intensity = 14.0 * max(0.0, 1.0 - abs(t - 60.0) / 90.0)
+            return np.full((self.rows, self.cols), fill_value=intensity, dtype=np.float32)
+
+        elif scenario in ("heavy", "convective"):
+            time_factor = math.exp(-((t - 45.0) ** 2) / (2.0 * 35.0 ** 2))
+            sigma = max(15.0, min(self.rows, self.cols) * 0.28)
+            dist_sq = (y - self.hotspot_row) ** 2 + (x - self.hotspot_col) ** 2
+            spatial_bell = np.exp(-dist_sq / (2.0 * sigma ** 2))
+            grid = (time_factor * (12.0 + 23.0 * spatial_bell)).astype(np.float32)
+            return grid
+
+        elif scenario in ("extreme", "extreme_blocked"):
+            speed_cells_per_min = (20000.0 / 3600.0 * 60.0) / self.cell_size_m / 60.0
+            shift = int(t * speed_cells_per_min)
+            cell_r = (self.hotspot_row - int(self.rows * 0.25) + shift) % self.rows
+            cell_c = (self.hotspot_col - int(self.cols * 0.25) + shift) % self.cols
+            dist_sq = (y - cell_r) ** 2 + (x - cell_c) ** 2
+            sigma = max(18.0, min(self.rows, self.cols) * 0.22)
+            spatial_cell = np.exp(-dist_sq / (2.0 * sigma ** 2))
+            grid = (20.0 + 45.0 * spatial_cell).astype(np.float32)
+            return grid
+
+        elif scenario == "cloudburst":
+            grid = np.zeros((self.rows, self.cols), dtype=np.float32)
+            if t <= 35.0:
+                core_radius = max(20.0, 500.0 / self.cell_size_m)
+                dist_sq = (y - self.hotspot_row) ** 2 + (x - self.hotspot_col) ** 2
+                mask = dist_sq <= core_radius ** 2
+                time_scale = max(0.0, 1.0 - t / 35.0)
+                grid[mask] = 120.0 * time_scale
+                outer_mask = (dist_sq > core_radius ** 2) & (dist_sq <= (core_radius * 2.2) ** 2)
+                grid[outer_mask] = 25.0 * time_scale
+            return grid
+
+        intensity = 15.0 * max(0.0, 1.0 - abs(t - 45.0) / 75.0)
+        return np.full((self.rows, self.cols), fill_value=intensity, dtype=np.float32)
+
+    def get_rain_rate_grid(self, minute: float, scenario: Optional[str] = None) -> Optional[np.ndarray]:
+        scen = (scenario or self.scenario).lower()
+        if scen == "live":
+            return self._live_provider.get_rain_rate_grid(minute, scenario="live")
+        elif scen == "historical":
+            return self._get_historical_provider().get_rain_rate_grid(minute, scenario="historical")
+        else:
+            return self._compute_synthetic_grid(scen, minute)
+
+    def generate_nowcast(self, scenario: Optional[str] = None, horizon_minutes: int = 180) -> Dict[int, np.ndarray]:
+        scen = (scenario or self.scenario).lower()
+        if scen == "live":
+            return self._live_provider.generate_nowcast(scenario="live", horizon_minutes=horizon_minutes)
+        elif scen == "historical":
+            return self._get_historical_provider().generate_nowcast(scenario="historical", horizon_minutes=horizon_minutes)
+        else:
+            forecast = {}
+            for h in self.horizons:
+                if h <= horizon_minutes:
+                    forecast[h] = self._compute_synthetic_grid(scen, float(h))
+            return forecast
+
+    def get_radar_frames(self, limit: int = 10) -> List[Dict[str, Any]]:
+        return self._live_provider.get_radar_frames(limit=limit)
+
+    def get_radar_reflectivity_grid(self, minute: float = 0.0) -> Optional[np.ndarray]:
+        rain_grid = self.get_rain_rate_grid(minute)
+        if rain_grid is not None:
+            return self.rain_rate_to_dbz(rain_grid)
+        return None
+
+    def get_current_rainfall(self) -> float:
+        grid = self.get_rain_rate_grid(0.0)
+        return float(np.mean(grid)) if grid is not None else 0.0
+
+
 def get_rainfall_provider(mode: str = "demo", **kwargs) -> RainfallProvider:
     """
     Factory helper to instantiate any provider seamlessly:
@@ -811,9 +955,24 @@ def get_rainfall_provider(mode: str = "demo", **kwargs) -> RainfallProvider:
       - mode='historical': kwargs -> (lat=19.07, lon=72.85, date_str='2023-07-26', start_hour=11)
       - mode='spatial_historical': kwargs -> (lat, lon, date_str, start_hour, hotspot_row, hotspot_col)
       - mode='spatial_demo': kwargs -> (grid_shape, cell_size_m)
+      - mode='corridor' / 'universal': CorridorRainfallProvider (any arbitrary GPS & grid)
     """
     mode = mode.lower()
-    if mode in ("kolkata", "kolkata_monsoon", "kolkata_demo"):
+    if mode in ("corridor", "universal", "custom"):
+        return CorridorRainfallProvider(
+            lat=kwargs.get("lat", 19.07),
+            lon=kwargs.get("lon", 72.85),
+            grid_shape=kwargs.get("grid_shape", (200, 200)),
+            cell_size_m=kwargs.get("cell_size_m", 25.0),
+            scenario=kwargs.get("scenario", "heavy"),
+            date_str=kwargs.get("date_str"),
+            start_hour=kwargs.get("start_hour", 10),
+            hotspot_row=kwargs.get("hotspot_row"),
+            hotspot_col=kwargs.get("hotspot_col"),
+            convective_disaggregation=kwargs.get("convective_disaggregation", True),
+            use_radar=kwargs.get("use_radar", True),
+        )
+    elif mode in ("kolkata", "kolkata_monsoon", "kolkata_demo"):
         return KolkataMonsoonProvider(
             grid_shape=kwargs.get("grid_shape", (300, 160)),
             cell_size_m=kwargs.get("cell_size_m", 35.0),

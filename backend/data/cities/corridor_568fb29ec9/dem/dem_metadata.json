@@ -1,0 +1,15 @@
+{
+  "city": "Silk Board (Geocoded) -> Bellandur (Geocoded)",
+  "rows": 122,
+  "cols": 240,
+  "cell_size_m": 41.1,
+  "min_elevation_m": 867.1322021484375,
+  "max_elevation_m": 915.9752197265625,
+  "bbox": [
+    12.901797199999999,
+    12.9470495,
+    77.608380625,
+    77.69947367500001
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

@@ -1,0 +1,15 @@
+{
+  "city": "Coordinates [12.91671\u00b0 N, 77.62141\u00b0 E] -> Coordinates [12.93714\u00b0 N, 77.67202\u00b0 E]",
+  "rows": 154,
+  "cols": 240,
+  "cell_size_m": 36.4,
+  "min_elevation_m": 868.1307373046875,
+  "max_elevation_m": 912.9542236328125,
+  "bbox": [
+    12.90171,
+    12.95214,
+    77.60641,
+    77.68702
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

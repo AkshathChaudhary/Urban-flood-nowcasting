@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { Waves, MapPin, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Waves, MapPin, ArrowRight, ArrowLeft, Sparkles } from 'lucide-react';
+import { type AvailableCity, fetchAvailableCities } from '../services/api';
 
 interface NavbarProps {
   currentCity: string;
@@ -7,6 +8,7 @@ interface NavbarProps {
   onLaunchCommandCenter: () => void;
   activeView: 'landing' | 'command-center';
   onNavigateHome: () => void;
+  onOpenCorridorModal?: () => void;
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
@@ -15,8 +17,18 @@ export const Navbar: React.FC<NavbarProps> = ({
   onLaunchCommandCenter,
   activeView,
   onNavigateHome,
+  onOpenCorridorModal,
 }) => {
   const [isScrolled, setIsScrolled] = useState<boolean>(false);
+  const [cities, setCities] = useState<AvailableCity[]>([]);
+
+  useEffect(() => {
+    fetchAvailableCities().then((res) => {
+      if (res && res.length > 0) {
+        setCities(res);
+      }
+    });
+  }, [currentCity]);
 
   useEffect(() => {
     const handleScroll = () => {
@@ -111,17 +123,43 @@ export const Navbar: React.FC<NavbarProps> = ({
         <div className="flex items-center space-x-3">
           
           {/* City Context Selector */}
-          <div className="hidden sm:flex items-center space-x-1.5 rounded-lg border border-slate-800/80 bg-slate-900/60 px-2.5 py-1 text-xs">
-            <MapPin className="h-3 w-3 text-cyan-400 shrink-0" />
-            <select
-              value={currentCity}
-              onChange={(e) => onCityChange(e.target.value)}
-              className="bg-transparent font-medium text-slate-300 focus:outline-none cursor-pointer text-xs"
-              aria-label="Select City Context"
-            >
-              <option value="mumbai" className="bg-slate-950 text-slate-200">Mumbai (SW 2x2km)</option>
-              <option value="kolkata" className="bg-slate-950 text-slate-200">Kolkata (EM Bypass)</option>
-            </select>
+          <div className="flex items-center space-x-2">
+            <div className="hidden sm:flex items-center space-x-1.5 rounded-lg border border-slate-800/80 bg-slate-900/60 px-2.5 py-1 text-xs">
+              <MapPin className="h-3 w-3 text-cyan-400 shrink-0" />
+              <select
+                value={currentCity}
+                onChange={(e) => onCityChange(e.target.value)}
+                className="bg-transparent font-medium text-slate-300 focus:outline-none cursor-pointer text-xs max-w-[160px] sm:max-w-[210px] truncate"
+                aria-label="Select City or Corridor Context"
+              >
+                {cities.length > 0 ? (
+                  cities.map((c) => (
+                    <option key={c.id} value={c.id} className="bg-slate-950 text-slate-200">
+                      {c.name}
+                    </option>
+                  ))
+                ) : (
+                  <>
+                    <option value="mumbai" className="bg-slate-950 text-slate-200">Mumbai (SW 2x2km)</option>
+                    <option value="kolkata" className="bg-slate-950 text-slate-200">Kolkata (EM Bypass)</option>
+                  </>
+                )}
+              </select>
+            </div>
+
+            {/* + Any Corridor Button */}
+            {onOpenCorridorModal && (
+              <button
+                type="button"
+                onClick={onOpenCorridorModal}
+                title="Generate simulation domain for any 2 points in India"
+                className="flex items-center space-x-1 rounded-lg border border-cyan-500/40 bg-cyan-950/40 hover:bg-cyan-900/60 px-2.5 py-1 text-xs font-semibold text-cyan-300 hover:text-white transition-all cursor-pointer shadow-sm shadow-cyan-950/40"
+              >
+                <Sparkles className="h-3 w-3 text-cyan-400" />
+                <span className="hidden md:inline">+ Any Corridor</span>
+                <span className="md:hidden">+ New</span>
+              </button>
+            )}
           </div>
 
           {/* Primary Action Button */}

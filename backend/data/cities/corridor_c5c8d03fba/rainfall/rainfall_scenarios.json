@@ -1,0 +1,60 @@
+{
+  "metadata": {
+    "center": [
+      12.92697,
+      77.64779
+    ],
+    "grid_dimensions": [
+      158,
+      240
+    ],
+    "cell_size_m": 35.4,
+    "sink_hotspot_cell": [
+      121,
+      239
+    ]
+  },
+  "scenarios": {
+    "moderate": {
+      "name": "Steady Regional Monsoon Rain",
+      "description": "Uniform regional monsoon precipitation with ramp-up and ramp-down over 120 minutes.",
+      "peak_intensity_mmh": 14.0,
+      "duration_min": 120,
+      "spatial_distribution": "uniform",
+      "hyetograph_pattern": "triangular_symmetric"
+    },
+    "heavy": {
+      "name": "Convective Thunderstorm Cell",
+      "description": "Intense convective thunderstorm peaking at 35 mm/hr centered over topographic depression [cell 121, 239].",
+      "peak_intensity_mmh": 35.0,
+      "duration_min": 90,
+      "spatial_distribution": "gaussian_sink_focused",
+      "hotspot_cell": [
+        121,
+        239
+      ],
+      "core_radius_m": 1566.1
+    },
+    "extreme": {
+      "name": "Deep Depression / Cyclone Rainband",
+      "description": "Severe moving squall band traveling NW to SE at 20 km/h with 65 mm/hr peak intensity.",
+      "peak_intensity_mmh": 65.0,
+      "duration_min": 120,
+      "spatial_distribution": "moving_cell",
+      "speed_kmh": 20.0,
+      "heading_deg": 135.0
+    },
+    "cloudburst": {
+      "name": "Localized Urban Cloudburst",
+      "description": "Extreme flash-flood cloudburst delivering 120 mm/hr over a 500m radius around cell [121, 239] for 35 minutes.",
+      "peak_intensity_mmh": 120.0,
+      "duration_min": 35,
+      "spatial_distribution": "localized_core",
+      "core_radius_m": 500.0,
+      "hotspot_cell": [
+        121,
+        239
+      ]
+    }
+  }
+}

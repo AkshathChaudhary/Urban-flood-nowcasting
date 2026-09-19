@@ -1,0 +1,1049 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.611381,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00001",
+        "type": "inlet",
+        "elevation_m": 900.48,
+        "capacity_m3s": 1.153,
+        "grid_row": 43,
+        "grid_col": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00002",
+        "type": "junction",
+        "elevation_m": 888.73,
+        "capacity_m3s": 1.153,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00003",
+        "type": "junction",
+        "elevation_m": 888.73,
+        "capacity_m3s": 1.153,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00004",
+        "type": "inlet",
+        "elevation_m": 889.52,
+        "capacity_m3s": 0.418,
+        "grid_row": 43,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00005",
+        "type": "junction",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.418,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00006",
+        "type": "inlet",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.926,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.623563,
+          12.916797
+        ]
+      },
+      "properties": {
+        "id": "DN-00007",
+        "type": "junction",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.926,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00008",
+        "type": "inlet",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.606,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00009",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 0.606,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00010",
+        "type": "inlet",
+        "elevation_m": 889.52,
+        "capacity_m3s": 0.418,
+        "grid_row": 43,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00011",
+        "type": "junction",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.418,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.611381,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00012",
+        "type": "inlet",
+        "elevation_m": 906.18,
+        "capacity_m3s": 0.836,
+        "grid_row": 78,
+        "grid_col": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00013",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 0.836,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.611381,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00014",
+        "type": "inlet",
+        "elevation_m": 906.18,
+        "capacity_m3s": 0.836,
+        "grid_row": 78,
+        "grid_col": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00015",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 0.836,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00016",
+        "type": "inlet",
+        "elevation_m": 886.82,
+        "capacity_m3s": 1.138,
+        "grid_row": 78,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00017",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 1.138,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00018",
+        "type": "inlet",
+        "elevation_m": 875.51,
+        "capacity_m3s": 1.058,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.684292,
+          12.932049
+        ]
+      },
+      "properties": {
+        "id": "DN-00019",
+        "type": "outfall",
+        "elevation_m": 873.92,
+        "capacity_m3s": 6.0,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00020",
+        "type": "inlet",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.606,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00021",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 0.606,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00022",
+        "type": "inlet",
+        "elevation_m": 886.82,
+        "capacity_m3s": 1.138,
+        "grid_row": 78,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00023",
+        "type": "junction",
+        "elevation_m": 875.51,
+        "capacity_m3s": 1.138,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.611381,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00024",
+        "type": "inlet",
+        "elevation_m": 893.99,
+        "capacity_m3s": 0.897,
+        "grid_row": 113,
+        "grid_col": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00025",
+        "type": "junction",
+        "elevation_m": 886.92,
+        "capacity_m3s": 0.897,
+        "grid_row": 113,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.611381,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00026",
+        "type": "inlet",
+        "elevation_m": 893.99,
+        "capacity_m3s": 0.897,
+        "grid_row": 113,
+        "grid_col": 8
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00027",
+        "type": "junction",
+        "elevation_m": 886.92,
+        "capacity_m3s": 0.897,
+        "grid_row": 113,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.639745,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00028",
+        "type": "inlet",
+        "elevation_m": 896.49,
+        "capacity_m3s": 1.041,
+        "grid_row": 113,
+        "grid_col": 82
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00029",
+        "type": "junction",
+        "elevation_m": 886.92,
+        "capacity_m3s": 1.041,
+        "grid_row": 113,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.639745,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00030",
+        "type": "inlet",
+        "elevation_m": 896.49,
+        "capacity_m3s": 1.041,
+        "grid_row": 113,
+        "grid_col": 82
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00031",
+        "type": "junction",
+        "elevation_m": 886.92,
+        "capacity_m3s": 1.041,
+        "grid_row": 113,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.653927,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00032",
+        "type": "junction",
+        "elevation_m": 882.4,
+        "capacity_m3s": 1.268,
+        "grid_row": 113,
+        "grid_col": 119
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.639745,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00033",
+        "type": "inlet",
+        "elevation_m": 896.49,
+        "capacity_m3s": 1.268,
+        "grid_row": 113,
+        "grid_col": 82
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.653927,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00034",
+        "type": "junction",
+        "elevation_m": 882.4,
+        "capacity_m3s": 1.268,
+        "grid_row": 113,
+        "grid_col": 119
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.668109,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00035",
+        "type": "inlet",
+        "elevation_m": 884.93,
+        "capacity_m3s": 0.529,
+        "grid_row": 113,
+        "grid_col": 157
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.653927,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00036",
+        "type": "junction",
+        "elevation_m": 882.4,
+        "capacity_m3s": 0.529,
+        "grid_row": 113,
+        "grid_col": 119
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.668109,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00037",
+        "type": "inlet",
+        "elevation_m": 884.93,
+        "capacity_m3s": 0.529,
+        "grid_row": 113,
+        "grid_col": 157
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.653927,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00038",
+        "type": "junction",
+        "elevation_m": 882.4,
+        "capacity_m3s": 0.529,
+        "grid_row": 113,
+        "grid_col": 119
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.668109,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00039",
+        "type": "inlet",
+        "elevation_m": 884.93,
+        "capacity_m3s": 1.05,
+        "grid_row": 113,
+        "grid_col": 157
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00040",
+        "type": "junction",
+        "elevation_m": 875.18,
+        "capacity_m3s": 1.05,
+        "grid_row": 113,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.668109,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00041",
+        "type": "inlet",
+        "elevation_m": 884.93,
+        "capacity_m3s": 1.05,
+        "grid_row": 113,
+        "grid_col": 157
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00042",
+        "type": "junction",
+        "elevation_m": 875.18,
+        "capacity_m3s": 1.05,
+        "grid_row": 113,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00043",
+        "type": "inlet",
+        "elevation_m": 875.18,
+        "capacity_m3s": 0.847,
+        "grid_row": 113,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00044",
+        "type": "outfall",
+        "elevation_m": 868.87,
+        "capacity_m3s": 6.0,
+        "grid_row": 113,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00045",
+        "type": "inlet",
+        "elevation_m": 875.18,
+        "capacity_m3s": 0.847,
+        "grid_row": 113,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.696474,
+          12.94405
+        ]
+      },
+      "properties": {
+        "id": "DN-00046",
+        "type": "outfall",
+        "elevation_m": 868.87,
+        "capacity_m3s": 6.0,
+        "grid_row": 113,
+        "grid_col": 231
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.625563,
+          12.917881
+        ]
+      },
+      "properties": {
+        "id": "DN-00047",
+        "type": "inlet",
+        "elevation_m": 888.73,
+        "capacity_m3s": 0.926,
+        "grid_row": 43,
+        "grid_col": 45
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.623563,
+          12.916797
+        ]
+      },
+      "properties": {
+        "id": "DN-00048",
+        "type": "junction",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.926,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.623563,
+          12.916797
+        ]
+      },
+      "properties": {
+        "id": "DN-00049",
+        "type": "inlet",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.418,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6235628,
+          12.9167972
+        ]
+      },
+      "properties": {
+        "id": "DN-00050",
+        "type": "junction",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.418,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.682292,
+          12.930965
+        ]
+      },
+      "properties": {
+        "id": "DN-00051",
+        "type": "inlet",
+        "elevation_m": 875.51,
+        "capacity_m3s": 1.058,
+        "grid_row": 78,
+        "grid_col": 194
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.684292,
+          12.932049
+        ]
+      },
+      "properties": {
+        "id": "DN-00052",
+        "type": "outfall",
+        "elevation_m": 873.92,
+        "capacity_m3s": 6.0,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.684292,
+          12.932049
+        ]
+      },
+      "properties": {
+        "id": "DN-00053",
+        "type": "outfall",
+        "elevation_m": 873.92,
+        "capacity_m3s": 6.0,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6842915,
+          12.9320495
+        ]
+      },
+      "properties": {
+        "id": "DN-00054",
+        "type": "junction",
+        "elevation_m": 873.92,
+        "capacity_m3s": 0.418,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6235628,
+          12.9167972
+        ]
+      },
+      "properties": {
+        "id": "DN-00055",
+        "type": "inlet",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.418,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.623563,
+          12.916797
+        ]
+      },
+      "properties": {
+        "id": "DN-00056",
+        "type": "junction",
+        "elevation_m": 887.51,
+        "capacity_m3s": 0.418,
+        "grid_row": 40,
+        "grid_col": 40
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.6842915,
+          12.9320495
+        ]
+      },
+      "properties": {
+        "id": "DN-00057",
+        "type": "inlet",
+        "elevation_m": 873.92,
+        "capacity_m3s": 0.418,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "Point",
+        "coordinates": [
+          77.684292,
+          12.932049
+        ]
+      },
+      "properties": {
+        "id": "DN-00058",
+        "type": "junction",
+        "elevation_m": 873.92,
+        "capacity_m3s": 0.418,
+        "grid_row": 81,
+        "grid_col": 199
+      }
+    }
+  ]
+}

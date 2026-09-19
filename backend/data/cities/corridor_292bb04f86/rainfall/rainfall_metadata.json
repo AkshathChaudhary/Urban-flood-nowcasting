@@ -1,0 +1,33 @@
+{
+  "corridor_hash": "292bb04f86",
+  "center_lat": 28.62235,
+  "center_lon": 77.22444,
+  "grid_shape": [
+    240,
+    173
+  ],
+  "cell_size_m": 22.6,
+  "sink_cell": [
+    92,
+    172
+  ],
+  "sink_elevation_m": 207.01255798339844,
+  "active_scenario": "heavy",
+  "live_weather": {
+    "condition": "Clear / Overcast (Dry)",
+    "current_rain_rate_mmh": 0.0,
+    "peak_forecast_rate_mmh": 0.0,
+    "radar_frames_count": 5,
+    "provider_source": "fallback_dry"
+  },
+  "available_scenarios": [
+    "moderate",
+    "heavy",
+    "extreme",
+    "cloudburst",
+    "live",
+    "historical"
+  ],
+  "nearest_historical_benchmark": "Delhi Record Monsoon Inundation",
+  "compiled_at_utc": "2026-09-13 06:21:51 UTC"
+}

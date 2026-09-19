@@ -153,41 +153,78 @@ def resolve_corridor_assets(
             "bbox": (m_min_lat, m_max_lat, m_min_lon, m_max_lon),
         }
 
-    # For any arbitrary location: determine bounding box with 1.5 km buffer
-    min_lat = min(src_lat, dst_lat) - 0.015
-    max_lat = max(src_lat, dst_lat) + 0.015
-    min_lon = min(src_lon, dst_lon) - 0.015
-    max_lon = max(src_lon, dst_lon) + 0.015
+    # For any arbitrary location: determine bounding box and cache dir
+    from build_any_corridor_assets import (
+        compute_bbox,
+        corridor_cache_dir,
+        build_corridor,
+        _compile_corridor_rainfall_assets,
+    )
+    bbox = compute_bbox((src_lon, src_lat), (dst_lon, dst_lat))
+    corridor_hash, custom_dir = corridor_cache_dir(bbox)
+    min_lat, max_lat, min_lon, max_lon = bbox
 
-    corridor_hash = hashlib.md5(f"{min_lat:.3f}_{max_lat:.3f}_{min_lon:.3f}_{max_lon:.3f}".encode()).hexdigest()[:8]
-    custom_dir = CITIES_DATA_DIR / f"corridor_{corridor_hash}"
-    
     # Check if custom corridor is already cached
     cached_graph = custom_dir / "roads" / "road_graph.json"
     cached_dem = custom_dir / "dem" / "elevation_grid.npy"
-    if cached_graph.exists() and cached_dem.exists():
-        return {
-            "name": f"Dynamic Corridor ({corridor_hash})",
-            "city_slug": f"corridor_{corridor_hash}",
-            "dem_npy": cached_dem,
-            "roads_graph": cached_graph,
-            "roads_geojson": custom_dir / "roads" / "road_network.geojson",
-            "drainage_nodes": custom_dir / "drainage" / "drainage_nodes.geojson",
-            "drainage_edges": custom_dir / "drainage" / "drainage_edges.geojson",
-            "grid": (240, 160, 30.0),
-            "bbox": (min_lat, max_lat, min_lon, max_lon),
-        }
+    cached_drainage = custom_dir / "drainage" / "drainage_nodes.geojson"
+    cached_rainfall = custom_dir / "rainfall" / "rainfall_metadata.json"
 
-    # If not in cache and not pre-cached, fallback gracefully to Kolkata or Mumbai
-    # based on proximity
-    dist_to_kolkata = haversine_m(src_lon, src_lat, 88.40, 22.55)
-    dist_to_mumbai = haversine_m(src_lon, src_lat, 72.85, 19.07)
-    if dist_to_kolkata < dist_to_mumbai:
-        print("  ℹ️ Points outside boundary; mapping to closest verified corridor: Kolkata EM Bypass.")
-        return resolve_corridor_assets((88.4230, 22.5930), (88.4030, 22.5135))
-    else:
-        print("  ℹ️ Points outside boundary; mapping to closest verified corridor: Mumbai BKC Basin.")
-        return resolve_corridor_assets((72.8545, 19.0665), (72.8660, 19.0740))
+    if not (cached_graph.exists() and cached_dem.exists() and cached_drainage.exists()):
+        print(f"\n  ⚡ Corridor '{corridor_hash}' not cached. Building complete domain assets on-the-fly...")
+        try:
+            build_corridor(
+                origin=f"{src_lat:.5f}, {src_lon:.5f}",
+                destination=f"{dst_lat:.5f}, {dst_lon:.5f}",
+                force=False,
+            )
+        except Exception as exc:
+            print(f"  ⚠️ Dynamic corridor build failed: {exc}. Mapping to nearest verified corridor.")
+            dist_to_kolkata = haversine_m(src_lon, src_lat, 88.40, 22.55)
+            dist_to_mumbai = haversine_m(src_lon, src_lat, 72.85, 19.07)
+            if dist_to_kolkata < dist_to_mumbai:
+                return resolve_corridor_assets((88.4230, 22.5930), (88.4030, 22.5135))
+            else:
+                return resolve_corridor_assets((72.8545, 19.0665), (72.8660, 19.0740))
+
+    # Read calibrated grid resolution from metadata
+    grid = (200, 200, 25.0)
+    meta_path = custom_dir / "dem" / "dem_metadata.json"
+    if meta_path.exists():
+        try:
+            with open(meta_path, "r", encoding="utf-8") as f:
+                meta = json.load(f)
+                grid = (meta.get("rows", 200), meta.get("cols", 200), meta.get("cell_size_m", 25.0))
+        except Exception:
+            pass
+
+    # Ensure rainfall assets exist for this corridor
+    if not cached_rainfall.exists():
+        dem_grid = np.load(cached_dem)
+        _compile_corridor_rainfall_assets(
+            out_dir=custom_dir,
+            center_lat=(min_lat + max_lat) / 2.0,
+            center_lon=(min_lon + max_lon) / 2.0,
+            grid_rows=grid[0],
+            grid_cols=grid[1],
+            cell_size_m=grid[2],
+            dem_grid=dem_grid,
+            bbox_hash=corridor_hash,
+            active_scenario="heavy",
+        )
+
+    return {
+        "name": f"Dynamic Corridor ({corridor_hash})",
+        "city_slug": f"corridor_{corridor_hash}",
+        "dem_npy": cached_dem,
+        "roads_graph": cached_graph,
+        "roads_geojson": custom_dir / "roads" / "road_network.geojson",
+        "drainage_nodes": cached_drainage,
+        "drainage_edges": custom_dir / "drainage" / "drainage_edges.geojson",
+        "rainfall_dir": custom_dir / "rainfall",
+        "grid": grid,
+        "bbox": (min_lat, max_lat, min_lon, max_lon),
+    }
 
 
 def run_unified_corridor_pipeline(
@@ -197,6 +234,8 @@ def run_unified_corridor_pipeline(
     vehicle_type: str = "car",
     horizon_minutes: int = 60,
     dt_seconds: float = 300.0,
+    date_str: Optional[str] = None,
+    live_radar: bool = False,
 ) -> Dict[str, Any]:
     """
     Executes the complete tri-model pipeline:
@@ -234,19 +273,51 @@ def run_unified_corridor_pipeline(
     print(f"  Total Underground Pipes  : {drainage_summary['total_edges']:,} conduits")
     print(f"  Active Outfalls to River : {drainage_summary.get('outfall_nodes', 0)} outfalls")
 
-    # 4. Model 2: 2D Hydrodynamic Surface Flood Engine
+    # 4. Model 2: 2D Hydrodynamic Surface Flood Engine coupled with Universal Rainfall Provider
     print(f"\n[Step 3B/4] Initializing Model 2 (2D Hydrodynamic Surface Flood Engine)...")
     dem = np.load(corridor["dem_npy"]).astype(np.float32)
+
+    # Detect lowest elevation sink in domain to focus convective thunderstorm cells
+    sink_idx = np.unravel_index(np.argmin(dem), dem.shape)
+    sink_r, sink_c = int(sink_idx[0]), int(sink_idx[1])
+    center_lat = (corridor["bbox"][0] + corridor["bbox"][1]) / 2.0
+    center_lon = (corridor["bbox"][2] + corridor["bbox"][3]) / 2.0
+
+    from backend.data.rainfall.provider import CorridorRainfallProvider
+    active_scenario = "live" if live_radar else scenario.lower()
+    rainfall_provider = CorridorRainfallProvider(
+        lat=center_lat,
+        lon=center_lon,
+        grid_shape=(rows, cols),
+        cell_size_m=cell_size_m,
+        scenario=active_scenario,
+        date_str=date_str,
+        hotspot_row=sink_r,
+        hotspot_col=sink_c,
+    )
+
+    cur_rain = rainfall_provider.get_current_rainfall()
+    print(f"  Topography Elevation Range  : {float(np.min(dem)):.2f}m to {float(np.max(dem)):.2f}m MSL")
+    print(f"  Atmospheric Rainfall Engine : CorridorRainfallProvider [{active_scenario.upper()}]")
+    print(f"  Corridor Atmospheric Center : [{center_lat:.4f}° N, {center_lon:.4f}° E]")
+    print(f"  Topographic Sink Core       : Cell [{sink_r}, {sink_c}] (MSL: {float(np.min(dem)):.2f}m)")
+    print(f"  Instantaneous Rain Rate     : {cur_rain:.2f} mm/hr")
+    if active_scenario == "live":
+        radar_frames = rainfall_provider.get_radar_frames(limit=3)
+        print(f"  Doppler Radar Satellite     : {len(radar_frames)} live frames tracked (RainViewer)")
+    elif active_scenario == "historical" or date_str:
+        print(f"  Historical Replay Event     : {date_str or 'Calibrated storm'}")
+
     flood_engine = FloodEngine(
         dem=dem,
         drainage_graph=drainage,
+        rainfall_provider=rainfall_provider,
         cell_size_m=cell_size_m,
     )
-    print(f"  Topography Elevation Range : {float(np.min(dem)):.2f}m to {float(np.max(dem)):.2f}m MSL")
-    print(f"  Simulating {horizon_minutes}-minute '{scenario.upper()}' storm scenario...")
+    print(f"  Simulating {horizon_minutes}-minute '{active_scenario.upper()}' storm scenario...")
 
     forecast_grids = flood_engine.run_forecast(
-        scenario=scenario,
+        scenario=active_scenario,
         horizon_minutes=horizon_minutes,
         dt=dt_seconds,
     )

@@ -1,0 +1,74 @@
+{
+  "corridor_midpoint": [
+    22.57221,
+    88.4074
+  ],
+  "nearest_historical_benchmark": {
+    "region": "Kolkata (West Bengal)",
+    "lat": 22.572,
+    "lon": 88.363,
+    "date": "2021-09-20",
+    "name": "Kolkata Overnight Cloudburst",
+    "peak_rate_mmh": 65.0,
+    "total_24h_mm": 142.0,
+    "description": "Intense convective deluge overwhelming Kestopur Canal and EM Bypass drainage.",
+    "distance_to_corridor_km": 4.6
+  },
+  "regional_benchmarks": [
+    {
+      "region": "Kolkata (West Bengal)",
+      "lat": 22.572,
+      "lon": 88.363,
+      "date": "2021-09-20",
+      "name": "Kolkata Overnight Cloudburst",
+      "peak_rate_mmh": 65.0,
+      "total_24h_mm": 142.0,
+      "description": "Intense convective deluge overwhelming Kestopur Canal and EM Bypass drainage.",
+      "distance_to_corridor_km": 4.6
+    },
+    {
+      "region": "Kolkata (West Bengal)",
+      "lat": 22.572,
+      "lon": 88.363,
+      "date": "2020-05-20",
+      "name": "Super Cyclone Amphan Landfall",
+      "peak_rate_mmh": 80.0,
+      "total_24h_mm": 236.0,
+      "description": "Heavy rainfall combined with severe storm surge along the Hooghly basin.",
+      "distance_to_corridor_km": 4.6
+    },
+    {
+      "region": "Hyderabad (Telangana)",
+      "lat": 17.385,
+      "lon": 78.486,
+      "date": "2020-10-13",
+      "name": "Hyderabad October Deluge 2020",
+      "peak_rate_mmh": 90.0,
+      "total_24h_mm": 192.0,
+      "description": "Deep depression stalling over the Musi river basin causing flash floods.",
+      "distance_to_corridor_km": 1185.9
+    },
+    {
+      "region": "Delhi / NCR",
+      "lat": 28.613,
+      "lon": 77.209,
+      "date": "2023-07-09",
+      "name": "Delhi Record Monsoon Inundation",
+      "peak_rate_mmh": 60.0,
+      "total_24h_mm": 153.0,
+      "description": "Highest single-day July rainfall in 41 years triggering Yamuna river breach.",
+      "distance_to_corridor_km": 1307.5
+    },
+    {
+      "region": "Chennai (Tamil Nadu)",
+      "lat": 13.082,
+      "lon": 80.27,
+      "date": "2015-12-01",
+      "name": "Historic Chennai Deluge 2015",
+      "peak_rate_mmh": 85.0,
+      "total_24h_mm": 494.0,
+      "description": "Extreme Northeast Monsoon event overflowing the Adyar and Cooum rivers.",
+      "distance_to_corridor_km": 1361.3
+    }
+  ]
+}

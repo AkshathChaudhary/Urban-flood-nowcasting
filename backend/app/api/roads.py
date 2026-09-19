@@ -37,6 +37,9 @@ def get_routing_engine(city: str = "mumbai") -> RoutingEngine:
         if c == "kolkata":
             geojson_p = Path("backend/data/cities/kolkata/roads/road_network.geojson")
             graph_p = Path("backend/data/cities/kolkata/roads/road_graph.json")
+        elif (Path("backend/data/cities") / c / "roads").exists():
+            geojson_p = Path("backend/data/cities") / c / "roads/road_network.geojson"
+            graph_p = Path("backend/data/cities") / c / "roads/road_graph.json"
         else:
             geojson_p = ROADS_DIR / "road_network.geojson" if (ROADS_DIR / "road_network.geojson").exists() else ROAD_GEOJSON_PATH
             graph_p = ROADS_DIR / "road_graph.json" if (ROADS_DIR / "road_graph.json").exists() else ROAD_GRAPH_PATH
@@ -87,6 +90,8 @@ def get_road_network_geojson(
     c = str(getattr(city, "default", city) or "mumbai").lower().strip()
     if c == "kolkata":
         geojson_path = Path("backend/data/cities/kolkata/roads/road_network.geojson")
+    elif (Path("backend/data/cities") / c / "roads" / "road_network.geojson").exists():
+        geojson_path = Path("backend/data/cities") / c / "roads" / "road_network.geojson"
     else:
         geojson_path = ROADS_DIR / "road_network.geojson" if (ROADS_DIR / "road_network.geojson").exists() else ROAD_GEOJSON_PATH
 
@@ -136,6 +141,8 @@ def get_flood_hotspots(city: Optional[str] = Query("mumbai")):
     c = str(getattr(city, "default", city) or "mumbai").lower().strip()
     if c == "kolkata":
         hotspots_path = Path("backend/data/cities/kolkata/roads/flood_hotspots.geojson")
+    elif (Path("backend/data/cities") / c / "roads" / "flood_hotspots.geojson").exists():
+        hotspots_path = Path("backend/data/cities") / c / "roads" / "flood_hotspots.geojson"
     else:
         hotspots_path = ROADS_DIR / "flood_hotspots.geojson" if (ROADS_DIR / "flood_hotspots.geojson").exists() else HOTSPOTS_GEOJSON_PATH
 
@@ -201,6 +208,10 @@ def get_road_network_passability(
             from backend.app.api.flood import get_kolkata_forecast
             _, k_grids = get_kolkata_forecast()
             depth_grid = k_grids.get(h_min)
+        elif (Path("backend/data/cities") / c).exists():
+            from backend.app.api.flood import get_corridor_forecast
+            _, c_grids = get_corridor_forecast(c)
+            depth_grid = c_grids.get(h_min)
         else:
             flood_eng = get_engine()
             if hasattr(flood_eng, "get_street_depth_grid"):

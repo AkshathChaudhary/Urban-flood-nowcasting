@@ -40,6 +40,7 @@ class FloodGridResponse(BaseModel):
     cell_size_m: float
     origin_lat: float
     origin_lon: float
+    bounds: Optional[List[List[float]]] = None
     summary: FloodSummary
     depth_grid: List[List[float]]
 

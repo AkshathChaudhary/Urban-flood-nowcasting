@@ -1,0 +1,33 @@
+{
+  "corridor_hash": "60b9e85267",
+  "center_lat": 13.0509,
+  "center_lon": 80.23705,
+  "grid_shape": [
+    240,
+    174
+  ],
+  "cell_size_m": 22.3,
+  "sink_cell": [
+    202,
+    66
+  ],
+  "sink_elevation_m": 5.220789909362793,
+  "active_scenario": "heavy",
+  "live_weather": {
+    "condition": "Clear / Overcast (Dry)",
+    "current_rain_rate_mmh": 0.0,
+    "peak_forecast_rate_mmh": 0.0,
+    "radar_frames_count": 5,
+    "provider_source": "fallback_dry"
+  },
+  "available_scenarios": [
+    "moderate",
+    "heavy",
+    "extreme",
+    "cloudburst",
+    "live",
+    "historical"
+  ],
+  "nearest_historical_benchmark": "Historic Chennai Deluge 2015",
+  "compiled_at_utc": "2026-09-13 06:54:36 UTC"
+}

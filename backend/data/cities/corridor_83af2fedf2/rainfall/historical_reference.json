@@ -1,0 +1,74 @@
+{
+  "corridor_midpoint": [
+    18.51279,
+    73.89705
+  ],
+  "nearest_historical_benchmark": {
+    "region": "Pune (Maharashtra)",
+    "lat": 18.52,
+    "lon": 73.856,
+    "date": "2019-09-25",
+    "name": "Pune Katraj Flash Floods",
+    "peak_rate_mmh": 80.0,
+    "total_24h_mm": 110.0,
+    "description": "Violent cloudburst over Sahyadri foothills submerging Southern Pune nullahs.",
+    "distance_to_corridor_km": 4.4
+  },
+  "regional_benchmarks": [
+    {
+      "region": "Pune (Maharashtra)",
+      "lat": 18.52,
+      "lon": 73.856,
+      "date": "2019-09-25",
+      "name": "Pune Katraj Flash Floods",
+      "peak_rate_mmh": 80.0,
+      "total_24h_mm": 110.0,
+      "description": "Violent cloudburst over Sahyadri foothills submerging Southern Pune nullahs.",
+      "distance_to_corridor_km": 4.4
+    },
+    {
+      "region": "Mumbai (Maharashtra)",
+      "lat": 19.076,
+      "lon": 72.877,
+      "date": "2005-07-26",
+      "name": "Historic 944mm Mumbai Cloudburst",
+      "peak_rate_mmh": 120.0,
+      "total_24h_mm": 944.0,
+      "description": "Catastrophic cloudburst flooding Kurla, BKC, and the Mithi River basin.",
+      "distance_to_corridor_km": 124.3
+    },
+    {
+      "region": "Mumbai (Maharashtra)",
+      "lat": 19.076,
+      "lon": 72.877,
+      "date": "2023-07-26",
+      "name": "Mumbai Monsoon Deluge 2023",
+      "peak_rate_mmh": 50.9,
+      "total_24h_mm": 203.0,
+      "description": "Widespread inundation across central suburbs and highway underpasses.",
+      "distance_to_corridor_km": 124.3
+    },
+    {
+      "region": "Hyderabad (Telangana)",
+      "lat": 17.385,
+      "lon": 78.486,
+      "date": "2020-10-13",
+      "name": "Hyderabad October Deluge 2020",
+      "peak_rate_mmh": 90.0,
+      "total_24h_mm": 192.0,
+      "description": "Deep depression stalling over the Musi river basin causing flash floods.",
+      "distance_to_corridor_km": 501.3
+    },
+    {
+      "region": "Bengaluru (Karnataka)",
+      "lat": 12.971,
+      "lon": 77.594,
+      "date": "2022-09-05",
+      "name": "Bengaluru Tech Corridor Inundation",
+      "peak_rate_mmh": 75.0,
+      "total_24h_mm": 131.6,
+      "description": "Extreme localized storm submerging Outer Ring Road, Bellandur, and Rainbow Drive.",
+      "distance_to_corridor_km": 732.2
+    }
+  ]
+}

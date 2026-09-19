@@ -46,9 +46,20 @@ def main():
     parser.add_argument(
         "--scenario",
         type=str,
-        choices=["moderate", "heavy", "extreme", "cloudburst"],
+        choices=["moderate", "heavy", "extreme", "cloudburst", "live", "historical"],
         default="heavy",
         help="Monsoon rainfall intensity scenario (default: heavy)",
+    )
+    parser.add_argument(
+        "--live",
+        action="store_true",
+        help="Run live sub-hourly nowcast via Open-Meteo Minutely-15 API and RainViewer Doppler radar",
+    )
+    parser.add_argument(
+        "--date",
+        type=str,
+        default=None,
+        help="Replay historical precipitation event (YYYY-MM-DD, e.g. '2023-07-26')",
     )
     parser.add_argument(
         "--vehicle",
@@ -77,7 +88,9 @@ def main():
         print("\nQuick presets you can try:")
         print("  • Kolkata Corridor : 'Kestopur'  -> 'Ruby Hospital'")
         print("  • Mumbai Basin     : 'BKC'        -> 'Kurla Station'")
+        print("  • Bengaluru City   : 'MG Road'    -> 'Indiranagar'")
         print("  • Custom Addr / GPS: Any landmark or 'lat, lon'")
+        print("  • Live Nowcast     : Pass --live flag for real-time Doppler radar")
         src_input = input("\n👉 Enter Origin Location [Default: 'Kestopur']: ").strip()
         if not src_input:
             src_input = "Kestopur"
@@ -93,6 +106,8 @@ def main():
         scenario=args.scenario,
         vehicle_type=args.vehicle,
         horizon_minutes=args.horizon,
+        date_str=args.date,
+        live_radar=args.live or (args.scenario == "live"),
     )
 
 

@@ -1,0 +1,33 @@
+{
+  "corridor_hash": "83af2fedf2",
+  "center_lat": 18.51279,
+  "center_lon": 73.89705,
+  "grid_shape": [
+    87,
+    240
+  ],
+  "cell_size_m": 55.0,
+  "sink_cell": [
+    86,
+    55
+  ],
+  "sink_elevation_m": 535.150634765625,
+  "active_scenario": "live",
+  "live_weather": {
+    "condition": "Clear / Overcast (Dry)",
+    "current_rain_rate_mmh": 0.0,
+    "peak_forecast_rate_mmh": 0.0,
+    "radar_frames_count": 5,
+    "provider_source": "fallback_dry"
+  },
+  "available_scenarios": [
+    "moderate",
+    "heavy",
+    "extreme",
+    "cloudburst",
+    "live",
+    "historical"
+  ],
+  "nearest_historical_benchmark": "Pune Katraj Flash Floods",
+  "compiled_at_utc": "2026-09-13 07:06:23 UTC"
+}

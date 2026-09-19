@@ -105,9 +105,11 @@ export const GisMap: React.FC<GisMapProps> = ({
   const trafficVectorLayerRef = useRef<L.GeoJSON | null>(null);
   const trafficBottleneckMarkersLayerRef = useRef<L.LayerGroup | null>(null);
   const prevNavigatingRef = useRef<boolean>(false);
+  const renderHotspotsClusteredRef = useRef<() => void>(() => {});
 
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [mapReadyKey, setMapReadyKey] = useState<number>(0);
+  const [corridorBounds, setCorridorBounds] = useState<[[number, number], [number, number]] | null>(null);
   const [roadCount, setRoadCount] = useState<number>(0);
   const [hotspotCount, setHotspotCount] = useState<number>(0);
   const [drainagePipeCount, setDrainagePipeCount] = useState<number>(0);
@@ -279,14 +281,21 @@ export const GisMap: React.FC<GisMapProps> = ({
   }, [currentCity, currentTimeStep, selectedVehicle, trafficMode, simulationKey, mapReadyKey]);
 
   const isKolkata = currentCity.toLowerCase() === 'kolkata';
-  const centerLat = isKolkata ? 22.5535 : 19.069;
-  const centerLon = isKolkata ? 88.4115 : 72.859;
-  const zoomLevel = isKolkata ? 12 : 14;
+  const isCorridor = currentCity.toLowerCase().startsWith('corridor_');
+  const centerLat = isCorridor && corridorBounds
+    ? (corridorBounds[0][0] + corridorBounds[1][0]) / 2
+    : isKolkata ? 22.5535 : 19.069;
+  const centerLon = isCorridor && corridorBounds
+    ? (corridorBounds[0][1] + corridorBounds[1][1]) / 2
+    : isKolkata ? 88.4115 : 72.859;
+  const zoomLevel = isKolkata ? 12 : isCorridor ? 13 : 14;
 
   // Exact Domain Bounding Coordinates
   const degLat = 2000.0 / 111320.0; // ~0.017965 degrees
   const degLon = 2000.0 / (111320.0 * Math.cos((19.06 * Math.PI) / 180)); // ~0.019007 degrees
-  const simulationBounds: L.LatLngBoundsExpression = isKolkata
+  const simulationBounds: L.LatLngBoundsExpression = isCorridor && corridorBounds
+    ? corridorBounds
+    : isKolkata
     ? [[22.5050, 88.3850], [22.6020, 88.4380]]
     : [
         [19.0600, 72.8500],
@@ -1524,6 +1533,13 @@ export const GisMap: React.FC<GisMapProps> = ({
         ? [[22.5050, 88.3850], [22.6020, 88.4380]]
         : simulationBounds);
 
+      if (demRes.bounds && demRes.bounds.length === 2) {
+        setCorridorBounds(demRes.bounds as [[number, number], [number, number]]);
+        if (currentCity.toLowerCase().startsWith('corridor_') && mapInstanceRef.current) {
+          mapInstanceRef.current.fitBounds(demRes.bounds as any, { padding: [24, 24], animate: true });
+        }
+      }
+
       if (demRasterLayerRef.current) {
         demRasterLayerRef.current.setUrl(dataUrl);
         demRasterLayerRef.current.setBounds(L.latLngBounds(bounds as any));
@@ -1965,7 +1981,11 @@ export const GisMap: React.FC<GisMapProps> = ({
   const handleZoomOut = () => mapInstanceRef.current?.zoomOut();
   const handleRecenter = () => {
     if (mapInstanceRef.current) {
-      mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
+      if (corridorBounds && currentCity.toLowerCase().startsWith('corridor_')) {
+        mapInstanceRef.current.fitBounds(corridorBounds as any, { padding: [24, 24], animate: true });
+      } else {
+        mapInstanceRef.current.setView([centerLat, centerLon], zoomLevel, { animate: true });
+      }
     }
   };
   const handleCenterOnUser = () => {

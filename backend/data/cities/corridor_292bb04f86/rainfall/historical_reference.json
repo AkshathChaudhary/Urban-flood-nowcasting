@@ -1,0 +1,74 @@
+{
+  "corridor_midpoint": [
+    28.62235,
+    77.22444
+  ],
+  "nearest_historical_benchmark": {
+    "region": "Delhi / NCR",
+    "lat": 28.613,
+    "lon": 77.209,
+    "date": "2023-07-09",
+    "name": "Delhi Record Monsoon Inundation",
+    "peak_rate_mmh": 60.0,
+    "total_24h_mm": 153.0,
+    "description": "Highest single-day July rainfall in 41 years triggering Yamuna river breach.",
+    "distance_to_corridor_km": 1.8
+  },
+  "regional_benchmarks": [
+    {
+      "region": "Delhi / NCR",
+      "lat": 28.613,
+      "lon": 77.209,
+      "date": "2023-07-09",
+      "name": "Delhi Record Monsoon Inundation",
+      "peak_rate_mmh": 60.0,
+      "total_24h_mm": 153.0,
+      "description": "Highest single-day July rainfall in 41 years triggering Yamuna river breach.",
+      "distance_to_corridor_km": 1.8
+    },
+    {
+      "region": "Mumbai (Maharashtra)",
+      "lat": 19.076,
+      "lon": 72.877,
+      "date": "2005-07-26",
+      "name": "Historic 944mm Mumbai Cloudburst",
+      "peak_rate_mmh": 120.0,
+      "total_24h_mm": 944.0,
+      "description": "Catastrophic cloudburst flooding Kurla, BKC, and the Mithi River basin.",
+      "distance_to_corridor_km": 1149.6
+    },
+    {
+      "region": "Mumbai (Maharashtra)",
+      "lat": 19.076,
+      "lon": 72.877,
+      "date": "2023-07-26",
+      "name": "Mumbai Monsoon Deluge 2023",
+      "peak_rate_mmh": 50.9,
+      "total_24h_mm": 203.0,
+      "description": "Widespread inundation across central suburbs and highway underpasses.",
+      "distance_to_corridor_km": 1149.6
+    },
+    {
+      "region": "Pune (Maharashtra)",
+      "lat": 18.52,
+      "lon": 73.856,
+      "date": "2019-09-25",
+      "name": "Pune Katraj Flash Floods",
+      "peak_rate_mmh": 80.0,
+      "total_24h_mm": 110.0,
+      "description": "Violent cloudburst over Sahyadri foothills submerging Southern Pune nullahs.",
+      "distance_to_corridor_km": 1174.4
+    },
+    {
+      "region": "Hyderabad (Telangana)",
+      "lat": 17.385,
+      "lon": 78.486,
+      "date": "2020-10-13",
+      "name": "Hyderabad October Deluge 2020",
+      "peak_rate_mmh": 90.0,
+      "total_24h_mm": 192.0,
+      "description": "Deep depression stalling over the Musi river basin causing flash floods.",
+      "distance_to_corridor_km": 1256.2
+    }
+  ]
+}

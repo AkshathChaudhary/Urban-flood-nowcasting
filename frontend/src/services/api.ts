@@ -105,6 +105,7 @@ export interface RouteRequest {
   time_horizon_min: number;
   include_alternatives?: boolean;
   traffic_mode?: 'peak_monsoon' | 'live';
+  city?: string;
 }
 
 export interface RouteSegment {
@@ -453,14 +454,36 @@ export const computeCorridorRoute = async (req: UnifiedCorridorRequest): Promise
   }
 };
 
-export const fetchAvailableCities = async (): Promise<any> => {
+export interface AvailableCity {
+  id: string;
+  name: string;
+  bbox: {
+    min_lat: number;
+    max_lat: number;
+    min_lon: number;
+    max_lon: number;
+  };
+  grid: {
+    rows: number;
+    cols: number;
+    cell_size_m: number;
+  };
+  default_anchor_name: string;
+  landmarks: string[];
+  landmarks_count: number;
+  is_corridor?: boolean;
+  rainfall_info?: any;
+}
+
+export const fetchAvailableCities = async (): Promise<AvailableCity[]> => {
   try {
     const res = await fetch('/api/route/cities');
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    return await res.json();
+    const data = await res.json();
+    return data.cities || [];
   } catch (err) {
     console.warn('Could not fetch /api/route/cities:', err);
-    return null;
+    return [];
   }
 };
 
@@ -663,5 +686,45 @@ export const createFloodWebSocket = (
     if (reconnectTimeout) clearTimeout(reconnectTimeout);
     if (ws) ws.close();
   };
+};
+
+export interface BuildCorridorParams {
+  src: string;
+  dst: string;
+  scenario?: string;
+  use_live_radar?: boolean;
+  date_str?: string;
+}
+
+export interface BuildCorridorResult {
+  status: string;
+  corridor_id: string;
+  corridor_hash: string;
+  bbox: {
+    min_lat: number;
+    max_lat: number;
+    min_lon: number;
+    max_lon: number;
+  };
+  bounds: number[][];
+  grid: [number, number, number];
+  road_nodes: number;
+  road_edges: number;
+  drainage_nodes: number;
+  drainage_edges: number;
+  rainfall_meta?: any;
+}
+
+export const buildDynamicCorridor = async (params: BuildCorridorParams): Promise<BuildCorridorResult> => {
+  const res = await fetch('/api/route/corridor/build', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(params),
+  });
+  if (!res.ok) {
+    const errData = await res.json().catch(() => ({}));
+    throw new Error(errData.detail || `HTTP ${res.status} failed to build corridor`);
+  }
+  return await res.json();
 };
 

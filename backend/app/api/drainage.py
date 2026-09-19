@@ -51,6 +51,18 @@ def get_drainage_graph(city: str = "mumbai") -> DrainageGraph:
             nodes_path = Path("backend/data/cities/kolkata/drainage/drainage_nodes.geojson")
             edges_path = Path("backend/data/cities/kolkata/drainage/drainage_edges.geojson")
             cell_size = 35.0
+        elif (Path("backend/data/cities") / c / "drainage").exists():
+            nodes_path = Path("backend/data/cities") / c / "drainage/drainage_nodes.geojson"
+            edges_path = Path("backend/data/cities") / c / "drainage/drainage_edges.geojson"
+            meta_path = Path("backend/data/cities") / c / "dem/dem_metadata.json"
+            cell_size = 25.0
+            if meta_path.exists():
+                try:
+                    import json
+                    with open(meta_path, "r", encoding="utf-8") as f:
+                        cell_size = float(json.load(f).get("cell_size_m", 25.0))
+                except Exception:
+                    pass
         else:
             nodes_path = DRAINAGE_NODES_FILE if DRAINAGE_NODES_FILE.exists() else Path("backend/data/drainage/drainage_nodes.geojson")
             edges_path = DRAINAGE_EDGES_FILE if DRAINAGE_EDGES_FILE.exists() else Path("backend/data/drainage/drainage_edges.geojson")

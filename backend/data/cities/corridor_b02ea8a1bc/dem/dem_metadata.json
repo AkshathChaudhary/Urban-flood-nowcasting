@@ -1,0 +1,15 @@
+{
+  "city": "Mahatma Gandhi Road (Geocoded) -> Indiranagar (Geocoded)",
+  "rows": 125,
+  "cols": 240,
+  "cell_size_m": 28.8,
+  "min_elevation_m": 886.1212768554688,
+  "max_elevation_m": 942.9354858398438,
+  "bbox": [
+    12.958291299999999,
+    12.9905264,
+    77.5917902,
+    77.6554672
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

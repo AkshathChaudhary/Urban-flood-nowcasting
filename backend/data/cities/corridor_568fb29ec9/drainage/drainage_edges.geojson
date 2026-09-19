@@ -1,0 +1,845 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00001",
+        "from_node": "DN-00001",
+        "to_node": "DN-00002",
+        "length_m": 1537.06,
+        "diameter_m": 0.8,
+        "slope": 0.0076,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.153,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00002",
+        "from_node": "DN-00001",
+        "to_node": "DN-00003",
+        "length_m": 1537.06,
+        "diameter_m": 0.8,
+        "slope": 0.0076,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.153,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00003",
+        "from_node": "DN-00004",
+        "to_node": "DN-00005",
+        "length_m": 7685.39,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.623563,
+            12.916797
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00004",
+        "from_node": "DN-00006",
+        "to_node": "DN-00007",
+        "length_m": 248.02,
+        "diameter_m": 0.8,
+        "slope": 0.0049,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.926,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00005",
+        "from_node": "DN-00008",
+        "to_node": "DN-00009",
+        "length_m": 6317.96,
+        "diameter_m": 0.8,
+        "slope": 0.0021,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.606,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00006",
+        "from_node": "DN-00010",
+        "to_node": "DN-00011",
+        "length_m": 7685.39,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00007",
+        "from_node": "DN-00012",
+        "to_node": "DN-00013",
+        "length_m": 7684.98,
+        "diameter_m": 0.8,
+        "slope": 0.004,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.836,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00008",
+        "from_node": "DN-00014",
+        "to_node": "DN-00015",
+        "length_m": 7684.98,
+        "diameter_m": 0.8,
+        "slope": 0.004,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.836,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00009",
+        "from_node": "DN-00016",
+        "to_node": "DN-00017",
+        "length_m": 1536.98,
+        "diameter_m": 0.8,
+        "slope": 0.0074,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.138,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.684292,
+            12.932049
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00010",
+        "from_node": "DN-00018",
+        "to_node": "DN-00019",
+        "length_m": 248.01,
+        "diameter_m": 0.8,
+        "slope": 0.0064,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.058,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00011",
+        "from_node": "DN-00020",
+        "to_node": "DN-00021",
+        "length_m": 6317.96,
+        "diameter_m": 0.8,
+        "slope": 0.0021,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.606,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00012",
+        "from_node": "DN-00022",
+        "to_node": "DN-00023",
+        "length_m": 1536.98,
+        "diameter_m": 0.8,
+        "slope": 0.0074,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.138,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00013",
+        "from_node": "DN-00024",
+        "to_node": "DN-00025",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0046,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.897,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00014",
+        "from_node": "DN-00026",
+        "to_node": "DN-00027",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0046,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.897,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00015",
+        "from_node": "DN-00028",
+        "to_node": "DN-00029",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0062,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.041,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00016",
+        "from_node": "DN-00030",
+        "to_node": "DN-00031",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0062,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.041,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00017",
+        "from_node": "DN-00028",
+        "to_node": "DN-00032",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0092,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.268,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00018",
+        "from_node": "DN-00033",
+        "to_node": "DN-00034",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0092,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.268,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00019",
+        "from_node": "DN-00035",
+        "to_node": "DN-00036",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0016,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.529,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00020",
+        "from_node": "DN-00037",
+        "to_node": "DN-00038",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0016,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.529,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.682292,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00021",
+        "from_node": "DN-00039",
+        "to_node": "DN-00040",
+        "length_m": 1537.0,
+        "diameter_m": 0.8,
+        "slope": 0.0063,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.05,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.682292,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00022",
+        "from_node": "DN-00041",
+        "to_node": "DN-00042",
+        "length_m": 1537.0,
+        "diameter_m": 0.8,
+        "slope": 0.0063,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.05,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.94405
+          ],
+          [
+            77.696474,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00023",
+        "from_node": "DN-00043",
+        "to_node": "DN-00044",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0041,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.847,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.94405
+          ],
+          [
+            77.696474,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00024",
+        "from_node": "DN-00045",
+        "to_node": "DN-00046",
+        "length_m": 1536.89,
+        "diameter_m": 0.8,
+        "slope": 0.0041,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.847,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.623563,
+            12.916797
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00025",
+        "from_node": "DN-00047",
+        "to_node": "DN-00048",
+        "length_m": 248.02,
+        "diameter_m": 0.8,
+        "slope": 0.0049,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.926,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.623563,
+            12.916797
+          ],
+          [
+            77.6235628,
+            12.9167972
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00026",
+        "from_node": "DN-00049",
+        "to_node": "DN-00050",
+        "length_m": 5.0,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.684292,
+            12.932049
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00027",
+        "from_node": "DN-00051",
+        "to_node": "DN-00052",
+        "length_m": 248.01,
+        "diameter_m": 0.8,
+        "slope": 0.0064,
+        "roughness_n": 0.013,
+        "capacity_m3s": 1.058,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.684292,
+            12.932049
+          ],
+          [
+            77.6842915,
+            12.9320495
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00028",
+        "from_node": "DN-00053",
+        "to_node": "DN-00054",
+        "length_m": 5.0,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.6235628,
+            12.9167972
+          ],
+          [
+            77.623563,
+            12.916797
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00029",
+        "from_node": "DN-00055",
+        "to_node": "DN-00056",
+        "length_m": 5.0,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.6842915,
+            12.9320495
+          ],
+          [
+            77.684292,
+            12.932049
+          ]
+        ]
+      },
+      "properties": {
+        "id": "DE-00030",
+        "from_node": "DN-00057",
+        "to_node": "DN-00058",
+        "length_m": 5.0,
+        "diameter_m": 0.8,
+        "slope": 0.001,
+        "roughness_n": 0.013,
+        "capacity_m3s": 0.418,
+        "blockage_pct": 0.0,
+        "channel_type": "roadside_storm_drain"
+      }
+    }
+  ]
+}

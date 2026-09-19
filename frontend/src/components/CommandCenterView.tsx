@@ -113,6 +113,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
   const [selectedDestinationId, setSelectedDestinationId] = useState<string>('kurla-station');
   const [isRoutePanelOpen, setIsRoutePanelOpen] = useState<boolean>(false);
   const [isCalculatingRoute, setIsCalculatingRoute] = useState<boolean>(false);
+  const [hasCalculatedRoute, setHasCalculatedRoute] = useState<boolean>(false);
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [routeAlternatives, setRouteAlternatives] = useState<RouteResult[]>([]);
   const [activeRouteIndex, setActiveRouteIndex] = useState<number>(0);
@@ -326,6 +327,9 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
           const hasKestopur = catalog.destinations.some(d => d.id === 'kestopur-canal');
           setSelectedOriginId(hasRuby ? 'ruby-hospital' : catalog.destinations[0].id);
           setSelectedDestinationId(hasKestopur ? 'kestopur-canal' : catalog.destinations[Math.min(1, catalog.destinations.length - 1)].id);
+        } else if (currentCity.toLowerCase().startsWith('corridor_')) {
+          setSelectedOriginId(catalog.destinations[0].id);
+          setSelectedDestinationId(catalog.destinations[Math.min(1, catalog.destinations.length - 1)].id);
         } else {
           const hasBkc = catalog.destinations.some(d => d.id === 'bkc-hub');
           const hasKurla = catalog.destinations.some(d => d.id === 'kurla-station');
@@ -457,6 +461,7 @@ export const CommandCenterView: React.FC<CommandCenterViewProps> = ({ currentCit
         time_horizon_min: horizon,
         include_alternatives: true,
         traffic_mode: trafficM,
+        city: currentCity,
       });
       if (res) {
         if (res.primary_route) {

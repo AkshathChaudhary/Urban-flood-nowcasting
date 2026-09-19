@@ -1,0 +1,15 @@
+{
+  "city": "Cubbon Park -> Bangalore Palace",
+  "rows": 240,
+  "cols": 130,
+  "cell_size_m": 25.2,
+  "min_elevation_m": 895.031005859375,
+  "max_elevation_m": 956.8294677734375,
+  "bbox": [
+    12.959253499999999,
+    13.0135954,
+    77.5770086,
+    77.6071906
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

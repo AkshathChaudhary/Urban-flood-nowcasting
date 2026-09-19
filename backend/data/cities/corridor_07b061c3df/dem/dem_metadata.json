@@ -1,0 +1,15 @@
+{
+  "city": "\u09ad\u09bf\u0995\u09cd\u099f\u09cb\u09b0\u09bf\u09af\u09bc\u09be \u09ae\u09c7\u09ae\u09cb\u09b0\u09bf\u09af\u09bc\u09be\u09b2 \u09b9\u09b2 (Geocoded) -> Mother's Wax Museum (Geocoded)",
+  "rows": 117,
+  "cols": 250,
+  "cell_size_m": 80.0,
+  "min_elevation_m": 0.18356183171272278,
+  "max_elevation_m": 19.481304168701172,
+  "bbox": [
+    22.5299558,
+    22.6144556,
+    88.310131775,
+    88.50466812500001
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

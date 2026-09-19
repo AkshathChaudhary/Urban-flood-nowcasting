@@ -3,6 +3,7 @@ import { Navbar } from './components/Navbar';
 import { LandingHero } from './components/LandingHero';
 import { BentoShowcase } from './components/BentoShowcase';
 import { CommandCenterView } from './components/CommandCenterView';
+import { CorridorModal } from './components/CorridorModal';
 import { Waves, ShieldCheck } from 'lucide-react';
 import { AetherBackground } from './components/ui/aether-background';
 
@@ -10,6 +11,7 @@ export function App() {
   const [activeView, setActiveView] = useState<'landing' | 'command-center'>('landing');
   const [currentCity, setCurrentCity] = useState<string>('mumbai');
   const [selectedScenario, setSelectedScenario] = useState<string | undefined>(undefined);
+  const [isCorridorModalOpen, setIsCorridorModalOpen] = useState<boolean>(false);
 
   const handleLaunchCommandCenter = () => {
     setSelectedScenario(undefined);
@@ -48,6 +50,17 @@ export function App() {
         onLaunchCommandCenter={handleLaunchCommandCenter}
         activeView={activeView}
         onNavigateHome={handleNavigateHome}
+        onOpenCorridorModal={() => setIsCorridorModalOpen(true)}
+      />
+
+      {/* Dynamic 2-Point Indian Corridor Modal */}
+      <CorridorModal
+        isOpen={isCorridorModalOpen}
+        onClose={() => setIsCorridorModalOpen(false)}
+        onCorridorCreated={(newCityId) => {
+          setCurrentCity(newCityId);
+          setActiveView('command-center');
+        }}
       />
 
       {/* Main Content Area */}

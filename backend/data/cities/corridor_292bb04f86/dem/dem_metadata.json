@@ -1,0 +1,15 @@
+{
+  "city": "Connaught Place (Geocoded) -> India Gate (Geocoded)",
+  "rows": 240,
+  "cols": 173,
+  "cell_size_m": 22.6,
+  "min_elevation_m": 207.01255798339844,
+  "max_elevation_m": 239.0,
+  "bbox": [
+    28.5979332,
+    28.6467695,
+    77.2043804,
+    77.2444928
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

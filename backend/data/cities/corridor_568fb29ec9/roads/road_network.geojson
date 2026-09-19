@@ -1,0 +1,789 @@
+{
+  "type": "FeatureCollection",
+  "features": [
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00001",
+        "name": "Riverbank Boulevard",
+        "highway": "tertiary",
+        "length_m": 1537.06,
+        "elevation_m": 888.73,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.611381,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00002",
+        "name": "Riverbank Boulevard",
+        "highway": "tertiary",
+        "length_m": 1537.06,
+        "elevation_m": 888.73,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.639745,
+            12.917881
+          ],
+          [
+            77.653927,
+            12.917881
+          ],
+          [
+            77.668109,
+            12.917881
+          ],
+          [
+            77.682292,
+            12.917881
+          ],
+          [
+            77.696474,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00003",
+        "name": "Riverbank Boulevard",
+        "highway": "tertiary",
+        "length_m": 7685.39,
+        "elevation_m": 888.66,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.623563,
+            12.916797
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00004",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 248.02,
+        "elevation_m": 888.73,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.917881
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00005",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 6317.96,
+        "elevation_m": 875.51,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.917881
+          ],
+          [
+            77.682292,
+            12.917881
+          ],
+          [
+            77.668109,
+            12.917881
+          ],
+          [
+            77.653927,
+            12.917881
+          ],
+          [
+            77.639745,
+            12.917881
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00006",
+        "name": "Riverbank Boulevard",
+        "highway": "tertiary",
+        "length_m": 7685.39,
+        "elevation_m": 888.66,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.930965
+          ],
+          [
+            77.625563,
+            12.930965
+          ],
+          [
+            77.639745,
+            12.930965
+          ],
+          [
+            77.653927,
+            12.930965
+          ],
+          [
+            77.668109,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00007",
+        "name": "Sector Link",
+        "highway": "primary",
+        "length_m": 7684.98,
+        "elevation_m": 873.05,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.668109,
+            12.930965
+          ],
+          [
+            77.653927,
+            12.930965
+          ],
+          [
+            77.639745,
+            12.930965
+          ],
+          [
+            77.625563,
+            12.930965
+          ],
+          [
+            77.611381,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00008",
+        "name": "Sector Link",
+        "highway": "primary",
+        "length_m": 7684.98,
+        "elevation_m": 873.05,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.696474,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00009",
+        "name": "Sector Link",
+        "highway": "primary",
+        "length_m": 1536.98,
+        "elevation_m": 886.82,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.684292,
+            12.932049
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00010",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 248.01,
+        "elevation_m": 873.92,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.930965
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00011",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 6317.96,
+        "elevation_m": 875.51,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.930965
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00012",
+        "name": "Sector Link",
+        "highway": "primary",
+        "length_m": 1536.98,
+        "elevation_m": 886.82,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.611381,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00013",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 886.92,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.94405
+          ],
+          [
+            77.611381,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00014",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 886.92,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.625563,
+            12.94405
+          ],
+          [
+            77.639745,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00015",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 896.49,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.625563,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00016",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 896.49,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.639745,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00017",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 882.4,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.653927,
+            12.94405
+          ],
+          [
+            77.639745,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00018",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 882.4,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.653927,
+            12.94405
+          ],
+          [
+            77.668109,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00019",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 884.93,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.653927,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00020",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 884.93,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.668109,
+            12.94405
+          ],
+          [
+            77.682292,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00021",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1537.0,
+        "elevation_m": 875.18,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.94405
+          ],
+          [
+            77.668109,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00022",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1537.0,
+        "elevation_m": 875.18,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.682292,
+            12.94405
+          ],
+          [
+            77.696474,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00023",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 868.87,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.696474,
+            12.94405
+          ],
+          [
+            77.682292,
+            12.94405
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00024",
+        "name": "Transit Avenue",
+        "highway": "tertiary",
+        "length_m": 1536.89,
+        "elevation_m": 868.87,
+        "maxspeed_kmh": 30
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.623563,
+            12.916797
+          ],
+          [
+            77.625563,
+            12.917881
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00025",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 248.02,
+        "elevation_m": 888.73,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.623563,
+            12.916797
+          ],
+          [
+            77.6235628,
+            12.9167972
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00026",
+        "name": "Origin Access",
+        "highway": "residential",
+        "length_m": 0.0,
+        "elevation_m": 887.5066528320312,
+        "maxspeed_kmh": 25
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.684292,
+            12.932049
+          ],
+          [
+            77.682292,
+            12.930965
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00027",
+        "name": "Direct Transit Expressway",
+        "highway": "primary",
+        "length_m": 248.01,
+        "elevation_m": 873.92,
+        "maxspeed_kmh": 50
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.684292,
+            12.932049
+          ],
+          [
+            77.6842915,
+            12.9320495
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00028",
+        "name": "Destination Access",
+        "highway": "residential",
+        "length_m": 0.1,
+        "elevation_m": 873.9241333007812,
+        "maxspeed_kmh": 25
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.6235628,
+            12.9167972
+          ],
+          [
+            77.623563,
+            12.916797
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00029",
+        "name": "Origin Access",
+        "highway": "residential",
+        "length_m": 0.0,
+        "elevation_m": 887.5066528320312,
+        "maxspeed_kmh": 25
+      }
+    },
+    {
+      "type": "Feature",
+      "geometry": {
+        "type": "LineString",
+        "coordinates": [
+          [
+            77.6842915,
+            12.9320495
+          ],
+          [
+            77.684292,
+            12.932049
+          ]
+        ]
+      },
+      "properties": {
+        "id": "RE-00030",
+        "name": "Destination Access",
+        "highway": "residential",
+        "length_m": 0.1,
+        "elevation_m": 873.9241333007812,
+        "maxspeed_kmh": 25
+      }
+    }
+  ]
+}

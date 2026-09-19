@@ -1,0 +1,15 @@
+{
+  "city": "Pune Municipal Corporation Madhavrao Sonba Tupe School (Geocoded) -> Shaniwar Wada (Geocoded)",
+  "rows": 87,
+  "cols": 240,
+  "cell_size_m": 55.0,
+  "min_elevation_m": 535.150634765625,
+  "max_elevation_m": 624.8619384765625,
+  "bbox": [
+    18.4912071,
+    18.5343826,
+    73.834507725,
+    73.959600975
+  ],
+  "source": "Open-Meteo Copernicus DEM (30m lattice)"
+}

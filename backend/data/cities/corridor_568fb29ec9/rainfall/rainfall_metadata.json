@@ -1,0 +1,33 @@
+{
+  "corridor_hash": "568fb29ec9",
+  "center_lat": 12.92442,
+  "center_lon": 77.65393,
+  "grid_shape": [
+    122,
+    240
+  ],
+  "cell_size_m": 41.1,
+  "sink_cell": [
+    112,
+    239
+  ],
+  "sink_elevation_m": 867.1322021484375,
+  "active_scenario": "cloudburst",
+  "live_weather": {
+    "condition": "Clear / Overcast (Dry)",
+    "current_rain_rate_mmh": 0.0,
+    "peak_forecast_rate_mmh": 0.0,
+    "radar_frames_count": 5,
+    "provider_source": "open_meteo_minutely15"
+  },
+  "available_scenarios": [
+    "moderate",
+    "heavy",
+    "extreme",
+    "cloudburst",
+    "live",
+    "historical"
+  ],
+  "nearest_historical_benchmark": "Bengaluru Tech Corridor Inundation",
+  "compiled_at_utc": "2026-09-13 06:34:38 UTC"
+}

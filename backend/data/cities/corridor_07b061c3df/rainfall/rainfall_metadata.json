@@ -1,0 +1,33 @@
+{
+  "corridor_hash": "07b061c3df",
+  "center_lat": 22.57221,
+  "center_lon": 88.4074,
+  "grid_shape": [
+    117,
+    250
+  ],
+  "cell_size_m": 80.0,
+  "sink_cell": [
+    35,
+    211
+  ],
+  "sink_elevation_m": 0.18356183171272278,
+  "active_scenario": "heavy",
+  "live_weather": {
+    "condition": "Clear / Overcast (Dry)",
+    "current_rain_rate_mmh": 0.0,
+    "peak_forecast_rate_mmh": 0.0,
+    "radar_frames_count": 5,
+    "provider_source": "fallback_dry"
+  },
+  "available_scenarios": [
+    "moderate",
+    "heavy",
+    "extreme",
+    "cloudburst",
+    "live",
+    "historical"
+  ],
+  "nearest_historical_benchmark": "Kolkata Overnight Cloudburst",
+  "compiled_at_utc": "2026-09-18 09:49:50 UTC"
+}

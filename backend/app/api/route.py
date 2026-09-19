@@ -9,11 +9,14 @@ flood ponding scenarios.
 
 from __future__ import annotations
 
+import json
+from pathlib import Path
 from typing import Any, Dict, List, Optional
 from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, Field
 import numpy as np
 
+from backend.app.config import DATA_DIR
 from backend.app.models.routing import RoutingEngine, VEHICLE_THRESHOLDS
 from backend.app.models.location import (
     CITY_CONFIGS,
@@ -39,17 +42,26 @@ router = APIRouter(prefix="/api/route", tags=["Flood-Resilient Routing"])
 def _get_depth_grid_for_city(city: str, time_horizon_min: int) -> 'np.ndarray | None':
     """
     Returns the correct depth grid for the given city and forecast horizon.
-    Prevents cross-city contamination by keeping Mumbai and Kolkata grids separate.
+    Prevents cross-city contamination by keeping Mumbai, Kolkata, and corridors separate.
     """
     try:
-        if city == "kolkata":
+        c = (city or "mumbai").lower().strip()
+        if c == "kolkata":
             k_engine, k_grids = get_kolkata_forecast()
             if k_grids and time_horizon_min in k_grids:
                 return k_grids[time_horizon_min]
-            # Fallback: find closest available horizon
             if k_grids:
                 closest = min(k_grids.keys(), key=lambda h: abs(h - time_horizon_min))
                 return k_grids[closest]
+            return None
+        elif (DATA_DIR / "cities" / c).exists():
+            from backend.app.api.flood import get_corridor_forecast
+            _, c_grids = get_corridor_forecast(c)
+            if c_grids and time_horizon_min in c_grids:
+                return c_grids[time_horizon_min]
+            if c_grids:
+                closest = min(c_grids.keys(), key=lambda h: abs(h - time_horizon_min))
+                return c_grids[closest]
             return None
         else:
             # Mumbai uses the singleton FloodEngine
@@ -95,6 +107,10 @@ class RouteRequest(BaseModel):
     traffic_mode: str = Field(
         "peak_monsoon",
         description="Traffic condition mode: 'peak_monsoon' (simulates prolonged busy rush hour bottlenecks) or 'live' (TomTom real-time)."
+    )
+    city: Optional[str] = Field(
+        None,
+        description="City or corridor context ('mumbai', 'kolkata', or 'corridor_<hash>')."
     )
 
 
@@ -213,6 +229,84 @@ def get_destinations_catalog(city: Optional[str] = Query("mumbai")):
             ],
             "total_destinations": len(KOLKATA_DESTINATIONS_CATALOG),
         }
+    elif (DATA_DIR / "cities" / c).exists():
+        dem_meta_p = DATA_DIR / "cities" / c / "dem" / "dem_metadata.json"
+        road_graph_p = DATA_DIR / "cities" / c / "roads" / "road_graph.json"
+
+        city_title = c
+        raw_bbox = [0.0, 0.0, 0.0, 0.0]
+        if dem_meta_p.exists():
+            try:
+                with open(dem_meta_p, "r", encoding="utf-8") as f:
+                    dm = json.load(f)
+                    city_title = dm.get("city", c).replace(" (Geocoded)", "")
+                    raw_bbox = dm.get("bbox", raw_bbox)
+            except Exception:
+                pass
+
+        dest_list = []
+        if road_graph_p.exists():
+            try:
+                with open(road_graph_p, "r", encoding="utf-8") as f:
+                    rg = json.load(f)
+                    node_items = list(rg.get("nodes", {}).items())
+                    if node_items:
+                        # Pick first node as Origin Terminus
+                        n0_id, n0 = node_items[0]
+                        orig_name = city_title.split("->")[0].strip() if "->" in city_title else f"{city_title} (Origin)"
+                        dest_list.append({
+                            "id": "corridor-origin",
+                            "name": f"Origin: {orig_name}",
+                            "category": "Corridor Origin Terminus",
+                            "lat": n0["coordinates"][1],
+                            "lon": n0["coordinates"][0],
+                            "elevation_m": n0.get("elevation_m", 5.0),
+                            "description": f"Initial entry terminal of the {city_title} corridor.",
+                            "recommended_as_destination": True,
+                        })
+                        # Pick last node as Destination Terminus
+                        nl_id, nl = node_items[-1]
+                        dst_name = city_title.split("->")[-1].strip() if "->" in city_title else f"{city_title} (Destination)"
+                        dest_list.append({
+                            "id": "corridor-destination",
+                            "name": f"Destination: {dst_name}",
+                            "category": "Corridor Destination Terminus",
+                            "lat": nl["coordinates"][1],
+                            "lon": nl["coordinates"][0],
+                            "elevation_m": nl.get("elevation_m", 5.0),
+                            "description": f"Target exit terminal of the {city_title} corridor.",
+                            "recommended_as_destination": True,
+                        })
+                        # Pick middle nodes if available
+                        if len(node_items) > 2:
+                            mid_idx = len(node_items) // 2
+                            nmid_id, nmid = node_items[mid_idx]
+                            dest_list.append({
+                                "id": f"corridor-mid-{mid_idx}",
+                                "name": f"Waypoint: Mid-Corridor Hub ({nmid_id})",
+                                "category": "Intermediate Junction",
+                                "lat": nmid["coordinates"][1],
+                                "lon": nmid["coordinates"][0],
+                                "elevation_m": nmid.get("elevation_m", 5.0),
+                                "description": f"Central junction waypoint along {city_title}.",
+                                "recommended_as_destination": False,
+                            })
+            except Exception:
+                pass
+
+        return {
+            "city": city_title,
+            "pilot_basin": f"Dynamic Corridor ({city_title})",
+            "bounds": {
+                "min_lat": raw_bbox[0],
+                "max_lat": raw_bbox[1],
+                "min_lon": raw_bbox[2],
+                "max_lon": raw_bbox[3],
+            },
+            "destinations": dest_list,
+            "entry_gateways": [],
+            "total_destinations": len(dest_list),
+        }
 
     return {
         "city": "Mumbai",
@@ -255,7 +349,10 @@ def calculate_flood_route(req: RouteRequest):
     Dynamically routes around submerged or flooded streets based on vehicle wading limits
     and active simulation depth grid at the specified time horizon.
     """
-    city = "kolkata" if (req.src_lat > 21.0 or req.dst_lat > 21.0) else "mumbai"
+    if req.city:
+        city = req.city.lower().strip()
+    else:
+        city = "kolkata" if (req.src_lat > 21.0 or req.dst_lat > 21.0) else "mumbai"
     engine = get_routing_engine(city)
     vtype = req.vehicle_type.lower()
     if vtype not in VEHICLE_THRESHOLDS:
@@ -495,10 +592,32 @@ class UnifiedCorridorRouteRequest(BaseModel):
     horizon_minutes: int = Field(60, ge=10, le=180, description="Forecast horizon in minutes")
 
 
+class BuildCorridorRequest(BaseModel):
+    src: Optional[str] = Field(None, description="Origin landmark or lat,lon e.g. 'T. Nagar, Chennai' or '13.0418, 80.2341'")
+    dst: Optional[str] = Field(None, description="Destination landmark or lat,lon e.g. 'Nungambakkam, Chennai' or '13.0600, 80.2400'")
+    origin: Optional[str] = Field(None, description="Alias for src")
+    destination: Optional[str] = Field(None, description="Alias for dst")
+    scenario: str = Field("heavy", description="moderate, heavy, extreme, cloudburst, live")
+    use_live_radar: bool = Field(False, description="Whether to query live RainViewer/Open-Meteo Doppler radar")
+    date_str: Optional[str] = Field(None, description="Optional YYYY-MM-DD for historical reanalysis")
+
+    def get_src(self) -> str:
+        s = self.src or self.origin
+        if not s:
+            raise ValueError("Origin (src) is required")
+        return s.strip()
+
+    def get_dst(self) -> str:
+        d = self.dst or self.destination
+        if not d:
+            raise ValueError("Destination (dst) is required")
+        return d.strip()
+
+
 @router.get("/cities")
 def get_available_cities():
     """
-    Returns available operational cities and their landmarks.
+    Returns available operational cities and their landmarks, including dynamically built corridors.
     Used by frontend dropdowns to switch active city views or select landmarks.
     """
     cities = []
@@ -511,8 +630,112 @@ def get_available_cities():
             "default_anchor_name": cfg["default_anchor_name"],
             "landmarks": list(cfg["landmarks"].keys())[:15],
             "landmarks_count": len(cfg["landmarks"]),
+            "is_corridor": False,
         })
+
+    # Scan dynamic corridors in backend/data/cities
+    cities_dir = DATA_DIR / "cities"
+    if cities_dir.exists():
+        for d in sorted(cities_dir.iterdir()):
+            if d.is_dir() and d.name.startswith("corridor_"):
+                dem_meta_path = d / "dem" / "dem_metadata.json"
+                rain_meta_path = d / "rainfall" / "rainfall_metadata.json"
+                if dem_meta_path.exists():
+                    try:
+                        with open(dem_meta_path, "r", encoding="utf-8") as f:
+                            dmeta = json.load(f)
+                        raw_bbox = dmeta.get("bbox", [0.0, 0.0, 0.0, 0.0])
+                        corridor_title = dmeta.get("city", d.name)
+                        # Clean up formatting for display
+                        clean_title = corridor_title.replace(" (Geocoded)", "")
+
+                        rain_info = {}
+                        if rain_meta_path.exists():
+                            try:
+                                with open(rain_meta_path, "r", encoding="utf-8") as rf:
+                                    rain_info = json.load(rf)
+                            except Exception:
+                                pass
+
+                        landmarks = [clean_title]
+                        if "->" in clean_title:
+                            landmarks = [p.strip() for p in clean_title.split("->")]
+
+                        cities.append({
+                            "id": d.name,
+                            "name": f"Corridor: {clean_title}",
+                            "bbox": {
+                                "min_lat": raw_bbox[0],
+                                "max_lat": raw_bbox[1],
+                                "min_lon": raw_bbox[2],
+                                "max_lon": raw_bbox[3],
+                            },
+                            "grid": {
+                                "rows": dmeta.get("rows", 200),
+                                "cols": dmeta.get("cols", 200),
+                                "cell_size_m": dmeta.get("cell_size_m", 25.0),
+                            },
+                            "default_anchor_name": clean_title,
+                            "landmarks": landmarks,
+                            "landmarks_count": len(landmarks),
+                            "is_corridor": True,
+                            "rainfall_info": rain_info,
+                        })
+                    except Exception:
+                        pass
+
     return {"cities": cities, "total": len(cities)}
+
+
+@router.post("/corridor/build")
+def build_new_corridor(req: BuildCorridorRequest):
+    """
+    Builds on-the-fly DEM, road network, drainage network, and rainfall nowcasting assets
+    for ANY arbitrary corridor in India, and executes the coupled simulation.
+    """
+    import importlib
+    import build_any_corridor_assets
+    try:
+        importlib.reload(build_any_corridor_assets)
+    except Exception:
+        pass
+    from build_any_corridor_assets import build_corridor
+    try:
+        result = build_corridor(
+            origin=req.get_src(),
+            destination=req.get_dst(),
+            scenario=req.scenario,
+            live_rainfall=req.use_live_radar,
+            rainfall_date=req.date_str,
+            run_pipeline=True,
+        )
+        corridor_id = f"corridor_{result['corridor_hash']}"
+        bbox = result.get("bbox") or [0.0, 0.0, 0.0, 0.0]
+        grid = result.get("grid") or [200, 200, 25.0]
+        if isinstance(grid, tuple):
+            grid = list(grid)
+        return {
+            "status": "success",
+            "corridor_id": corridor_id,
+            "corridor_hash": result["corridor_hash"],
+            "bbox": {
+                "min_lat": bbox[0],
+                "max_lat": bbox[1],
+                "min_lon": bbox[2],
+                "max_lon": bbox[3],
+            },
+            "bounds": [[bbox[0], bbox[2]], [bbox[1], bbox[3]]],
+            "grid": grid,
+            "road_nodes": result.get("road_nodes", 0),
+            "road_edges": result.get("road_edges", 0),
+            "drainage_nodes": result.get("drainage_nodes", 0),
+            "drainage_edges": result.get("drainage_edges", 0),
+            "rainfall_meta": result.get("rainfall_meta", {}),
+        }
+    except Exception as exc:
+        import traceback
+        traceback.print_exc()
+        raise HTTPException(status_code=500, detail=f"Failed to build corridor: {str(exc)}")
 
 
 @router.post("/corridor")
